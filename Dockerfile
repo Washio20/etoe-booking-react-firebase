@@ -1,43 +1,31 @@
 # Build stage
-FROM node:20-alpine AS builder
+FROM node:21-alpine AS builder
 
 WORKDIR /app
 
-# Install dependencies for font loading
-RUN apk add --no-cache ca-certificates
-
-# Copy package files
-COPY package*.json ./
+# Copy source code
+COPY . .
 
 # Install dependencies
-RUN npm ci
-
-# Copy source code and env file
-COPY . .
-COPY .env .env
+RUN npm install
 
 # Build the application
 RUN npm run build
 
 # Production stage
-FROM node:20-alpine AS runner
+FROM node:21-alpine AS runner
 
 WORKDIR /app
 
-# Set environment to production
-ENV NODE_ENV=production
-
-# Install dependencies for font loading
-RUN apk add --no-cache ca-certificates
-
 # Copy necessary files from builder
+COPY --from=builder /app/next.config.js ./
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/.env .env
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
 
-# Expose the port the app runs on
+# Expose port
 EXPOSE 3000
 
 # Start the application
-CMD ["node", "server.js"] 
+CMD ["npm", "start"]
