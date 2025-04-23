@@ -14,7 +14,15 @@ const config: Config = {
           "conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))",
       },
       fontFamily: {
-        "zen-kaku-gothic": ["var(--font-zen-kaku-gothic)"],
+        "zen-kaku-gothic": [
+          "-apple-system", 
+          "BlinkMacSystemFont", 
+          "Segoe UI", 
+          "Hiragino Sans", 
+          "Hiragino Kaku Gothic ProN", 
+          "Meiryo", 
+          "sans-serif"
+        ],
       },
       colors: {
         gray: {

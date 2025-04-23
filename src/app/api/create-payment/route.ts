@@ -4,14 +4,13 @@ import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { initAdmin } from "@/utils/firebase-admin";
 import { NextRequest } from "next/server";
+import { getStripe } from "@/utils/stripe";
 
 // 确保Firebase Admin已初始化
 initAdmin();
 
 // 初始化Stripe客户端
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2025-03-31.basil",
-});
+const stripe = getStripe();
 
 // 纯sauna房间类型列表
 const PURE_SAUNA_ROOM_TYPES = ["tototo", "fuuu", "zabuun", "toron"];
@@ -32,8 +31,18 @@ export const dynamic = "force-dynamic";
 // 设置时区为日本时区
 process.env.TZ = "Asia/Tokyo";
 
+// 处理创建支付会话的请求
 export async function POST(req: Request) {
   try {
+    // 检查Stripe是否初始化
+    if (!stripe) {
+      console.error("Stripe not initialized");
+      return NextResponse.json(
+        { error: "支払いシステムの設定エラー" },
+        { status: 500 }
+      );
+    }
+    
     // 获取授权头部
     const authHeader = req.headers.get("authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {

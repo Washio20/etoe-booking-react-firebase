@@ -1,14 +1,9 @@
 import type { Metadata } from "next";
-import { Zen_Kaku_Gothic_New } from "next/font/google";
 import "./globals.css";
 import AuthWrapper from "@/components/AuthWrapper";
 
-const zenKakuGothicNew = Zen_Kaku_Gothic_New({
-  weight: ["400", "500", "700", "900"],
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-zen-kaku-gothic",
-});
+// 定义CSS变量供全局使用
+const fontFallback = 'var(--font-zen-kaku-gothic, "Helvetica Neue", Arial, sans-serif)';
 
 export const metadata: Metadata = {
   title: "etoe hotel booking",
@@ -21,10 +16,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ja" className={zenKakuGothicNew.variable}>
+    <html lang="ja">
+      <head>
+        <style dangerouslySetInnerHTML={{ __html: `
+          :root {
+            --font-zen-kaku-gothic: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+          }
+        `}} />
+      </head>
       <body
-        className={`${zenKakuGothicNew.className} antialiased`}
+        className="antialiased"
         suppressHydrationWarning
+        style={{ fontFamily: fontFallback }}
       >
         <AuthWrapper>{children}</AuthWrapper>
       </body>

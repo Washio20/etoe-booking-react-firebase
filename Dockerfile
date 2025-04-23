@@ -1,46 +1,71 @@
-FROM debian:bookworm-slim AS builder
-ENV DEBIAN_FRONTEND=noninteractive
+FROM node:20-alpine AS base
 
-ARG NODE_VERSION=22.0.0
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends ca-certificates curl xz-utils && \
-    # Detect architecture and choose correct Node binary
-    ARCH="$(dpkg --print-architecture)"; \
-    if [ "$ARCH" = "arm64" ]; then \
-      NODE_DIST="linux-arm64"; \
-    elif [ "$ARCH" = "amd64" ]; then \
-      NODE_DIST="linux-x64"; \
-    else \
-      echo "Unsupported architecture: $ARCH" && exit 1; \
-    fi && \
-    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-${NODE_DIST}.tar.xz" \
-      -o /tmp/node.tar.xz && \
-    tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 --no-same-owner && \
-    rm -rf /tmp/node.tar.xz && \
-    ln -s /usr/local/bin/node /usr/local/bin/nodejs && \
-    apt-get purge -y curl xz-utils && \
-    apt-get autoremove -y && \
-    rm -rf /var/lib/apt/lists/*
-
+# 构建阶段
+FROM base AS builder
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci                 # install all deps incl. dev
-COPY .env.example ./.env.local
+
+# 复制package.json文件
+COPY package.json package-lock.json ./
+
+# 安装项目依赖
+RUN npm ci
+
+# 复制应用源码
 COPY . .
+
+# 添加构建时环境变量 (仅客户端环境变量)
+ARG NEXT_PUBLIC_FIREBASE_API_KEY
+ARG NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+ARG NEXT_PUBLIC_FIREBASE_PROJECT_ID
+ARG NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+ARG NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+ARG NEXT_PUBLIC_FIREBASE_APP_ID
+ARG NEXT_PUBLIC_BASE_URL
+ARG NEXT_PUBLIC_USE_CONTACT_API
+
+# 配置环境变量
+ENV NEXT_PUBLIC_FIREBASE_API_KEY=$NEXT_PUBLIC_FIREBASE_API_KEY
+ENV NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=$NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+ENV NEXT_PUBLIC_FIREBASE_PROJECT_ID=$NEXT_PUBLIC_FIREBASE_PROJECT_ID
+ENV NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=$NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+ENV NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=$NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+ENV NEXT_PUBLIC_FIREBASE_APP_ID=$NEXT_PUBLIC_FIREBASE_APP_ID
+ENV NEXT_PUBLIC_BASE_URL=$NEXT_PUBLIC_BASE_URL
+ENV NEXT_PUBLIC_USE_CONTACT_API=$NEXT_PUBLIC_USE_CONTACT_API
+
+# 添加阻止字体下载的环境变量
+ENV CI="true"
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_FONT_GOOGLE_CACHE_TIMESTAMP=1
+
+# 构建应用
 RUN npm run build
 
-RUN npm prune --production
-
-FROM debian:bookworm-slim AS runner
+# 生产环境
+FROM base AS runner
 WORKDIR /app
 
-COPY --from=builder /usr/local /usr/local
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/node_modules ./node_modules
-ENV PATH=$PATH:/usr/local/bin
+# 环境设置为生产环境
+ENV NODE_ENV=production
 
-EXPOSE 3000
-CMD ["npm", "start"]
+# 创建非root用户
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+# 复制构建产物
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+
+# 切换用户
+USER nextjs
+
+# 暴露端口
+EXPOSE 8080
+
+# 设置环境变量
+ENV PORT=8080
+ENV HOSTNAME=0.0.0.0
+
+# 启动应用
+CMD ["node", "server.js"] 
