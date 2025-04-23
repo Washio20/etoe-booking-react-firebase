@@ -4,17 +4,16 @@ import { getFirestore } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import * as admin from "firebase-admin";
 import Stripe from "stripe";
+import { getStripe } from "@/utils/stripe";
 
 // 设置日本时区
 process.env.TZ = "Asia/Tokyo";
 
 // 确保Firebase Admin已初始化
-initAdmin();
+const app = initAdmin();
 
 // 初始化Stripe客户端
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2025-03-31.basil",
-});
+const stripe = getStripe();
 
 // 用户取消自己的预约
 export async function POST(
@@ -175,7 +174,7 @@ export async function POST(
     let refundId = null;
     let refundAmount = 0;
 
-    if (paymentId) {
+    if (paymentId && stripe) {
       try {
         // 获取支付信息
         const session = await stripe.checkout.sessions.retrieve(paymentId);

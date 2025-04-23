@@ -1,14 +1,20 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
+import { getStripe } from "@/utils/stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2025-03-31.basil",
-});
+// 条件初始化Stripe
+const stripe = getStripe();
 
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 export async function POST(req: Request) {
+  // 检查Stripe是否初始化
+  if (!stripe) {
+    console.error("Stripe not initialized");
+    return new Response("Configuration error", { status: 500 });
+  }
+
   const body = await req.text();
   const sig = headers().get("stripe-signature");
 
