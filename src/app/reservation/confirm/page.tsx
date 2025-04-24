@@ -87,7 +87,6 @@ export default function ReservationConfirm() {
     if (storedInfo) {
       try {
         const parsedInfo = JSON.parse(storedInfo);
-        console.log("Retrieved reservation info:", parsedInfo);
 
         // 设置预约信息
         if (parsedInfo) {
@@ -155,14 +154,6 @@ export default function ReservationConfirm() {
               totalPrice = roomPrice;
             }
           }
-
-          console.log("价格计算:", {
-            roomType: parsedInfo.selectedRoomType,
-            roomPrice,
-            slowRoomPrice,
-            totalPrice,
-            needSlowRoom: parsedInfo.needSlowRoom,
-          });
 
           // 设置显示的预约信息
           setReservation({
@@ -428,19 +419,13 @@ export default function ReservationConfirm() {
 
     try {
       setCheckingVerification(true);
-      console.log("Checking email verification status...");
 
       // 使用Firebase检查邮箱验证状态
       const { checkEmailVerification } = await import("@/utils/auth");
       const isVerified = await checkEmailVerification();
 
-      console.log("Email verification status:", isVerified);
-
       if (isVerified && user.emailVerified === false) {
         // 如果邮箱已验证但用户状态未更新，刷新用户
-        console.log(
-          "Email verified, but user state not updated. Refreshing..."
-        );
         await auth.currentUser?.reload();
         // 刷新页面获取最新状态
         window.location.reload();

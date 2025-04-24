@@ -131,7 +131,6 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
 
       try {
         setIsLoadingTimeSlots(true);
-        console.log(`正在获取日期 ${dateStr} 的时间槽可用性数据`);
 
         const response = await fetch(
           `/api/slow-room-availability-day?date=${dateStr}&isSetPlan=true`
@@ -142,7 +141,6 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
         }
 
         const data = await response.json();
-        console.log("API返回的时间槽数据:", data);
 
         // 确保响应数据有效
         if (!data.timeSlots || !Array.isArray(data.timeSlots)) {
@@ -160,7 +158,6 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
           }
         );
 
-        console.log("处理后的时间槽数据:", processedSlots);
         setTimeSlotAvailability(processedSlots);
       } catch (error) {
         console.error("获取时间段可用性失败:", error);
@@ -192,7 +189,6 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
         const data = await response.json();
         if (data.rooms && data.rooms.length > 0) {
           setSlowRoomSettings(data.rooms[0]);
-          console.log("获取到的Slow Room设置:", data.rooms[0]);
         }
       } catch (error) {
         console.error("获取Slow Room设置失败:", error);
@@ -311,7 +307,6 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
             basePrice = weekdayNightPrice ? weekdayNightPrice.price : 7900; // 默认7900
           }
         }
-        console.log("使用数据库中的价格:", basePrice);
       } else {
         // 如果没有获取到设置，使用默认价格
         if (isHolidayOrWeekend) {
@@ -327,7 +322,6 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
             basePrice = 7900;
           }
         }
-        console.log("使用默认价格:", basePrice);
       }
 
       // 获取每小时额外费用，默认为1500
@@ -410,7 +404,6 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
         }
 
         const data = await response.json();
-        console.log("可用性API返回数据:", data);
 
         if (!data.isAvailable) {
           setIsSlowRoomAvailable(false);

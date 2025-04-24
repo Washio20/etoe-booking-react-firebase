@@ -91,7 +91,7 @@ const TimelineSlot: React.FC<TimelineSlotProps> = ({
         </div>
       )}
 
-      {isAvailable &&
+      {/* {isAvailable &&
         availableCount !== undefined &&
         maxReservations !== undefined && (
           <div className="absolute bottom-0 right-0 px-0.5 py-0">
@@ -99,7 +99,7 @@ const TimelineSlot: React.FC<TimelineSlotProps> = ({
               {availableCount}/{maxReservations}
             </span>
           </div>
-        )}
+        )} */}
     </button>
   );
 };
@@ -290,7 +290,7 @@ const TimeRangeSelector: React.FC<TimeRangeSelectorProps> = ({
           {(endHour === null || startHour === null) && (
             <span className="text-xs text-amber-600">
               {startHour === null
-                ? "※まず開始時間を選択してください"
+                ? ""
                 : "※終了時間を選択してください"}
             </span>
           )}
@@ -672,7 +672,6 @@ export default function ImprovedPureSlowRoomSelection({
 
     try {
       setIsLoadingTimeSlots(true);
-      console.log(`正在获取日期 ${dateStr} 的时间槽可用性数据`);
 
       // 调用API获取时间槽可用性
       const response = await fetch(
@@ -684,7 +683,6 @@ export default function ImprovedPureSlowRoomSelection({
       }
 
       const data = await response.json();
-      console.log("API返回的时间槽数据:", data);
 
       // 确保响应数据有效
       if (!data.timeSlots || !Array.isArray(data.timeSlots)) {
@@ -732,7 +730,6 @@ export default function ImprovedPureSlowRoomSelection({
         }
       );
 
-      console.log("处理后的时间槽数据:", processedSlots);
       setTimeSlotAvailability(processedSlots);
     } catch (error) {
       console.error("获取时间段可用性失败:", error);
@@ -846,7 +843,6 @@ export default function ImprovedPureSlowRoomSelection({
         const data = await response.json();
         if (data.rooms && data.rooms.length > 0) {
           setSlowRoomSettings(data.rooms[0]);
-          console.log("获取到的Slow Room设置:", data.rooms[0]);
         }
       } catch (error) {
         console.error("获取Slow Room设置失败:", error);
@@ -923,7 +919,6 @@ export default function ImprovedPureSlowRoomSelection({
             basePrice = weekdayNightPrice ? weekdayNightPrice.price : 7900; // 默认7900
           }
         }
-        console.log("使用数据库中的价格:", basePrice);
       } else {
         // 如果没有获取到设置，使用默认价格
         if (isHolidayOrWeekend) {
@@ -939,7 +934,6 @@ export default function ImprovedPureSlowRoomSelection({
             basePrice = 7900;
           }
         }
-        console.log("使用默认价格:", basePrice);
       }
 
       // 计算总价：基础价格 + 额外小时费用
@@ -1038,10 +1032,6 @@ export default function ImprovedPureSlowRoomSelection({
 
     // 重置价格
     setSelectedPrice({ price: 0, hours: 0 });
-
-    console.log(
-      `选择的日期: ${date.toDateString()}, 格式化后的日期字符串: ${formattedDate}`
-    );
   };
 
   // 处理开始时间变化

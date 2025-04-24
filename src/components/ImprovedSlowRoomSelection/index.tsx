@@ -63,7 +63,7 @@ const TimelineSlot = ({
         </div>
       )}
 
-      {isAvailable &&
+      {/* {isAvailable &&
         availableCount !== undefined &&
         maxReservations !== undefined && (
           <div className="absolute bottom-0 right-0 px-0.5 py-0">
@@ -71,7 +71,7 @@ const TimelineSlot = ({
               {availableCount}/{maxReservations}
             </span>
           </div>
-        )}
+        )} */}
     </button>
   );
 };
@@ -273,7 +273,7 @@ const TimeRangeSelector = ({
           {(endHour === null || startHour === null) && (
             <span className="text-xs text-amber-600">
               {startHour === null
-                ? "※まず開始時間を選択してください"
+                ? ""
                 : "※終了時間を選択してください"}
             </span>
           )}
@@ -422,7 +422,7 @@ export default function ImprovedSlowRoomSelection({
         <div>
           <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
             <h2 className="text-[16px] md:text-[20px] font-bold text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
-              休憩ルーム（slow room）を選択
+              セットプランを選択
             </h2>
             <span className="inline-block text-xs md:text-sm font-bold text-[#D77777] border-2 border-[#D77777] rounded px-2 py-0.5 whitespace-nowrap font-zen-kaku-gothic w-max">
               お得なセット割 ¥1,000円

@@ -1,13 +1,48 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import AuthWrapper from "@/components/AuthWrapper";
 
 // 定义CSS变量供全局使用
 const fontFallback = 'var(--font-zen-kaku-gothic, "Helvetica Neue", Arial, sans-serif)';
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#ffffff",
+};
+
 export const metadata: Metadata = {
-  title: "etoe hotel booking",
-  description: "Book your stay at Etoe Hotel",
+  title: "Etoe Hotel & Sauna | 高級宿泊とサウナ体験の施設",
+  description: "Etoe Hotelで快適なご宿泊とサウナ体験をお楽しみください。高品質の客室、本格的なサウナ施設、上質なサービスをご提供します。",
+  keywords: "ホテル予約, サウナ, 日本のホテル, 高級宿泊施設, Etoe Hotel, オンライン予約, 温泉, リラクゼーション",
+  authors: [{ name: "Etoe Hotel" }],
+  generator: "Next.js",
+  applicationName: "Etoe Hotel & Sauna Booking",
+  referrer: "origin-when-cross-origin",
+  creator: "Etoe Hotel",
+  publisher: "Etoe Hotel",
+  formatDetection: {
+    email: false,
+    telephone: false,
+    address: false,
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  openGraph: {
+    title: "Etoe Hotel & Sauna | 高級宿泊とサウナ体験の施設",
+    description: "Etoe Hotelで快適なご宿泊とサウナ体験をお楽しみください。高品質の客室、本格的なサウナ施設、上質なサービスをご提供します。",
+    url: "https://book.etoehotel.com",
+    siteName: "Etoe Hotel & Sauna",
+    locale: "ja_JP",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Etoe Hotel & Sauna | 高級宿泊とサウナ体験の施設",
+    description: "Etoe Hotelで快適なご宿泊とサウナ体験をお楽しみください。高品質の客室、本格的なサウナ施設、上質なサービスをご提供します。",
+  },
 };
 
 export default function RootLayout({

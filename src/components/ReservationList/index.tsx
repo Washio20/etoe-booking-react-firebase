@@ -245,12 +245,6 @@ export default function ReservationList() {
   const handleIssueReceipt = () => {
     if (!receiptName.trim()) return;
     // TODO: 实现收据生成逻辑
-    console.log(
-      "Issuing receipt for:",
-      selectedReservation,
-      "Name:",
-      receiptName
-    );
     handleCloseReceiptModal();
   };
 
@@ -325,8 +319,6 @@ export default function ReservationList() {
         // 转换为小时
         const hoursBeforeReservation = timeDifference / (1000 * 60 * 60);
 
-        console.log(`距离预约还有: ${hoursBeforeReservation.toFixed(2)} 小时`);
-
         // 48小时以上可以免费取消
         return hoursBeforeReservation >= 48;
       } catch (error) {
@@ -347,11 +339,9 @@ export default function ReservationList() {
   ) => {
     // 如果可以免费取消，返回0
     if (canCancelForFree(reservation)) {
-      console.log(`取消费计算: 免费取消，费用为0`);
       return 0;
     }
     // 否则收取100%取消费
-    console.log(`取消费计算: 收取100%费用 ${price}円`);
     return price;
   };
 

@@ -11,7 +11,6 @@ export default function LoginRegisterPage() {
 
   // 处理登录
   const handleLogin = () => {
-    console.log("登录: ", { loginId, password });
     // 在实际应用中，这里应该有登录逻辑
 
     // 登录成功后跳转到预约确认页面
@@ -20,7 +19,6 @@ export default function LoginRegisterPage() {
 
   // 处理注册并继续
   const handleRegister = () => {
-    console.log("注册并继续: ", { loginId, password });
     // 在实际应用中，这里应该有注册逻辑
 
     // 注册成功后跳转到预约确认页面

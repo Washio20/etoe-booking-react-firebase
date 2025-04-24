@@ -116,9 +116,6 @@ export default function CardGenerator() {
       const formattedStartTime = `${startDate}T${startTime}:00.000${japanOffset}`;
       const formattedEndTime = `${endDate}T${endTime}:00.000${japanOffset}`;
 
-      console.log("发送的开始时间:", formattedStartTime);
-      console.log("发送的结束时间:", formattedEndTime);
-
       // 创建随机预约ID
       const reservationId = `${Date.now()}`;
 

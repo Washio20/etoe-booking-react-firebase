@@ -96,9 +96,6 @@ function CardViewContent() {
       }
 
       try {
-        console.log(
-          `Fetching data for reservationId: ${reservationId}, cardId: ${cardId}`
-        );
         setDebugInfo(
           `Params: reservationId=${reservationId}, cardId=${cardId}, token=${secureToken}`
         );
@@ -109,12 +106,9 @@ function CardViewContent() {
             secureToken ? `&token=${secureToken}` : ""
           }`;
 
-          console.log("Making API request to:", apiUrl);
           const response = await fetch(apiUrl);
-          console.log("API response status:", response.status);
 
           const data = await response.json();
-          console.log("API response data:", data);
 
           setDebugInfo(
             (prev) => `${prev}\nAPI Response: ${JSON.stringify(data)}`
@@ -135,7 +129,6 @@ function CardViewContent() {
 
           // 设置卡片和预约数据
           if (data.card) {
-            console.log("Setting card data:", data.card);
             const cardData = data.card as RoomCard;
             setCard(cardData);
             checkCardValidity(cardData);
@@ -145,7 +138,6 @@ function CardViewContent() {
           }
 
           if (data.reservation) {
-            console.log("Setting reservation data:", data.reservation);
             setReservation(data.reservation as Reservation);
           } else {
             console.warn("No reservation data in response");

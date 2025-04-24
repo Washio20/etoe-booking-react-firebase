@@ -384,7 +384,7 @@ export default function RoomSelection() {
               </div>
               <div className="flex-grow px-2 md:px-3 text-left truncate">
                 <span className="font-zen-kaku-gothic text-[13px] md:text-base font-bold tracking-[0.06em] text-[#444444]">
-                  {room.roomType}
+                  {room.roomType.replace(/_/g, ' ')}
                 </span>
               </div>
               <div

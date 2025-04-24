@@ -131,7 +131,6 @@ function ReservationCompleteContent() {
         localStorage.getItem("verifiedPayments") || "{}"
       );
       if (verifiedPayments[sessionId]) {
-        console.log("支払いは既に確認済みです。ローカルデータを使用します。");
         setReservationId(verifiedPayments[sessionId].reservationId);
         setIsVerifying(false);
         return;
@@ -229,9 +228,6 @@ function ReservationCompleteContent() {
             // 如果验证失败但还可以重试
             retryCount++;
             if (retryCount < maxRetries) {
-              console.log(
-                `支払い確認を再試行中... (${retryCount}/${maxRetries})`
-              );
               await new Promise((resolve) =>
                 setTimeout(resolve, retryInterval)
               );
@@ -320,7 +316,6 @@ function ReservationCompleteContent() {
         }
 
         const data = await response.json();
-        console.log("获取房间卡信息:", data);
         if (data.cards && Array.isArray(data.cards)) {
           setRoomCards(data.cards);
         }
