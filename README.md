@@ -6,17 +6,20 @@ ETOE 酒店预约系统是一个基于 Next.js 的 Web 应用，用于管理酒�
 
 **dev** - 
 開發分支，禁止刪除
+
 [https://dev-etoe-booking-site-9tifb.ondigitalocean.app](https://dev-etoe-booking-site-9tifb.ondigitalocean.app/)
 
 
 **staging** - 
 release前預覽分支，禁止刪除，在代碼合併到main分支前，請合併代碼到這個分支預覽效果
+
 [https://etoehotel-book-site-staging-jp4or.ondigitalocean.app](https://etoehotel-book-site-staging-jp4or.ondigitalocean.app/)
 
 
 **main** - 
 release分支，應只存放經過測試到最穩定代碼
-https://book.etoehotel.com/
+
+[https://book.etoehotel.com/](https://book.etoehotel.com/)
 
 ## 功能特点
 
