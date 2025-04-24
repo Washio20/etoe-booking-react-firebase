@@ -318,7 +318,7 @@ function CardViewContent() {
     <div className="min-h-screen bg-[#FAF9F7] py-12 px-4 sm:px-6">
       <div className="max-w-lg mx-auto bg-white rounded-xl shadow-md overflow-hidden">
         <div className="bg-[#8A7A6A] text-white px-6 py-4">
-          <h1 className="text-xl font-bold font-zen-kaku-gothic">ETOE HOTEL</h1>
+          <h1 className="text-xl font-bold font-zen-kaku-gothic">etoe hotel</h1>
           <p className="text-sm opacity-80 font-zen-kaku-gothic">入室カード</p>
         </div>
 

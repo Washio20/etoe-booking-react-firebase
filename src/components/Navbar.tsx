@@ -77,7 +77,7 @@ const Navbar = () => {
             <Link href="/">
               <Image
                 src="/images/logo.svg"
-                alt="ETOE HOTEL"
+                alt="etoe hotel"
                 width={120}
                 height={40}
                 priority
@@ -184,7 +184,7 @@ const Navbar = () => {
             <Link href="/" onClick={() => setMobileMenuOpen(false)}>
               <Image
                 src="/images/logo.svg"
-                alt="ETOE HOTEL"
+                alt="etoe hotel"
                 width={120}
                 height={40}
                 priority

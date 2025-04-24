@@ -55,8 +55,8 @@ const oAuth2Client = new google.auth.OAuth2(
 
 // 配置邮件发送
 const EMAIL_FROM = process.env.EMAIL_FROM 
-  ? (process.env.EMAIL_FROM.includes('<') ? process.env.EMAIL_FROM : `ETOE HOTEL <${process.env.EMAIL_FROM}>`)
-  : "ETOE HOTEL <no-reply@etoehotel.com>";
+  ? (process.env.EMAIL_FROM.includes('<') ? process.env.EMAIL_FROM : `etoe hotel <${process.env.EMAIL_FROM}>`)
+  : "etoe hotel <no-reply@etoehotel.com>";
 
 // 使用测试模式（不发送实际邮件）
 const USE_TEST_MODE = false;
@@ -77,7 +77,7 @@ async function sendReservationConfirmationEmail(
     const gmail = google.gmail({ version: "v1", auth: oAuth2Client });
 
     // 邮件主题
-    const subject = "【ETOE HOTEL】ご予約ありがとうございます";
+    const subject = "【etoe hotel】ご予約ありがとうございます";
     
     // 手动使用RFC2047标准编码邮件标题
     const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString("base64")}?=`;
@@ -97,7 +97,7 @@ ${subject}
 
 ${userName} 様
 
-ETOE HOTELをご予約いただき、誠にありがとうございます。
+etoe hotelをご予約いただき、誠にありがとうございます。
 以下の予約内容で承りました。
 
 === ご予約内容 ===
@@ -126,8 +126,7 @@ ${reservationDetailsUrl}
 その他ご不明な点がございましたら、お気軽にお問い合わせください。
 お客様のご来館を心よりお待ちしております。
 
-ETOE HOTEL
-TEL: 000-0000-0000
+etoe hotel
 Email: info@etoehotel.com
 `;
 

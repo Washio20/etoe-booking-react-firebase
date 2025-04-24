@@ -11,7 +11,7 @@ const Footer = () => {
         <div className="flex justify-between items-start">
           <div className="space-y-4">
             {/* <h3 className="text-xl tracking-[0.1em] font-medium text-[#444444] font-['Avenir_Next']">
-              ETOE HOTEL
+              etoe hotel
             </h3> */}
             <div className="flex items-center space-x-3">
               <Image
@@ -63,7 +63,7 @@ const Footer = () => {
         <div className="flex flex-col items-center space-y-8">
           <div className="flex flex-col items-center space-y-4 max-w-[253px]">
             {/* <h3 className="text-[14px] tracking-[0.1em] font-medium text-[#444444] font-['Avenir_Next'] text-center">
-              ETOE HOTEL
+              etoe hotel
             </h3> */}
             <div className="flex items-center space-x-3">
               <Image

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "ETOE HOTEL - カード情報",
+  title: "etoe hotel - カード情報",
   description: "お部屋の入室カード情報を確認できます",
 };
 

@@ -12,15 +12,15 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Etoe Hotel & Sauna | 高級宿泊とサウナ体験の施設",
-  description: "Etoe Hotelで快適なご宿泊とサウナ体験をお楽しみください。高品質の客室、本格的なサウナ施設、上質なサービスをご提供します。",
-  keywords: "ホテル予約, サウナ, 日本のホテル, 高級宿泊施設, Etoe Hotel, オンライン予約, 温泉, リラクゼーション",
-  authors: [{ name: "Etoe Hotel" }],
+  title: "etoe hotel & Sauna | 高級宿泊とサウナ体験の施設",
+  description: "etoe hotelで快適なご宿泊とサウナ体験をお楽しみください。高品質の客室、本格的なサウナ施設、上質なサービスをご提供します。",
+  keywords: "ホテル予約, サウナ, 日本のホテル, 高級宿泊施設, etoe hotel, オンライン予約, 温泉, リラクゼーション",
+  authors: [{ name: "etoe hotel" }],
   generator: "Next.js",
-  applicationName: "Etoe Hotel & Sauna Booking",
+  applicationName: "etoe hotel & Sauna Booking",
   referrer: "origin-when-cross-origin",
-  creator: "Etoe Hotel",
-  publisher: "Etoe Hotel",
+  creator: "etoe hotel",
+  publisher: "etoe hotel",
   formatDetection: {
     email: false,
     telephone: false,
@@ -31,17 +31,17 @@ export const metadata: Metadata = {
     follow: true,
   },
   openGraph: {
-    title: "Etoe Hotel & Sauna | 高級宿泊とサウナ体験の施設",
-    description: "Etoe Hotelで快適なご宿泊とサウナ体験をお楽しみください。高品質の客室、本格的なサウナ施設、上質なサービスをご提供します。",
+    title: "etoe hotel & Sauna | 高級宿泊とサウナ体験の施設",
+    description: "etoe hotelで快適なご宿泊とサウナ体験をお楽しみください。高品質の客室、本格的なサウナ施設、上質なサービスをご提供します。",
     url: "https://book.etoehotel.com",
-    siteName: "Etoe Hotel & Sauna",
+    siteName: "etoe hotel & Sauna",
     locale: "ja_JP",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Etoe Hotel & Sauna | 高級宿泊とサウナ体験の施設",
-    description: "Etoe Hotelで快適なご宿泊とサウナ体験をお楽しみください。高品質の客室、本格的なサウナ施設、上質なサービスをご提供します。",
+    title: "etoe hotel & Sauna | 高級宿泊とサウナ体験の施設",
+    description: "etoe hotelで快適なご宿泊とサウナ体験をお楽しみください。高品質の客室、本格的なサウナ施設、上質なサービスをご提供します。",
   },
 };
 
