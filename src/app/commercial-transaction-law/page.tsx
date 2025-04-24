@@ -30,7 +30,7 @@ export default function CommercialTransactionLawPage() {
 
             <section>
               <h2 className="font-medium">メールアドレス</h2>
-              <p>xxx@nana-hotel.com</p>
+              <p>info@etoehotel.com</p>
             </section>
 
             <section>

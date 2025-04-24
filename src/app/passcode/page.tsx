@@ -418,7 +418,7 @@ export default function PasscodePage() {
                 <div className="p-3 md:p-4 flex justify-between items-center bg-[#CCBBAC]">
                   <Image
                     src="/images/logo.svg"
-                    alt="ETOE HOTEL"
+                    alt="etoe hotel"
                     width={100}
                     height={30}
                     className="h-7 md:h-9 w-auto brightness-0 invert"

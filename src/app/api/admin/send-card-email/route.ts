@@ -21,8 +21,8 @@ const oAuth2Client = new google.auth.OAuth2(
 
 // 配置邮件发送
 const EMAIL_FROM = process.env.EMAIL_FROM 
-  ? (process.env.EMAIL_FROM.includes('<') ? process.env.EMAIL_FROM : `ETOE HOTEL <${process.env.EMAIL_FROM}>`)
-  : "ETOE HOTEL <no-reply@etoehotel.com>";
+  ? (process.env.EMAIL_FROM.includes('<') ? process.env.EMAIL_FROM : `etoe hotel <${process.env.EMAIL_FROM}>`)
+  : "etoe hotel <no-reply@etoehotel.com>";
 
 // 使用测试模式（不发送实际邮件）
 const USE_TEST_MODE = false;
@@ -69,17 +69,19 @@ async function sendEmailWithGmailApi(
     if (slowRoomCardId) {
       slowRoomCardViewUrl = `${baseUrl}/card-view?reservationId=${reservationId}&cardId=${slowRoomCardId}&token=${slowRoomCardToken}`;
     }
+    const fqaUrl = `${baseUrl}/faq`;
 
     // 创建纯文本邮件内容，包含访问网站的链接
     let textContent = `
 ${subject}
 
-ETOE HOTELをご予約いただき、誠にありがとうございます。
-ご予約のお部屋の入室カード情報をお送りいたします。
+etoe sauna & stay｜お部屋カード情報のご案内
+このたびは、etoeをご予約いただき、誠にありがとうございます。
+ご滞在予定のお部屋にご入室いただくためのカード情報をお届けいたします。
+詳細なご予約内容は、会員ページよりご確認いただけます。
 
-=== 入室カード情報 ===
-
-入室用バーコードを確認するには、下記リンクをクリックしてください：
+入室カードのご確認はこちら
+・ご予約のお部屋用バーコード
 ${cardViewUrl}
 
 `;
@@ -87,22 +89,28 @@ ${cardViewUrl}
     // 如果有慢房间卡，也添加链接
     if (slowRoomCardId && slowRoomCardViewUrl) {
       textContent += `
-スロールーム入室用バーコードを確認するには、下記リンクをクリックしてください：
+・スロールーム用バーコード
 ${slowRoomCardViewUrl}
 
 `;
     }
 
     textContent += `
-※ バーコードは予約時間内のみ有効です。
-※ 上記リンクはあなたの予約に固有のものです。他人と共有しないでください。
+※ バーコードはご予約時間内のみ有効です。
+※ 本リンクはお客様専用です。他の方と共有されませんようお願いいたします。
 
-その他ご不明な点がございましたら、お気軽にお問い合わせください。
-お客様のご来館を心よりお待ちしております。
+よくあるご質問
+${fqaUrl}
 
-ETOE HOTEL
-TEL: 000-0000-0000
+最新のキャンペーン情報を公式Instagramにてお届けしています。
+https://www.instagram.com/etoe_tokyo/
+
+etoeでのひとときが、
+こころほどける、やさしい時間となりますように。
+
+etoe hotel
 Email: info@etoehotel.com
+※本メールは送信専用です。ご返信には対応いたしかねますのでご了承ください。
 `;
 
     // 使用纯文本内容
@@ -314,13 +322,13 @@ export async function POST(req: Request) {
     const emailHtml = `
     <div style="font-family: 'メイリオ', 'Meiryo', sans-serif; max-width: 600px; margin: 0 auto;">
       <div style="background-color: #F0EAE4; padding: 20px; text-align: center;">
-        <h1 style="color: #444444; margin: 0;">ETOE HOTEL</h1>
+        <h1 style="color: #444444; margin: 0;">etoe hotel</h1>
       </div>
       
       <div style="padding: 20px; border: 1px solid #ddd; background-color: #fff;">
         <p>${userName} 様</p>
         
-        <p>この度はETOE HOTELをご予約いただき、誠にありがとうございます。</p>
+        <p>この度はetoe hotelをご予約いただき、誠にありがとうございます。</p>
         <p>ご予約のお部屋の入室カード情報をお送りいたします。</p>
         
         <div style="background-color: #f9f9f9; padding: 15px; margin: 20px 0; border-left: 4px solid #444444;">
@@ -375,20 +383,20 @@ export async function POST(req: Request) {
         <p>お客様のご来館を心よりお待ちしております。</p>
         
         <div style="margin-top: 30px;">
-          <p style="margin-bottom: 5px;">ETOE HOTEL</p>
+          <p style="margin-bottom: 5px;">etoe hotel</p>
           <p style="margin-bottom: 5px;">TEL: 000-0000-0000</p>
           <p style="margin-bottom: 5px;">Email: info@etoehotel.com</p>
         </div>
       </div>
       
       <div style="background-color: #444444; color: white; padding: 15px; text-align: center; font-size: 12px;">
-        &copy; 2023 ETOE HOTEL All Rights Reserved.
+        &copy; 2023 etoe hotel All Rights Reserved.
       </div>
     </div>
     `;
 
     // 邮件主题 - 恢复使用原始日文标题
-    const emailSubject = "【ETOE HOTEL】ご予約のお部屋カード情報";
+    const emailSubject = "【etoe hotel】ご予約のお部屋カード情報";
 
     console.log("准备发送邮件到:", userEmail);
 
