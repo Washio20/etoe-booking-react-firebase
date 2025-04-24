@@ -3,19 +3,28 @@ import { initAdmin } from "@/utils/firebase-admin";
 import { getFirestore } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import Stripe from "stripe";
-import { getStripe } from "@/utils/stripe";
 
 // 确保Firebase Admin已初始化
-initAdmin();
-
-// 初始化Stripe客户端
-const stripe = getStripe();
+// 将initAdmin()移到函数内部，避免构建时执行
+// 同样将Stripe初始化也移到函数内部
 
 // 取消预约
 export async function POST(
   request: Request,
   { params }: { params: { id: string } }
 ) {
+  // 初始化Firebase Admin和Stripe
+  try {
+    initAdmin();
+  } catch (error) {
+    console.error("Error initializing Firebase Admin SDK:", error);
+  }
+
+  // 初始化Stripe客户端
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+    apiVersion: "2025-03-31.basil",
+  });
+  
   const reservationId = params.id;
 
   try {
@@ -101,7 +110,7 @@ export async function POST(
     let refundId = null;
     let refundAmount = 0;
 
-    if (paymentId && stripe) {
+    if (paymentId) {
       try {
         // 获取支付信息
         const session = await stripe.checkout.sessions.retrieve(paymentId);

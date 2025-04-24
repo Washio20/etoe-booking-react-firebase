@@ -20,7 +20,9 @@ const oAuth2Client = new google.auth.OAuth2(
 );
 
 // 配置邮件发送
-const EMAIL_FROM = process.env.EMAIL_FROM || "no-reply@etoehotel.com";
+const EMAIL_FROM = process.env.EMAIL_FROM 
+  ? (process.env.EMAIL_FROM.includes('<') ? process.env.EMAIL_FROM : `ETOE HOTEL <${process.env.EMAIL_FROM}>`)
+  : "ETOE HOTEL <no-reply@etoehotel.com>";
 
 // 使用测试模式（不发送实际邮件）
 const USE_TEST_MODE = false;

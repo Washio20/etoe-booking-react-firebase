@@ -77,7 +77,7 @@ const Navbar = () => {
             <Link href="/">
               <Image
                 src="/images/logo.svg"
-                alt="naNA SAUNA AND HOTEL"
+                alt="ETOE HOTEL"
                 width={120}
                 height={40}
                 priority
@@ -92,7 +92,7 @@ const Navbar = () => {
                   <Link
                     key={item.name}
                     href={item.href}
-                    className="inline-flex items-center px-1 pt-1 text-sm font-normal text-[#444444] hover:text-gray-900 font-zen-kaku-gothic"
+                    className="inline-flex items-center px-1 pt-1 text-base font-medium text-[#444444] hover:text-gray-900 font-zen-kaku-gothic"
                   >
                     {item.name}
                   </Link>
@@ -184,7 +184,7 @@ const Navbar = () => {
             <Link href="/" onClick={() => setMobileMenuOpen(false)}>
               <Image
                 src="/images/logo.svg"
-                alt="naNA SAUNA AND HOTEL"
+                alt="ETOE HOTEL"
                 width={120}
                 height={40}
                 priority

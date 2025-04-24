@@ -1,23 +1,18 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
-import { getStripe } from "@/utils/stripe";
-
-// 条件初始化Stripe
-const stripe = getStripe();
-
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 export async function POST(req: Request) {
-  // 检查Stripe是否初始化
-  if (!stripe) {
-    console.error("Stripe not initialized");
-    return new Response("Configuration error", { status: 500 });
-  }
-
   const body = await req.text();
   const sig = headers().get("stripe-signature");
 
+  // 在函数内部初始化 Stripe
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+    apiVersion: "2025-03-31.basil",
+  });
+  
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  
   let event: Stripe.Event;
 
   try {
@@ -69,3 +64,6 @@ export async function POST(req: Request) {
     );
   }
 }
+
+// 设置此API路由为动态路由，不进行静态生成
+export const dynamic = "force-dynamic";

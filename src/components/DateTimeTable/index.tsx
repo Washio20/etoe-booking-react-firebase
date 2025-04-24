@@ -86,7 +86,6 @@ export default function DateTimeTable({
         lastRequestRef.current.key === cacheKey &&
         Date.now() - lastRequestRef.current.time < 300
       ) {
-        console.log("防止重复请求:", cacheKey);
         return;
       }
 
@@ -376,7 +375,7 @@ export default function DateTimeTable({
             {/* 时间段 */}
             {actualTimeSlots.map((slot, rowIndex) => (
               <div key={rowIndex} className="contents">
-                <div className="bg-[#F0EAE4] flex items-center justify-center py-2 md:py-3 text-sm md:text-sm tracking-[0.06em] font-zen-kaku-gothic text-[#444444] border-b border-r border-[#BBBBBB] whitespace-nowrap px-1">
+                <div className="bg-[#F0EAE4] flex items-center justify-center py-2 md:py-3 text-xs md:text-sm tracking-[0.06em] font-zen-kaku-gothic text-[#444444] border-b border-r border-[#BBBBBB] whitespace-nowrap px-1">
                   {slot.time}
                 </div>
                 {slot.availability.map((status, colIndex) => {

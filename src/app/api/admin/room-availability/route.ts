@@ -89,8 +89,6 @@ export async function GET(req: Request) {
       );
     }
 
-    console.log("预约数据:", JSON.stringify(reservation, null, 2));
-
     // 解析预约时间和日期以检查可用性
     const { roomType } = reservation;
 

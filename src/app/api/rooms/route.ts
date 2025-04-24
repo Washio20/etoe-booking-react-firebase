@@ -8,9 +8,10 @@ import {
   Timestamp,
 } from "firebase-admin/firestore";
 import { Room } from "@/types/room";
+import admin from "firebase-admin";
 
 // 确保Firebase Admin已初始化
-const app = initAdmin();
+initAdmin();
 
 // 设置此API路由为动态路由，不进行静态生成
 export const dynamic = "force-dynamic";
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
     const roomId = searchParams.get("id"); // 添加id参数支持
 
     // 获取Firestore实例
-    const db = getFirestore();
+    const db = admin.firestore();
 
     // 如果提供了id参数，获取单个房间信息
     if (roomId) {

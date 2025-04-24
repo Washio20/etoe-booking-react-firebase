@@ -111,7 +111,6 @@ export default function PasscodePage() {
 
       try {
         setCardLoading(true);
-        console.log("Fetching reservation and card data...");
 
         // 获取用户认证令牌
         const idToken = await user.getIdToken();
@@ -123,7 +122,6 @@ export default function PasscodePage() {
           },
         });
         const data = await response.json();
-        console.log("API response:", data);
         setDebugInfo(JSON.stringify(data, null, 2));
 
         if (response.ok && data.success) {
@@ -420,7 +418,7 @@ export default function PasscodePage() {
                 <div className="p-3 md:p-4 flex justify-between items-center bg-[#CCBBAC]">
                   <Image
                     src="/images/logo.svg"
-                    alt="naNA SAUNA AND HOTEL"
+                    alt="ETOE HOTEL"
                     width={100}
                     height={30}
                     className="h-7 md:h-9 w-auto brightness-0 invert"

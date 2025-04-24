@@ -20,17 +20,6 @@ export default function PasswordResetConfirm() {
   // 获取URL中的重置代码和模式 - 这些是必要的参数
   const oobCode = searchParams.get("oobCode");
   const mode = searchParams.get("mode");
-  // 不再需要这些参数
-  // const continueUrl = searchParams.get("continueUrl");
-  // const apiKey = searchParams.get("apiKey");
-
-  // 在组件加载时记录URL参数，帮助调试
-  useEffect(() => {
-    console.log("PasswordResetConfirm params:", {
-      oobCode,
-      mode,
-    });
-  }, [oobCode, mode]);
 
   // 验证重置代码
   useEffect(() => {
@@ -44,9 +33,7 @@ export default function PasswordResetConfirm() {
       }
 
       try {
-        console.log("Verifying reset code:", oobCode);
         const email = await verifyPasswordResetCode(auth, oobCode);
-        console.log("Reset code verified for email:", email);
         setEmail(email);
         setVerifying(false);
       } catch (error) {
@@ -83,9 +70,7 @@ export default function PasswordResetConfirm() {
         throw new Error("リセットコードが見つかりません");
       }
 
-      console.log("Confirming password reset with code:", oobCode);
       await confirmPasswordReset(auth, oobCode, password);
-      console.log("Password reset successfully confirmed");
       setSuccess(true);
     } catch (error: any) {
       console.error("パスワードリセットに失敗しました:", error);

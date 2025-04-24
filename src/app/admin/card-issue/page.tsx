@@ -152,9 +152,6 @@ export default function CardIssueManagementPage() {
         url += `&date=${encodeURIComponent(searchDate)}`;
       }
 
-      console.log("请求URL:", url);
-      console.log("搜索参数 - 邮箱:", searchEmail, "日期:", searchDate);
-
       const response = await fetch(url, {
         headers: {
           Authorization: `Bearer ${idToken}`,
@@ -166,11 +163,9 @@ export default function CardIssueManagementPage() {
       }
 
       const data = await response.json();
-      console.log("响应数据:", data);
 
       // 更新：检查每个预约是否已有房间分配
       const reservationsData = data.reservations || [];
-      console.log("搜索结果数量:", reservationsData.length);
 
       // 获取所有预约的房间分配状态
       if (reservationsData.length > 0) {
@@ -380,8 +375,6 @@ export default function CardIssueManagementPage() {
 
       const idToken = await user.getIdToken();
 
-      console.log("发行卡片，房间号:", roomId);
-
       // 处理日期格式，确保有bookingDate参数
       const extractBookingDate = (timestamp: any) => {
         if (!timestamp) return null;
@@ -424,8 +417,6 @@ export default function CardIssueManagementPage() {
           .padStart(2, "0")}-${today.getDate().toString().padStart(2, "0")}`;
       }
 
-      console.log("使用的预约日期(格式化后):", bookingDate);
-
       // 1. 先发行主房间卡片
       const response = await fetch("/api/admin/issue-card", {
         method: "POST",
@@ -456,7 +447,6 @@ export default function CardIssueManagementPage() {
 
       const cardData = await response.json();
       setGeneratedCard(cardData.card);
-      console.log("成功发行卡片:", cardData);
 
       // 2. 如果是套餐且选择了Slow Room，发行Slow Room卡片
       if (
@@ -465,8 +455,6 @@ export default function CardIssueManagementPage() {
         selectedReservation.hasSlowRoomAssignment === false
       ) {
         try {
-          console.log("准备发行Slow Room卡片，房间号:", selectedSlowRoom);
-
           // 为套餐中的slow room获取正确的时间范围
           let slowRoomTime = "";
           if (selectedReservation.displaySlowRoomTimeRange) {
@@ -501,8 +489,6 @@ export default function CardIssueManagementPage() {
             slowRoomTime = "10:00-12:00";
           }
 
-          console.log("套餐Slow Room时间:", slowRoomTime);
-
           // 发行Slow Room卡片
           const slowRoomResponse = await fetch("/api/admin/issue-card", {
             method: "POST",
@@ -534,7 +520,6 @@ export default function CardIssueManagementPage() {
 
           const slowRoomCardData = await slowRoomResponse.json();
           setGeneratedSlowRoomCard(slowRoomCardData.card);
-          console.log("成功发行Slow Room卡片:", slowRoomCardData);
         } catch (slowRoomError) {
           console.error("Slow Room卡片发行错误:", slowRoomError);
           setError1(
@@ -630,14 +615,6 @@ export default function CardIssueManagementPage() {
   const formatTimestamp = (timestamp: any) => {
     if (!timestamp) return "未設定";
 
-    // 添加调试日志
-    // console.log(
-    //   "formatTimestamp接收到的参数:",
-    //   timestamp,
-    //   "类型:",
-    //   typeof timestamp
-    // );
-
     try {
       // 检查是否为Firestore Timestamp（有seconds和nanoseconds属性）
       if (
@@ -696,8 +673,6 @@ export default function CardIssueManagementPage() {
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const dateValue = e.target.value;
     setSearchDate(dateValue);
-
-    console.log("选择的日期:", dateValue); // 调试用
   };
 
   // 组件挂载后如果是管理员则加载预约

@@ -12,13 +12,6 @@ function ResetPasswordContent() {
   useEffect(() => {
     // 确保客户端渲染时能够获取URL参数
     setIsReady(true);
-
-    // 记录URL参数，帮助调试
-    console.log("Reset password page params:", {
-      oobCode: searchParams.get("oobCode"),
-      mode: searchParams.get("mode"),
-      apiKey: searchParams.get("apiKey"),
-    });
   }, [searchParams]);
 
   if (!isReady) {

@@ -170,8 +170,6 @@ const createRoomCard = async (
           symbol_type: "pdf417",
         };
 
-        console.log("发送到外部API的数据:", JSON.stringify(cardData));
-
         // 调用API
         const response = await fetch(CARD_API_URL, {
           method: "POST",
@@ -192,7 +190,6 @@ const createRoomCard = async (
         }
 
         const cardResponse = await response.json();
-        console.log("外部API卡片创建成功:", cardResponse);
 
         // 使用外部API返回的卡片密钥
         cardKey = cardResponse.number;
@@ -280,8 +277,6 @@ export async function POST(req: Request) {
       );
     }
 
-    console.log("收到的请求数据:", JSON.stringify(requestBody, null, 2));
-
     const {
       reservationId,
       physicalRoomId,
@@ -322,8 +317,6 @@ export async function POST(req: Request) {
         { status: 404 }
       );
     }
-
-    console.log("预约数据:", JSON.stringify(reservationDoc.data(), null, 2));
 
     // 确定要使用的房间类型 - 如果是套餐的Slow Room，使用slow_room类型
     const effectiveRoomType = isSetPlanSlowRoom

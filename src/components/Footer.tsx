@@ -10,9 +10,9 @@ const Footer = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 hidden sm:block">
         <div className="flex justify-between items-start">
           <div className="space-y-4">
-            <h3 className="text-xl tracking-[0.1em] font-medium text-[#444444] font-['Avenir_Next']">
-              naNA SAUNA AND HOTEL
-            </h3>
+            {/* <h3 className="text-xl tracking-[0.1em] font-medium text-[#444444] font-['Avenir_Next']">
+              ETOE HOTEL
+            </h3> */}
             <div className="flex items-center space-x-3">
               <Image
                 src="/images/image6.png"
@@ -45,7 +45,7 @@ const Footer = () => {
             >
               特定商取引法に基づく表記
             </Link>
-            <div className="mt-4">
+            {/* <div className="mt-4">
               <Image
                 src="/images/image23.png"
                 alt="Footer Logo"
@@ -53,7 +53,7 @@ const Footer = () => {
                 height={40}
                 className="w-auto h-10"
               />
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
@@ -62,9 +62,9 @@ const Footer = () => {
       <div className="px-4 py-8 sm:hidden">
         <div className="flex flex-col items-center space-y-8">
           <div className="flex flex-col items-center space-y-4 max-w-[253px]">
-            <h3 className="text-[14px] tracking-[0.1em] font-medium text-[#444444] font-['Avenir_Next'] text-center">
-              naNA SAUNA AND HOTEL
-            </h3>
+            {/* <h3 className="text-[14px] tracking-[0.1em] font-medium text-[#444444] font-['Avenir_Next'] text-center">
+              ETOE HOTEL
+            </h3> */}
             <div className="flex items-center space-x-3">
               <Image
                 src="/images/image6.png"
@@ -98,7 +98,7 @@ const Footer = () => {
             >
               特定商取引法に基づく表記
             </Link>
-            <div className="mt-4">
+            {/* <div className="mt-4">
               <Image
                 src="/images/image23.png"
                 alt="Footer Logo"
@@ -106,7 +106,7 @@ const Footer = () => {
                 height={40}
                 className="w-auto h-10"
               />
-            </div>
+            </div> */}
           </div>
         </div>
       </div>

@@ -111,7 +111,6 @@ export async function POST(req: Request) {
 
     // 提取令牌
     const idToken = authHeader.split("Bearer ")[1];
-    console.log("收到的认证令牌长度:", idToken.length);
 
     // 验证Firebase ID令牌
     let decodedToken;
@@ -129,7 +128,6 @@ export async function POST(req: Request) {
     // 检查是否为管理员 - 使用与reservations API相同的方法
     const userRecord = await getAuth().getUser(decodedToken.uid);
     const customClaims = userRecord.customClaims || {};
-    console.log("用户自定义声明:", customClaims);
 
     if (!customClaims.admin) {
       console.error("用户不是管理员:", decodedToken.uid);
@@ -144,7 +142,6 @@ export async function POST(req: Request) {
     let requestBody;
     try {
       requestBody = await req.json();
-      console.log("请求体解析成功:", requestBody);
     } catch (error) {
       console.error("请求体解析失败:", error);
       return NextResponse.json(
@@ -185,11 +182,6 @@ export async function POST(req: Request) {
     // 生成唯一卡号
     const cardNumber = await generateUniqueCardNumber(db);
 
-    // 原始日期字符串 - 表单传入的已经是带时区的日本时间
-    // 格式应该是类似 "2025-04-18T13:00:00.000+09:00"
-    console.log("接收到的日本开始时间:", startDateTime);
-    console.log("接收到的日本结束时间:", endDateTime);
-
     let cardKey = cardNumber;
     let barcode = "";
 
@@ -206,8 +198,6 @@ export async function POST(req: Request) {
         owner_client_id: CLIENT_ID,
         symbol_type: "pdf417",
       };
-
-      console.log("发送到外部API的数据:", JSON.stringify(cardData));
 
       // 调用API
       const response = await fetch(CARD_API_URL, {
@@ -231,7 +221,6 @@ export async function POST(req: Request) {
       }
 
       const cardResponse = await response.json();
-      console.log("外部APIカード作成成功:", cardResponse);
 
       // 使用外部API返回的卡片密钥
       cardKey = cardResponse.number;
