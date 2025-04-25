@@ -17,7 +17,7 @@ import {
   serverTimestamp,
   Timestamp,
 } from "firebase/firestore";
-import { auth, db, passwordResetSettings } from "./firebase";
+import { auth, db, passwordResetSettings, emailVerificationSettings } from "./firebase";
 
 // 用户基本信息接口
 export interface UserData {
@@ -72,7 +72,7 @@ export const registerUser = async (
     const user = userCredential.user;
 
     // 3. 发送邮箱验证邮件
-    await sendEmailVerification(user);
+    await sendEmailVerification(user, emailVerificationSettings);
 
     // 4. 在 Firestore 中创建用户文档
     await setDoc(doc(db, "users", user.uid), {
@@ -119,7 +119,7 @@ export const resendVerificationEmail = async (): Promise<{
       return { success: false, error: "用户未登录" };
     }
 
-    await sendEmailVerification(auth.currentUser);
+    await sendEmailVerification(auth.currentUser, emailVerificationSettings);
     return { success: true };
   } catch (error) {
     console.error("重新发送验证邮件失败:", error);

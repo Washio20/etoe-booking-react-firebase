@@ -34,6 +34,12 @@ export const passwordResetSettings = {
   handleCodeInApp: true,
 };
 
+// 配置邮箱验证设置
+export const emailVerificationSettings = {
+  url: `${baseUrl}/__/auth/action`,
+  handleCodeInApp: true,
+};
+
 // 设置认证语言为日语
 auth.languageCode = "ja";
 
