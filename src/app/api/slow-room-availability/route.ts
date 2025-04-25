@@ -13,6 +13,9 @@ export const dynamic = "force-dynamic";
 // 设置时区为日本时区
 process.env.TZ = "Asia/Tokyo";
 
+// Slow Room的营业时间为9:00到23:40，23:40是最晚的结束时间
+console.log("Slow Room营业时间：9:00-23:40");
+
 // 辅助函数：解析时间字符串为Date对象
 function parseDateTimeString(date: Date, timeStr: string): Date | null {
   const match = timeStr.trim().match(/(\d+):(\d+)/);
@@ -86,6 +89,18 @@ export async function GET(request: NextRequest) {
 
     const [startHour, startMinute] = normalizedStartTime.split(":").map(Number);
     const [endHour, endMinute] = normalizedEndTime.split(":").map(Number);
+
+    // 检查结束时间是否超过23:40
+    if (endHour > 23 || (endHour === 23 && endMinute > 40)) {
+      return NextResponse.json(
+        { 
+          error: "終了時間は23:40までです",
+          isAvailable: false,
+          message: "終了時間は23:40までです。別の時間を選択してください。"
+        },
+        { status: 400 }
+      );
+    }
 
     // 格式化为YYYY-MM-DD，用于查询dailyInventory
     const formattedDate = format(date, "yyyy-MM-dd");

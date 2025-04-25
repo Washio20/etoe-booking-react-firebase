@@ -107,8 +107,8 @@ const TimeRangeSelector = ({
   // All available hours for display (9:00 - 24:00)
   // 开始时间显示9:00 - 23:00
   const startHours = Array.from({ length: 15 }, (_, i) => i + 9);
-  // 结束时间显示到24:00
-  const endHours = Array.from({ length: 16 }, (_, i) => i + 9);
+  // 结束时间显示到23:40
+  const endHours = Array.from({ length: 15 }, (_, i) => i + 9);
   const minutes = ["00", "20", "40"];
 
   // 检查时间是否过期（当天日期的当前时间之前）
@@ -286,8 +286,12 @@ const TimeRangeSelector = ({
               className="col-span-3 md:col-span-2 lg:col-span-1 space-y-1"
             >
               {minutes.map((minute) => {
+                // 添加一个判断，检查该时间是否超出23:40
+                const isOverMaxTime = hour === 23 && parseInt(minute) > 40;
                 const isAvailable =
-                  startHour !== null && isValidEndTime(hour, minute);
+                  startHour !== null && 
+                  isValidEndTime(hour, minute) && 
+                  !isOverMaxTime;
                 const isTimePassed = isTimePassedForToday(hour, minute);
                 return (
                   <TimelineSlot

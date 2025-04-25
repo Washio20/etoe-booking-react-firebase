@@ -129,7 +129,8 @@ const TimeRangeSelector: React.FC<TimeRangeSelectorProps> = ({
 }) => {
   // 所有可选小时 (9:00 - 24:00)
   const startHours = Array.from({ length: 15 }, (_, i) => i + 9);
-  const endHours = Array.from({ length: 16 }, (_, i) => i + 9);
+  // 修改结束时间最晚为23:40
+  const endHours = Array.from({ length: 15 }, (_, i) => i + 9);
   const minutes = ["00", "20", "40"];
 
   // 查找指定时间的可用性信息
@@ -303,8 +304,12 @@ const TimeRangeSelector: React.FC<TimeRangeSelectorProps> = ({
               className="col-span-3 md:col-span-2 lg:col-span-1 space-y-1"
             >
               {minutes.map((minute) => {
+                // 添加一个判断，检查该时间是否超出23:40
+                const isOverMaxTime = hour === 23 && parseInt(minute) > 40;
                 const isAvailable =
-                  startHour !== null && isValidEndTime(hour, minute);
+                  startHour !== null && 
+                  isValidEndTime(hour, minute) && 
+                  !isOverMaxTime;
                 const isTimePassed = isTimePassedForToday(hour, minute);
                 return (
                   <TimelineSlot
@@ -314,6 +319,8 @@ const TimeRangeSelector: React.FC<TimeRangeSelectorProps> = ({
                     isStart={false}
                     isSelected={isTimeSelected(hour, minute, false)}
                     isAvailable={isAvailable}
+                    availableCount={undefined}
+                    maxReservations={undefined}
                     isTimePassed={isTimePassed}
                     onClick={() =>
                       isAvailable && handleEndTimeSelect(hour, minute)
@@ -757,13 +764,22 @@ export default function ImprovedPureSlowRoomSelection({
         setIsCheckingAvailability(true);
         setAvailabilityError(null);
 
+        // 先在客户端检查结束时间是否超过23:40
+        const [endHour, endMinute] = endTimeStr.split(":").map(Number);
+        if (endHour > 23 || (endHour === 23 && endMinute > 40)) {
+          setIsRoomAvailable(false);
+          setAvailabilityError("終了時間は23:40までです。別の時間を選択してください。");
+          return;
+        }
+
         // 使用纯slow room的API端点
         const response = await fetch(
           `/api/pure-slow-room-availability?date=${dateStr}&startTime=${startTimeStr}&endTime=${endTimeStr}`
         );
 
         if (!response.ok) {
-          throw new Error(`APIエラー: ${response.status}`);
+          const errorData = await response.json();
+          throw new Error(errorData.message || `APIエラー: ${response.status}`);
         }
 
         const data = await response.json();
@@ -781,9 +797,8 @@ export default function ImprovedPureSlowRoomSelection({
       } catch (error) {
         console.error("Slow Room可用性检查失败:", error);
         setIsRoomAvailable(false);
-        setAvailabilityError(
-          "チェック中にエラーが発生しました。後でもう一度お試しください。"
-        );
+        const errorMessage = error instanceof Error ? error.message : "チェック中にエラーが発生しました。後でもう一度お試しください。";
+        setAvailabilityError(errorMessage);
       } finally {
         setIsCheckingAvailability(false);
       }
@@ -1046,15 +1061,30 @@ export default function ImprovedPureSlowRoomSelection({
       endHour < hour + 2 ||
       (endHour === hour + 2 && endMinute <= minute)
     ) {
-      setEndHour(hour + 2);
-      setEndMinute(minute);
+      // 确保结束时间不超过23:40
+      if (hour + 2 > 23) {
+        setEndHour(23);
+        setEndMinute("40");
+      } else if (hour + 2 === 23 && parseInt(minute) > 40) {
+        setEndHour(23);
+        setEndMinute("40");
+      } else {
+        setEndHour(hour + 2);
+        setEndMinute(minute);
+      }
     }
   };
 
   // 处理结束时间变化
   const handleEndTimeChange = (hour: number, minute: string) => {
-    setEndHour(hour);
-    setEndMinute(minute);
+    // 确保结束时间不超过23:40
+    if (hour > 23 || (hour === 23 && parseInt(minute) > 40)) {
+      setEndHour(23);
+      setEndMinute("40");
+    } else {
+      setEndHour(hour);
+      setEndMinute(minute);
+    }
   };
 
   // 处理预约按钮点击

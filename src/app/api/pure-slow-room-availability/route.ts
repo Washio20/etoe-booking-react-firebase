@@ -69,10 +69,22 @@ export async function GET(request: NextRequest) {
 
     const normalizedStartTime = normalizeTimeStr(startTimeStr);
     const normalizedEndTime = normalizeTimeStr(endTimeStr);
-
+    
     const [startHour, startMinute] = normalizedStartTime.split(":").map(Number);
     const [endHour, endMinute] = normalizedEndTime.split(":").map(Number);
 
+    // 检查结束时间是否超过23:40
+    if (endHour > 23 || (endHour === 23 && endMinute > 40)) {
+      return NextResponse.json(
+        { 
+          error: "終了時間は23:40までです",
+          isAvailable: false,
+          message: "終了時間は23:40までです。別の時間を選択してください。"
+        },
+        { status: 400 }
+      );
+    }
+    
     // 格式化为YYYY-MM-DD，用于查询dailyInventory
     const formattedDate = format(date, "yyyy-MM-dd");
 

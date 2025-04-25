@@ -22,7 +22,7 @@ const Footer = () => {
                 className="rounded-lg"
               /> */}
               <Link
-                href="https://www.instagram.com/etoe_tokyo?igsh=OXdkaTZodDN6a2li&utm_source=qr"
+                href="https://www.instagram.com/etoe_tokyo"
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -72,15 +72,15 @@ const Footer = () => {
               etoe hotel
             </h3> */}
             <div className="flex items-center space-x-3">
-              <Image
+              {/* <Image
                 src="/images/image6.png"
                 alt="Hotel Image 1"
                 width={40}
                 height={40}
                 className="rounded-lg"
-              />
+              /> */}
               <Link
-                href="https://www.instagram.com/etoe_tokyo?igsh=OXdkaTZodDN6a2li&utm_source=qr"
+                href="https://www.instagram.com/etoe_tokyo"
                 target="_blank"
                 rel="noopener noreferrer"
               >

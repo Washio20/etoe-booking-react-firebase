@@ -80,7 +80,7 @@ export default function EditRoomPage({ params }: EditRoomPageProps) {
           "17:35〜19:05",
           "19:50〜21:20",
           "22:05〜23:35",
-          "00:20〜01:50",
+          // "00:20〜01:50",
         ];
       case "fuuu":
         return [
@@ -90,7 +90,7 @@ export default function EditRoomPage({ params }: EditRoomPageProps) {
           "18:05〜19:35",
           "20:10〜21:40",
           "22:15〜24:45",
-          "00:20〜01:50",
+          // "00:20〜01:50",
         ];
       case "zabuun":
         return [
@@ -100,7 +100,7 @@ export default function EditRoomPage({ params }: EditRoomPageProps) {
           "17:05〜18:35",
           "19:10〜20:40",
           "21:15〜22:45",
-          "23:20〜00:50",
+          // "23:20〜00:50",
         ];
       case "toron":
         return [
@@ -110,7 +110,7 @@ export default function EditRoomPage({ params }: EditRoomPageProps) {
           "16:50〜18:20",
           "18:55〜20:25",
           "21:00〜22:30",
-          "23:05〜00:35",
+          // "23:05〜00:35",
         ];
       case "sauna_suite":
         return ["14:00〜17:00", "18:30〜21:00"];

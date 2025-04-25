@@ -12,9 +12,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "etoe hotel & Sauna | 高級宿泊とサウナ体験の施設",
+  title: "etoe sauna & body communication",
   description: "etoe hotelで快適なご宿泊とサウナ体験をお楽しみください。高品質の客室、本格的なサウナ施設、上質なサービスをご提供します。",
-  keywords: "ホテル予約, サウナ, 日本のホテル, 高級宿泊施設, etoe hotel, オンライン予約, 温泉, リラクゼーション",
+  keywords: "etoe hotel, サウナ, 日本のホテル, 高級宿泊施設, オンライン予約",
   authors: [{ name: "etoe hotel" }],
   generator: "Next.js",
   applicationName: "etoe hotel & Sauna Booking",
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     follow: true,
   },
   openGraph: {
-    title: "etoe hotel & Sauna | 高級宿泊とサウナ体験の施設",
+    title: "etoe sauna & body communication",
     description: "etoe hotelで快適なご宿泊とサウナ体験をお楽しみください。高品質の客室、本格的なサウナ施設、上質なサービスをご提供します。",
     url: "https://book.etoehotel.com",
     siteName: "etoe hotel & Sauna",
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "etoe hotel & Sauna | 高級宿泊とサウナ体験の施設",
+    title: "etoe sauna & body communication",
     description: "etoe hotelで快適なご宿泊とサウナ体験をお楽しみください。高品質の客室、本格的なサウナ施設、上質なサービスをご提供します。",
   },
 };

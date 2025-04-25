@@ -78,6 +78,9 @@ export async function GET(request: NextRequest) {
     // 转换为Firestore Timestamp
     const startOfDayTimestamp = admin.firestore.Timestamp.fromDate(startOfDay);
     const endOfDayTimestamp = admin.firestore.Timestamp.fromDate(endOfDay);
+    
+    // Slow Room的营业时间为9:00到23:40，23:40是最晚的结束时间
+    console.log("Slow Room营业时间：9:00-23:40");
 
     // 查询所有预约记录 - 使用新的字段结构
     // 1. 查询当天的slow room普通预约
@@ -284,7 +287,7 @@ export async function GET(request: NextRequest) {
     const startTime = new Date(date);
     startTime.setHours(9, 0, 0, 0);
     const endTime = new Date(date);
-    endTime.setHours(24, 0, 0, 0);
+    endTime.setHours(23, 40, 0, 0);
 
     // 步长20分钟
     const stepMinutes = 20;

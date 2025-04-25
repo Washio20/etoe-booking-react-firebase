@@ -261,7 +261,7 @@ export async function GET(request: NextRequest) {
     const startTime = new Date(date);
     startTime.setHours(9, 0, 0, 0);
     const endTime = new Date(date);
-    endTime.setHours(24, 0, 0, 0);
+    endTime.setHours(23, 40, 0, 0);
 
     // 步长20分钟
     const stepMinutes = 20;
