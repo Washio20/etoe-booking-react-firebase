@@ -408,7 +408,8 @@ export default function PasscodePage() {
             </div>
           ) : roomCards.length === 0 ? (
             <div className="bg-white p-4 rounded-lg text-center">
-              <p className="text-gray-500">有効なカードがありません</p>
+              <p className="text-gray-500 mb-2">有効なカードがありません</p>
+              <p className="text-gray-400 text-sm">カード情報が届くメールを受信後に表示されます。メールが届いていない場合は、もう少しお待ちください。</p>
             </div>
           ) : activeCard ? (
             <div>

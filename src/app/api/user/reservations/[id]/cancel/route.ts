@@ -481,6 +481,39 @@ export async function POST(
           : null,
       });
 
+    // 新增：同时更新相关的roomAssignments记录
+    try {
+      // 查询与此预约关联的所有房间分配记录
+      const roomAssignmentsSnapshot = await db
+        .collection("roomAssignments")
+        .where("reservationId", "==", reservationId)
+        .where("status", "==", "active")
+        .get();
+
+      // 如果找到房间分配记录，则更新其状态
+      if (!roomAssignmentsSnapshot.empty) {
+        console.log(`找到 ${roomAssignmentsSnapshot.size} 个需要更新的房间分配记录`);
+        
+        const batch = db.batch();
+        
+        roomAssignmentsSnapshot.forEach(doc => {
+          batch.update(doc.ref, {
+            status: "cancelled",
+            cancelledAt: admin.firestore.Timestamp.now(),
+            updatedAt: admin.firestore.Timestamp.now()
+          });
+        });
+        
+        await batch.commit();
+        console.log(`已成功更新 ${roomAssignmentsSnapshot.size} 个房间分配记录为已取消状态`);
+      } else {
+        console.log("没有找到需要更新的房间分配记录");
+      }
+    } catch (roomAssignmentError) {
+      console.error("更新房间分配记录时出错:", roomAssignmentError);
+      // 更新roomAssignments失败不影响整体取消预约流程，继续执行
+    }
+
     // 构造更详细的响应信息
     const responseData: {
       success: boolean;

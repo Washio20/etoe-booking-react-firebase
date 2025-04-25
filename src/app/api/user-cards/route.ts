@@ -84,6 +84,7 @@ export async function GET(req: Request) {
     const query = reservationsRef
       .where("userEmail", "==", userEmail)
       .where("paymentStatus", "==", "paid") // 只查询已支付的预约
+      .where("cardEmailSent", "==", true) // 只查询已发送卡片邮件的预约
       .where("endDateTime", ">", now) // 只查询未过期的预约
       .orderBy("endDateTime", "asc") // 按照结束时间排序，优先显示最早结束的
       .limit(1); // 获取最近的一条预约

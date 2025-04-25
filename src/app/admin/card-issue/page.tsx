@@ -13,6 +13,8 @@ import {
   RoomAssignment,
   RoomCardStatus,
 } from "@/types/reservation";
+import { Timestamp } from "firebase/firestore";
+import { toDate, formatToJapaneseDate } from "@/utils/date";
 
 // 扩展Reservation接口以包含所需的额外属性
 interface ExtendedReservation extends Reservation {
@@ -60,6 +62,12 @@ export default function CardIssueManagementPage() {
   const [sendingEmail, setSendingEmail] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showSetPlanSection, setShowSetPlanSection] = useState(false);
+  // 添加分页相关状态
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const [showReservationList, setShowReservationList] = useState(true);
+  const [loadingRoomAssignments, setLoadingRoomAssignments] = useState(false);
+  const [assignmentsLoaded, setAssignmentsLoaded] = useState(false);
 
   // 房间类型映射
   const roomTypeMapping: { [key: string]: string } = {
@@ -139,6 +147,7 @@ export default function CardIssueManagementPage() {
 
     try {
       setLoadingReservations(true);
+      setAssignmentsLoaded(false); // 重置分配状态加载标志
       setError1(null);
 
       const idToken = await user.getIdToken();
@@ -164,58 +173,16 @@ export default function CardIssueManagementPage() {
 
       const data = await response.json();
 
-      // 更新：检查每个预约是否已有房间分配
-      const reservationsData = data.reservations || [];
+      // 保存原始预约数据，初始化房间分配状态为未知
+      const reservationsData = (data.reservations || []).map((reservation: ExtendedReservation) => ({
+        ...reservation,
+        hasRoomAssignment: undefined, // 初始状态为未知
+        hasSlowRoomAssignment: undefined,
+      }));
+      
+      setReservations(reservationsData);
+      setCurrentPage(1); // 重置到第一页
 
-      // 获取所有预约的房间分配状态
-      if (reservationsData.length > 0) {
-        const assignmentPromises = reservationsData.map(
-          async (reservation: ExtendedReservation) => {
-            const assignmentResponse = await fetch(
-              `/api/admin/room-assignments?reservationId=${reservation.id}`,
-              {
-                headers: {
-                  Authorization: `Bearer ${idToken}`,
-                },
-              }
-            );
-
-            if (assignmentResponse.ok) {
-              const assignmentData = await assignmentResponse.json();
-
-              // 检查是否有Sauna房间分配
-              const hasMainRoomAssignment =
-                assignmentData.assignments &&
-                assignmentData.assignments.some(
-                  (a: any) => a.roomType === reservation.roomType
-                );
-
-              // 检查是否有Slow Room分配（用于套餐）
-              const hasSlowRoomAssignment =
-                reservation.slowRoomAsSetPlan &&
-                assignmentData.assignments &&
-                assignmentData.assignments.some(
-                  (a: any) => a.roomType === "slow_room"
-                );
-
-              return {
-                ...reservation,
-                hasRoomAssignment: hasMainRoomAssignment,
-                hasSlowRoomAssignment: hasSlowRoomAssignment,
-              };
-            }
-
-            return reservation;
-          }
-        );
-
-        const reservationsWithAssignments = await Promise.all(
-          assignmentPromises
-        );
-        setReservations(reservationsWithAssignments);
-      } else {
-        setReservations(reservationsData);
-      }
     } catch (error) {
       console.error("予約の読み込みエラー:", error);
       setError1(
@@ -225,6 +192,110 @@ export default function CardIssueManagementPage() {
       setLoadingReservations(false);
     }
   }, [user, searchEmail, searchDate]);
+
+  // 为当前显示页面的预约加载房间分配状态 - 如果尚未加载过
+  const loadRoomAssignmentsForCurrentPage = useCallback(async () => {
+    if (!user || reservations.length === 0 || loadingReservations || loadingRoomAssignments || !showReservationList) return;
+    
+    // 获取当前页面的预约
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = Math.min(startIndex + itemsPerPage, reservations.length);
+    const currentPageReservations = reservations.slice(startIndex, endIndex);
+    
+    // 检查当前页面的预约是否已加载过房间分配状态
+    const needsLoading = currentPageReservations.some(
+      res => res.hasRoomAssignment === undefined
+    );
+    
+    if (!needsLoading) {
+      return; // 如果所有预约都已加载过房间分配状态，则跳过
+    }
+    
+    try {
+      setLoadingRoomAssignments(true);
+      
+      // 收集需要查询的预约ID
+      const reservationIds = currentPageReservations
+        .filter(res => res.hasRoomAssignment === undefined)
+        .map(res => res.id);
+      
+      if (reservationIds.length === 0) return;
+      
+      const idToken = await user.getIdToken();
+      
+      // 定义响应类型
+      type AssignmentResponse = { id: string; data: any } | { id: string; error: any };
+      
+      // 批量查询API - 一次性获取多个预约的分配状态
+      const responses: AssignmentResponse[] = await Promise.all(
+        reservationIds.map(id => 
+          fetch(`/api/admin/room-assignments?reservationId=${id}`, {
+            headers: { Authorization: `Bearer ${idToken}` }
+          })
+            .then(res => res.json().then(data => ({ id, data } as const)))
+            .catch(err => ({ id, error: err } as const))
+        )
+      );
+      
+      // 处理响应并更新状态
+      const newReservations = [...reservations];
+      
+      responses.forEach(response => {
+        if ('error' in response) {
+          console.error(`获取预约 ${response.id} 的房间分配状态失败:`, response.error);
+          return;
+        }
+        
+        const reservationIndex = newReservations.findIndex(r => r.id === response.id);
+        if (reservationIndex === -1) return;
+        
+        const assignmentData = response.data;
+        
+        // 检查是否有主房间分配
+        const hasMainRoomAssignment = assignmentData.assignments &&
+          assignmentData.assignments.some(
+            (a: any) => a.roomType === newReservations[reservationIndex].roomType
+          );
+        
+        // 检查是否有Slow Room分配（套餐）
+        const hasSlowRoomAssignment = newReservations[reservationIndex].slowRoomAsSetPlan &&
+          assignmentData.assignments &&
+          assignmentData.assignments.some(
+            (a: any) => a.roomType === "slow_room"
+          );
+        
+        newReservations[reservationIndex] = {
+          ...newReservations[reservationIndex],
+          hasRoomAssignment: hasMainRoomAssignment,
+          hasSlowRoomAssignment: hasSlowRoomAssignment,
+        };
+      });
+      
+      setReservations(newReservations);
+      setAssignmentsLoaded(true);
+      
+    } catch (error) {
+      console.error("批量获取房间分配状态时出错:", error);
+    } finally {
+      setLoadingRoomAssignments(false);
+    }
+  }, [user, reservations, currentPage, itemsPerPage, loadingReservations, loadingRoomAssignments, showReservationList]);
+
+  // 监听当前页面变化，加载对应页面的房间分配状态，但仅当显示预约列表且用户没有正在执行其他操作时执行
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
+    if (showReservationList && !loadingReservations && !loadingRoomAssignments) {
+      // 添加延迟，避免频繁调用
+      timeoutId = setTimeout(() => {
+        loadRoomAssignmentsForCurrentPage();
+      }, 300);
+    }
+    
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [currentPage, showReservationList, loadingReservations, loadingRoomAssignments, loadRoomAssignmentsForCurrentPage]);
 
   // 选择预约后检查房间可用性
   const checkRoomAvailability = async (reservation: ExtendedReservation) => {
@@ -238,6 +309,8 @@ export default function CardIssueManagementPage() {
       setGeneratedCard(null);
       setGeneratedSlowRoomCard(null);
       setError1(null);
+      // 隐藏预约列表，转到房间分配视图
+      setShowReservationList(false);
 
       // 检查是否为套餐预约
       const isSetPlan = reservation.slowRoomAsSetPlan === true;
@@ -554,6 +627,7 @@ export default function CardIssueManagementPage() {
     setEmailSent(false);
     setError1(null);
     setShowSetPlanSection(false);
+    setShowReservationList(true);
   };
 
   // 发送邮件
@@ -616,34 +690,87 @@ export default function CardIssueManagementPage() {
     if (!timestamp) return "未設定";
 
     try {
-      // 检查是否为Firestore Timestamp（有seconds和nanoseconds属性）
-      if (
-        timestamp &&
-        typeof timestamp === "object" &&
-        "seconds" in timestamp &&
-        "nanoseconds" in timestamp
-      ) {
-        // 将Firestore Timestamp转换为JavaScript Date
-        const date = new Date(timestamp.seconds * 1000);
-        return date.toLocaleString("ja-JP");
+      // 检查带有_seconds和_nanoseconds的Firebase Timestamp对象
+      if (typeof timestamp === "object" && (timestamp._seconds !== undefined)) {
+        const seconds = timestamp._seconds;
+        const date = new Date(seconds * 1000);
+        
+        // 格式化为日本日期时间格式: YYYY年MM月DD日 HH:MM
+        const year = date.getFullYear();
+        const month = date.getMonth() + 1;
+        const day = date.getDate();
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        
+        return `${year}年${month}月${day}日 ${hours}:${minutes}`;
+      }
+      
+      // 检查带有seconds和nanoseconds的Firebase Timestamp对象
+      if (typeof timestamp === "object" && (timestamp.seconds !== undefined)) {
+        const seconds = timestamp.seconds;
+        const date = new Date(seconds * 1000);
+        
+        // 格式化为日本日期时间格式: YYYY年MM月DD日 HH:MM
+        const year = date.getFullYear();
+        const month = date.getMonth() + 1;
+        const day = date.getDate();
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        
+        return `${year}年${month}月${day}日 ${hours}:${minutes}`;
+      }
+      
+      // 检查是否有toDate方法（Firebase Timestamp）
+      if (typeof timestamp === "object" && typeof timestamp.toDate === "function") {
+        const date = timestamp.toDate();
+        const year = date.getFullYear();
+        const month = date.getMonth() + 1;
+        const day = date.getDate();
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        
+        return `${year}年${month}月${day}日 ${hours}:${minutes}`;
+      }
+      
+      // 尝试使用toDate工具函数
+      const date = toDate(timestamp);
+      if (date && !isNaN(date.getTime())) {
+        const year = date.getFullYear();
+        const month = date.getMonth() + 1;
+        const day = date.getDate();
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        
+        return `${year}年${month}月${day}日 ${hours}:${minutes}`;
+      }
+      
+      // 如果是字符串格式
+      if (typeof timestamp === 'string') {
+        // 已经是日本日期格式的情况
+        const match = timestamp.match(/(\d+)年(\d+)月(\d+)日/);
+        if (match) {
+          return timestamp; // 已经是日本格式，直接返回
+        }
+        
+        // 尝试将普通字符串日期转为日本格式
+        const stringDate = new Date(timestamp);
+        if (!isNaN(stringDate.getTime())) {
+          const year = stringDate.getFullYear();
+          const month = stringDate.getMonth() + 1;
+          const day = stringDate.getDate();
+          const hours = stringDate.getHours().toString().padStart(2, '0');
+          const minutes = stringDate.getMinutes().toString().padStart(2, '0');
+          
+          return `${year}年${month}月${day}日 ${hours}:${minutes}`;
+        }
       }
 
-      // 检查是否为普通数字时间戳
-      if (typeof timestamp === "number") {
-        return new Date(timestamp).toLocaleString("ja-JP");
+      // 处理displayDate和displayTimeRange的情况
+      if (typeof timestamp === 'object' && timestamp.displayDate) {
+        return timestamp.displayDate + (timestamp.displayTimeRange ? ` ${timestamp.displayTimeRange}` : '');
       }
-
-      // 检查是否为字符串形式的数字时间戳
-      if (typeof timestamp === "string" && !isNaN(Number(timestamp))) {
-        return new Date(Number(timestamp)).toLocaleString("ja-JP");
-      }
-
-      // 尝试作为ISO字符串处理
-      const date = new Date(timestamp);
-      if (!isNaN(date.getTime())) {
-        return date.toLocaleString("ja-JP");
-      }
-
+      
+      console.log("无法识别的时间戳格式:", JSON.stringify(timestamp));
       return "日付形式不明";
     } catch (error) {
       console.error("日期格式化错误:", error, timestamp);
@@ -681,6 +808,21 @@ export default function CardIssueManagementPage() {
       loadReservations();
     }
   }, [adminState.isAdmin, adminState.checkComplete, loadReservations]);
+
+  // 计算分页数据
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentReservations = reservations.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(reservations.length / itemsPerPage);
+
+  // 切换页面
+  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+
+  // 返回到预约列表
+  const goBackToList = () => {
+    setShowReservationList(true);
+    loadReservations(); // 重新加载预约数据
+  };
 
   // 加载中状态
   if (loading || !adminState.checkComplete) {
@@ -736,45 +878,47 @@ export default function CardIssueManagementPage() {
           </div>
 
           {/* 検索フォーム */}
-          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-            <h2 className="text-lg font-medium text-gray-800 mb-4 font-zen-kaku-gothic">
-              予約検索
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700 font-zen-kaku-gothic">
-                  メールアドレス
-                </label>
-                <input
-                  type="email"
-                  value={searchEmail}
-                  onChange={(e) => setSearchEmail(e.target.value)}
-                  placeholder="example@email.com"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700 font-zen-kaku-gothic">
-                  予約日
-                </label>
-                <input
-                  type="date"
-                  value={searchDate}
-                  onChange={handleDateChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                />
-              </div>
-              <div className="flex items-end">
-                <button
-                  onClick={handleSearch}
-                  disabled={loadingReservations}
-                  className="px-4 py-2 bg-gray-800 text-white rounded-md text-sm font-zen-kaku-gothic hover:bg-gray-700"
-                >
-                  {loadingReservations ? "検索中..." : "検索"}
-                </button>
+          {showReservationList && (
+            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+              <h2 className="text-lg font-medium text-gray-800 mb-4 font-zen-kaku-gothic">
+                予約検索
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700 font-zen-kaku-gothic">
+                    メールアドレス
+                  </label>
+                  <input
+                    type="email"
+                    value={searchEmail}
+                    onChange={(e) => setSearchEmail(e.target.value)}
+                    placeholder="example@email.com"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700 font-zen-kaku-gothic">
+                    予約日
+                  </label>
+                  <input
+                    type="date"
+                    value={searchDate}
+                    onChange={handleDateChange}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <button
+                    onClick={handleSearch}
+                    disabled={loadingReservations}
+                    className="px-4 py-2 bg-gray-800 text-white rounded-md text-sm font-zen-kaku-gothic hover:bg-gray-700"
+                  >
+                    {loadingReservations ? "検索中..." : "検索"}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* エラーメッセージ */}
           {error1 && (
@@ -786,120 +930,250 @@ export default function CardIssueManagementPage() {
           )}
 
           {/* 予約リスト */}
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-            <h2 className="bg-gray-50 px-4 py-3 text-lg font-medium text-gray-800 font-zen-kaku-gothic border-b border-gray-200">
-              予約一覧
-            </h2>
+          {showReservationList && (
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <h2 className="bg-gray-50 px-4 py-3 text-lg font-medium text-gray-800 font-zen-kaku-gothic border-b border-gray-200">
+                予約一覧
+              </h2>
 
-            {loadingReservations ? (
-              <div className="p-6 text-center">
-                <p className="text-gray-500 font-zen-kaku-gothic">
-                  データを読み込み中...
-                </p>
-              </div>
-            ) : reservations.length === 0 ? (
-              <div className="p-6 text-center">
-                <p className="text-gray-500 font-zen-kaku-gothic">
-                  検索条件に一致する予約はありません
-                </p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        予約ID
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        お客様
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        予約日時
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        部屋タイプ
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        操作
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {reservations.map((reservation) => (
-                      <tr
-                        key={reservation.id}
-                        className={
-                          selectedReservation?.id === reservation.id
-                            ? "bg-blue-50"
-                            : ""
-                        }
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {reservation.id.substring(0, 8)}...
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {reservation.userFullName ? (
-                            <div>
-                              <div className="font-medium">
-                                {reservation.userFullName}
-                              </div>
-                              <div className="text-gray-500 text-xs mt-1">
-                                {reservation.userEmail}
-                              </div>
-                            </div>
-                          ) : (
-                            reservation.userEmail
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {reservation.displayDate &&
-                          reservation.displayTimeRange
-                            ? `${reservation.displayDate} ${reservation.displayTimeRange}`
-                            : formatDateTime(
-                                reservation.reservationDate,
-                                reservation.reservationTime
-                              )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {roomTypeMapping[reservation.roomType] ||
-                            reservation.roomType}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          {reservation.hasRoomAssignment ? (
-                            <span className="text-green-600 font-medium">
-                              ✓ 割り当て済み
-                            </span>
-                          ) : (
-                            <button
-                              onClick={() => checkRoomAvailability(reservation)}
-                              disabled={loadingRooms}
-                              className="text-blue-600 hover:text-blue-900"
-                            >
-                              {loadingRooms &&
-                              selectedReservation?.id === reservation.id
-                                ? "確認中..."
-                                : "部屋割り当て"}
-                            </button>
-                          )}
-                        </td>
+              {loadingReservations ? (
+                <div className="p-6 text-center">
+                  <p className="text-gray-500 font-zen-kaku-gothic">
+                    データを読み込み中...
+                  </p>
+                </div>
+              ) : reservations.length === 0 ? (
+                <div className="p-6 text-center">
+                  <p className="text-gray-500 font-zen-kaku-gothic">
+                    検索条件に一致する予約はありません
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          予約ID
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          お客様
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          予約日時
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          部屋タイプ
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          操作
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {currentReservations.map((reservation) => (
+                        <tr
+                          key={reservation.id}
+                          className={
+                            selectedReservation?.id === reservation.id
+                              ? "bg-blue-50"
+                              : ""
+                          }
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {reservation.id.substring(0, 8)}...
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {reservation.userFullName ? (
+                              <div>
+                                <div className="font-medium">
+                                  {reservation.userFullName}
+                                </div>
+                                <div className="text-gray-500 text-xs mt-1">
+                                  {reservation.userEmail}
+                                </div>
+                              </div>
+                            ) : (
+                              reservation.userEmail
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {reservation.displayDate &&
+                            reservation.displayTimeRange
+                              ? `${reservation.displayDate} ${reservation.displayTimeRange}`
+                              : formatDateTime(
+                                  reservation.reservationDate,
+                                  reservation.reservationTime
+                                )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {roomTypeMapping[reservation.roomType] ||
+                              reservation.roomType}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            {reservation.hasRoomAssignment ? (
+                              <span className="text-green-600 font-medium">
+                                ✓ 割り当て済み
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => checkRoomAvailability(reservation)}
+                                disabled={loadingRooms}
+                                className="text-blue-600 hover:text-blue-900"
+                              >
+                                {loadingRooms &&
+                                selectedReservation?.id === reservation.id
+                                  ? "確認中..."
+                                  : "部屋割り当て"}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  
+                  {/* 分页控件 */}
+                  {totalPages > 1 && (
+                    <div className="px-6 py-3 flex items-center justify-between border-t border-gray-200">
+                      <div className="flex-1 flex justify-between sm:hidden">
+                        <button
+                          onClick={() => paginate(currentPage - 1)}
+                          disabled={currentPage === 1}
+                          className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
+                            currentPage === 1
+                              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                              : "bg-white text-gray-700 hover:bg-gray-50"
+                          }`}
+                        >
+                          前へ
+                        </button>
+                        <button
+                          onClick={() => paginate(currentPage + 1)}
+                          disabled={currentPage === totalPages}
+                          className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
+                            currentPage === totalPages
+                              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                              : "bg-white text-gray-700 hover:bg-gray-50"
+                          }`}
+                        >
+                          次へ
+                        </button>
+                      </div>
+                      <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm text-gray-700">
+                            全 <span className="font-medium">{reservations.length}</span> 件中{" "}
+                            <span className="font-medium">{indexOfFirstItem + 1}</span> から{" "}
+                            <span className="font-medium">
+                              {Math.min(indexOfLastItem, reservations.length)}
+                            </span> 件を表示
+                          </p>
+                        </div>
+                        <div>
+                          <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                            <button
+                              onClick={() => paginate(currentPage - 1)}
+                              disabled={currentPage === 1}
+                              className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 text-sm font-medium ${
+                                currentPage === 1
+                                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                  : "bg-white text-gray-500 hover:bg-gray-50"
+                              }`}
+                            >
+                              <span className="sr-only">前へ</span>
+                              &laquo;
+                            </button>
+                            {[...Array(totalPages)].map((_, i) => (
+                              <button
+                                key={i}
+                                onClick={() => paginate(i + 1)}
+                                className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                  currentPage === i + 1
+                                    ? "z-10 bg-blue-50 border-blue-500 text-blue-600"
+                                    : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
+                                }`}
+                              >
+                                {i + 1}
+                              </button>
+                            ))}
+                            <button
+                              onClick={() => paginate(currentPage + 1)}
+                              disabled={currentPage === totalPages}
+                              className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 text-sm font-medium ${
+                                currentPage === totalPages
+                                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                  : "bg-white text-gray-500 hover:bg-gray-50"
+                              }`}
+                            >
+                              <span className="sr-only">次へ</span>
+                              &raquo;
+                            </button>
+                          </nav>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* 部屋割り当て */}
-          {selectedReservation && (
+          {selectedReservation && !showReservationList && (
             <div className="bg-white rounded-lg border border-gray-200 overflow-hidden mt-6">
-              <h2 className="bg-gray-50 px-4 py-3 text-lg font-medium text-gray-800 font-zen-kaku-gothic border-b border-gray-200">
-                部屋割り当て -{" "}
-                {roomTypeMapping[selectedReservation.roomType] ||
-                  selectedReservation.roomType}
-                {selectedReservation.slowRoomAsSetPlan && " (セットプラン)"}
-              </h2>
+              <div className="flex justify-between items-center bg-gray-50 px-4 py-3 border-b border-gray-200">
+                <h2 className="text-lg font-medium text-gray-800 font-zen-kaku-gothic">
+                  部屋割り当て -{" "}
+                  {roomTypeMapping[selectedReservation.roomType] ||
+                    selectedReservation.roomType}
+                  {selectedReservation.slowRoomAsSetPlan && " (セットプラン)"}
+                </h2>
+                <button
+                  onClick={goBackToList}
+                  className="px-3 py-1 bg-gray-500 text-white rounded-md text-sm font-zen-kaku-gothic hover:bg-gray-600"
+                >
+                  一覧に戻る
+                </button>
+              </div>
+
+              {/* 预约详情 */}
+              <div className="bg-blue-50 p-4 border-b border-gray-200">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">予約情報</h3>
+                    <p className="text-sm text-gray-600 mb-1">
+                      <span className="font-medium">お客様:</span>{" "}
+                      {selectedReservation.userFullName || selectedReservation.userEmail}
+                    </p>
+                    <p className="text-sm text-gray-600 mb-1">
+                      <span className="font-medium">予約ID:</span>{" "}
+                      {selectedReservation.id}
+                    </p>
+                    <p className="text-sm text-gray-600 mb-1">
+                      <span className="font-medium">部屋タイプ:</span>{" "}
+                      {roomTypeMapping[selectedReservation.roomType] || selectedReservation.roomType}
+                    </p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">利用日時</h3>
+                    <p className="text-sm text-gray-600 mb-1">
+                      <span className="font-medium">利用開始:</span>{" "}
+                      {formatTimestamp(selectedReservation.startDateTime)}
+                    </p>
+                    <p className="text-sm text-gray-600 mb-1">
+                      <span className="font-medium">利用終了:</span>{" "}
+                      {formatTimestamp(selectedReservation.endDateTime)}
+                    </p>
+                    {selectedReservation.slowRoomAsSetPlan && (
+                      <p className="text-sm text-gray-600 mb-1">
+                        <span className="font-medium">スロールーム:</span>{" "}
+                        {formatTimestamp(selectedReservation.slowRoomStartDateTime)} ~ {formatTimestamp(selectedReservation.slowRoomEndDateTime)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
 
               {loadingRooms ? (
                 <div className="p-6 text-center">
