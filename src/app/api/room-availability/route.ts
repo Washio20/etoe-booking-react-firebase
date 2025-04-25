@@ -566,7 +566,7 @@ function getDefaultTimeSlots(roomType: string): TimeSlotDefinition[] {
         { time: "17:35〜19:05", maxReservations: 1 },
         { time: "19:50〜21:20", maxReservations: 1 },
         { time: "22:05〜23:35", maxReservations: 1 },
-        { time: "00:20〜01:50", maxReservations: 1 },
+        // { time: "00:20〜01:50", maxReservations: 1 },
       ];
     case "fuuu":
       return [
@@ -576,7 +576,7 @@ function getDefaultTimeSlots(roomType: string): TimeSlotDefinition[] {
         { time: "18:05〜19:35", maxReservations: 1 },
         { time: "20:10〜21:40", maxReservations: 1 },
         { time: "22:15〜24:45", maxReservations: 1 },
-        { time: "00:20〜01:50", maxReservations: 1 },
+        // { time: "00:20〜01:50", maxReservations: 1 },
       ];
     case "zabuun":
       return [
@@ -586,7 +586,7 @@ function getDefaultTimeSlots(roomType: string): TimeSlotDefinition[] {
         { time: "17:05〜18:35", maxReservations: 1 },
         { time: "19:10〜20:40", maxReservations: 1 },
         { time: "21:15〜22:45", maxReservations: 1 },
-        { time: "23:20〜00:50", maxReservations: 1 },
+        // { time: "23:20〜00:50", maxReservations: 1 },
       ];
     case "toron":
       return [
@@ -596,7 +596,7 @@ function getDefaultTimeSlots(roomType: string): TimeSlotDefinition[] {
         { time: "16:50〜18:20", maxReservations: 1 },
         { time: "18:55〜20:25", maxReservations: 1 },
         { time: "21:00〜22:30", maxReservations: 1 },
-        { time: "23:05〜00:35", maxReservations: 1 },
+        // { time: "23:05〜00:35", maxReservations: 1 },
       ];
     case "sauna_suite":
       return [

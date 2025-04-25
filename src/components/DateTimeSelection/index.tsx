@@ -119,8 +119,14 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
       endHour <= startHour ||
       (endHour === startHour && endMinute <= startMinute)
     ) {
-      setEndHour(startHour + 1 > 23 ? 23 : startHour + 1);
-      setEndMinute(startMinute);
+      // 确保结束时间不超过23:40
+      if (startHour + 1 > 23) {
+        setEndHour(23);
+        setEndMinute("40");
+      } else {
+        setEndHour(startHour + 1);
+        setEndMinute(startMinute);
+      }
     }
   }, [startHour, startMinute, endHour, endMinute]);
 
@@ -394,13 +400,22 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
         setIsCheckingAvailability(true);
         setSlowRoomAvailabilityError(null);
 
+        // 检查结束时间是否超过23:40
+        const [endHour, endMinute] = endTimeStr.split(":").map(Number);
+        if (endHour > 23 || (endHour === 23 && endMinute > 40)) {
+          setIsSlowRoomAvailable(false);
+          setSlowRoomAvailabilityError("終了時間は23:40までです。別の時間を選択してください。");
+          return;
+        }
+
         // 调用API检查可用性
         const response = await fetch(
           `/api/slow-room-availability?date=${dateStr}&startTime=${startTimeStr}&endTime=${endTimeStr}&isSetPlan=true`
         );
 
         if (!response.ok) {
-          throw new Error(`API请求失败: ${response.status}`);
+          const errorData = await response.json();
+          throw new Error(errorData.message || `API请求失败: ${response.status}`);
         }
 
         const data = await response.json();
@@ -418,9 +433,8 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
       } catch (error) {
         console.error("检查Slow Room可用性时出错:", error);
         setIsSlowRoomAvailable(false);
-        setSlowRoomAvailabilityError(
-          "チェック中にエラーが発生しました。後でもう一度お試しください。"
-        );
+        const errorMessage = error instanceof Error ? error.message : "チェック中にエラーが発生しました。後でもう一度お試しください。";
+        setSlowRoomAvailabilityError(errorMessage);
       } finally {
         setIsCheckingAvailability(false);
       }
@@ -516,8 +530,14 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
         endHour < hour + 2 ||
         (endHour === hour + 2 && endMinute <= minute)
       ) {
-        setEndHour(hour + 2 > 23 ? 23 : hour + 2);
-        setEndMinute(minute);
+        // 确保结束时间不超过23:40
+        if (hour + 2 > 23) {
+          setEndHour(23);
+          setEndMinute("40");
+        } else {
+          setEndHour(hour + 2);
+          setEndMinute(minute);
+        }
       }
     },
     [endHour, endMinute]
@@ -525,8 +545,14 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
 
   // 处理结束时间变更
   const handleEndTimeChange = useCallback((hour: number, minute: string) => {
-    setEndHour(hour);
-    setEndMinute(minute);
+    // 确保结束时间不超过23:40
+    if (hour > 23 || (hour === 23 && minute > "40")) {
+      setEndHour(23);
+      setEndMinute("40");
+    } else {
+      setEndHour(hour);
+      setEndMinute(minute);
+    }
   }, []);
 
   // 处理时间段选择
