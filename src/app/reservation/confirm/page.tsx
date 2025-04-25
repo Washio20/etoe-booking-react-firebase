@@ -92,11 +92,52 @@ export default function ReservationConfirm() {
         if (parsedInfo) {
           // 格式化日期
           let formattedDate = "未選択";
+          let displayDate = "未選択"; // 用于UI显示的日期
+          let formattedTime = parsedInfo.selectedTime || "未選択";
+          
           if (parsedInfo.selectedDate) {
             const date = new Date(parsedInfo.selectedDate);
             formattedDate = `${date.getFullYear()}年${
               date.getMonth() + 1
             }月${date.getDate()}日`;
+            displayDate = formattedDate; // 默认显示日期与存储日期相同
+            
+            // 处理跨日期时间段
+            if (parsedInfo.selectedTime) {
+              const timeSlot = parsedInfo.selectedTime;
+              
+              // 检查是否为凌晨时间段（00:00-06:00开始的时间段）
+              if (timeSlot.match(/^0[0-5]:/)) {
+                // 如果是凌晨时间段，显示为次日日期
+                const nextDay = new Date(date);
+                nextDay.setDate(date.getDate() + 1);
+                displayDate = `${nextDay.getFullYear()}年${
+                  nextDay.getMonth() + 1
+                }月${nextDay.getDate()}日`;
+              } 
+              // 检查是否为跨日时间段（23:00-23:59开始，结束时间在次日）
+              else if (timeSlot.match(/^23:\d+/) && timeSlot.includes("〜")) {
+                const parts = timeSlot.split("〜");
+                if (parts.length === 2) {
+                  const endTime = parts[1];
+                  // 如果结束时间在00:00-06:00之间，则为跨日时间段
+                  if (endTime.match(/^0[0-5]:/)) {
+                    const nextDay = new Date(date);
+                    nextDay.setDate(date.getDate() + 1);
+                    
+                    // 修改显示方式：不再在日期中表示跨日，而是修改时间显示格式
+                    displayDate = formattedDate;
+                    
+                    // 格式化时间为"当日日期 开始时间〜次日日期 结束时间"
+                    const startTime = parts[0].trim();
+                    const monthDay = `${date.getMonth() + 1}/${date.getDate()}`;
+                    const nextMonthDay = `${nextDay.getMonth() + 1}/${nextDay.getDate()}`;
+                    
+                    formattedTime = `${monthDay} ${startTime}〜${nextMonthDay} ${endTime}`;
+                  }
+                }
+              }
+            }
           }
 
           // 根据房间类型设置房间名称
@@ -157,8 +198,8 @@ export default function ReservationConfirm() {
 
           // 设置显示的预约信息
           setReservation({
-            date: formattedDate,
-            time: parsedInfo.selectedTime || "未選択",
+            date: displayDate, // 使用处理过的日期显示
+            time: formattedTime,
             type: "サウナ",
             room: roomName,
             roomType: parsedInfo.selectedRoomType,
@@ -296,21 +337,90 @@ export default function ReservationConfirm() {
       const storedInfo = localStorage.getItem("reservationInfo");
       let needSlowRoom = false;
       let slowRoomTimeRange = null;
+      let selectedDate = null;
+      let selectedTime = null;
+      let roomType = '';
 
       if (storedInfo) {
         try {
           const parsedInfo = JSON.parse(storedInfo);
           needSlowRoom = parsedInfo.needSlowRoom;
           slowRoomTimeRange = parsedInfo.slowRoomTimeRange;
+          selectedDate = parsedInfo.selectedDate; // ISO格式日期字符串
+          selectedTime = parsedInfo.selectedTime; // 时间段字符串，例如"00:20〜01:50"
+          roomType = parsedInfo.selectedRoomType;
         } catch (e) {
           console.error("解析localStorage中的预约数据时出错:", e);
         }
       }
 
+      // 处理日期和时间
+      let displayDate = reservation.date; // 用于显示的格式化日期
+      let displayTimeRange = reservation.time; // 用于显示的时间范围
+      let bookingDate = null; // 用于数据库的日期（预约当天的日期）
+      let startDateTime = null; // 预约开始时间戳
+      let endDateTime = null; // 预约结束时间戳
+
+      if (selectedDate && selectedTime) {
+        // 创建预约日期对象（选择的日期）
+        const baseDate = new Date(selectedDate);
+        
+        // 解析时间段
+        const timeSlotParts = selectedTime.split("〜");
+        if (timeSlotParts.length === 2) {
+          const startTimeStr = timeSlotParts[0].trim();
+          const endTimeStr = timeSlotParts[1].trim();
+          
+          // 解析开始时间
+          const [startHour, startMinute] = startTimeStr.split(":").map(Number);
+          
+          // 基准日期（预约的当天）
+          bookingDate = new Date(baseDate);
+          
+          // 处理开始时间
+          const startDate = new Date(baseDate);
+          
+          // 如果是凌晨时间段（00:00-06:00），则开始时间在次日
+          if (startHour >= 0 && startHour < 6) {
+            startDate.setDate(baseDate.getDate() + 1);
+          }
+          startDate.setHours(startHour, startMinute, 0, 0);
+          startDateTime = startDate;
+          
+          // 处理结束时间
+          const [endHour, endMinute] = endTimeStr.split(":").map(Number);
+          const endDate = new Date(startDate); // 基于开始日期
+          
+          // 如果结束时间小于开始时间，或者开始时间是23点且结束时间是0-6点，说明跨日
+          if (
+            (endHour < startHour) || 
+            (endHour === startHour && endMinute < startMinute) ||
+            (startHour >= 23 && endHour >= 0 && endHour < 6)
+          ) {
+            endDate.setDate(endDate.getDate() + 1);
+          }
+          
+          endDate.setHours(endHour, endMinute, 0, 0);
+          endDateTime = endDate;
+          
+          // 为API准备显示用的格式化时间范围字符串
+          // 检查是否为跨日时间段
+          if (startHour >= 23 && (endHour >= 0 && endHour < 6)) {
+            // 是跨日时间段，使用完整的日期+时间格式
+            const startMonthDay = `${startDate.getMonth() + 1}/${startDate.getDate()}`;
+            const endMonthDay = `${endDate.getMonth() + 1}/${endDate.getDate()}`;
+            displayTimeRange = `${startMonthDay} ${startTimeStr}〜${endMonthDay} ${endTimeStr}`;
+          } else {
+            // 不是跨日时间段，使用普通时间格式
+            displayTimeRange = `${startTimeStr}〜${endTimeStr}`;
+          }
+        }
+      }
+
       // 准备预约数据
       const reservationData = {
-        date: reservation.date,
-        time: reservation.time,
+        date: reservation.date, // 显示用的日期字符串
+        time: displayTimeRange, // 显示用的时间字符串（可能已格式化为包含日期的形式）
         room: reservation.room,
         roomType: reservation.roomType,
         plan: reservation.plan,
@@ -319,6 +429,12 @@ export default function ReservationConfirm() {
         slowRoomTimeRange: slowRoomTimeRange
           ? JSON.stringify(slowRoomTimeRange)
           : null,
+        // 添加完整的日期和时间信息
+        bookingDate: bookingDate ? bookingDate.toISOString() : null,
+        startDateTime: startDateTime ? startDateTime.toISOString() : null,
+        endDateTime: endDateTime ? endDateTime.toISOString() : null,
+        displayDate: displayDate, // 用于UI显示的格式化日期
+        displayTimeRange: displayTimeRange, // 用于UI显示的时间段（可能包含日期）
       };
 
       // 如果是新用户，先保存用户信息

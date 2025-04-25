@@ -6,6 +6,7 @@ import { initAdmin } from "@/utils/firebase-admin";
 // 确保Firebase Admin已初始化
 initAdmin();
 
+// 获取预约关联的卡片
 export async function GET(req: Request) {
   try {
     // 获取授权头部
@@ -56,63 +57,48 @@ export async function GET(req: Request) {
 
     const db = getFirestore();
 
-    // 获取预约信息
-    const reservationDoc = await db.collection("reservations").doc(reservationId).get();
-    
-    if (!reservationDoc.exists) {
-      return NextResponse.json(
-        { error: "予約が見つかりません" },
-        { status: 404 }
-      );
-    }
-    
-    const reservationData = reservationDoc.data();
+    // 获取与预约关联的卡片
+    const cardsCollection = db.collection("roomCards");
+    const query = cardsCollection.where("reservationId", "==", reservationId);
+    const cardsSnapshot = await query.get();
 
-    // 获取房间分配
-    const roomAssignmentsCollection = db.collection("roomAssignments");
-    const query = roomAssignmentsCollection.where("reservationId", "==", reservationId);
-    const roomAssignmentsSnapshot = await query.get();
-
-    if (roomAssignmentsSnapshot.empty) {
+    if (cardsSnapshot.empty) {
       return NextResponse.json({
         success: true,
-        assignments: [],
-        reservation: {
-          cardEmailSent: reservationData?.cardEmailSent || false,
-          cardEmailSentAt: reservationData?.cardEmailSentAt || null
-        }
+        cards: []
       });
     }
 
-    const assignments = roomAssignmentsSnapshot.docs.map(doc => {
+    const cards = cardsSnapshot.docs.map(doc => {
       const data = doc.data();
       return {
         id: doc.id,
         reservationId: data.reservationId,
-        roomType: data.roomType,
+        cardNumber: data.cardNumber,
+        cardKey: data.cardKey,
+        barcode: data.barcode,
+        qrcode: data.qrcode,
         physicalRoomId: data.physicalRoomId,
+        deviceId: data.deviceId,
         startAt: data.startAt,
         endAt: data.endAt,
+        status: data.status,
         createdAt: data.createdAt,
-        updatedAt: data.updatedAt,
+        updatedAt: data.updatedAt
       };
     });
 
     return NextResponse.json({
       success: true,
-      assignments: assignments,
-      reservation: {
-        cardEmailSent: reservationData?.cardEmailSent || false,
-        cardEmailSentAt: reservationData?.cardEmailSentAt || null
-      }
+      cards: cards
     });
   } catch (error) {
-    console.error("Error getting room assignments:", error);
+    console.error("Error getting cards:", error);
     return NextResponse.json(
-      { error: "部屋の割り当て情報の取得中にエラーが発生しました" },
+      { error: "カード情報の取得中にエラーが発生しました" },
       { status: 500 }
     );
   }
 }
 
-export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic"; 

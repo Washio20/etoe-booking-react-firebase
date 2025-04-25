@@ -193,14 +193,21 @@ function formatDateToJapanese(date: Date): string {
 function parseTimeRange(
   timeRange: string
 ): { start: string; end: string } | null {
-  // 支持多种分隔符
+  // 支持多种分隔符: 〜 (全角波浪号), ～ (另一种全角波浪号), ~ (半角波浪号), - (连字符)
   const parts = timeRange.split(/[～〜~\-]/);
   if (parts.length !== 2) return null;
 
-  return {
-    start: parts[0].trim(),
-    end: parts[1].trim(),
-  };
+  const start = parts[0].trim();
+  const end = parts[1].trim();
+  
+  // 确保时间格式正确（HH:MM）
+  const timeRegex = /^([0-9]{1,2}):([0-9]{1,2})$/;
+  
+  if (!timeRegex.test(start) || !timeRegex.test(end)) {
+    return null;
+  }
+  
+  return { start, end };
 }
 
 export async function GET(request: NextRequest) {
@@ -379,6 +386,9 @@ export async function GET(request: NextRequest) {
     // 构建时间段数据
     const timeSlots: Record<string, any> = {};
 
+    // 获取当前时间，用于检查时间槽是否过期
+    const now = new Date();
+
     // 为每一天生成时间段
     for (let i = 0; i < validDuration; i++) {
       const currentDate = new Date(startDate);
@@ -407,6 +417,12 @@ export async function GET(request: NextRequest) {
         // 默认时间段配置
         timeSlotDefinitions = getDefaultTimeSlots(roomType);
       }
+
+      // 检查是否为当天，用于过期时间检查
+      const isToday = 
+        currentDate.getDate() === now.getDate() &&
+        currentDate.getMonth() === now.getMonth() &&
+        currentDate.getFullYear() === now.getFullYear();
 
       // 构建当天的时间段
       const daySlots = timeSlotDefinitions.map((timeSlot) => {
@@ -469,10 +485,37 @@ export async function GET(request: NextRequest) {
         );
 
         // 判断时间段状态
-        const status = determineTimeSlotStatus(
+        let status = determineTimeSlotStatus(
           availablePlaces,
           maxReservations
         );
+        
+        // 如果是当天，检查时间段是否已过期
+        if (isToday && status === "○") {
+          // 解析时间段，获取开始时间
+          const timeRange = parseTimeRange(slotTime);
+          if (timeRange) {
+            // 解析开始时间 (例如 "10:50")
+            const [hours, minutes] = timeRange.start.split(":").map(Number);
+            
+            // 创建时间槽开始时间的日期对象
+            const slotStartTime = new Date(currentDate);
+            
+            // 处理跨日期的时间段（如"00:20〜01:50"）
+            // 如果小时数小于6，认为是次日凌晨
+            if (hours < 6) {
+              // 将日期加1天
+              slotStartTime.setDate(slotStartTime.getDate() + 1);
+            }
+            
+            slotStartTime.setHours(hours, minutes, 0, 0);
+            
+            // 如果时间槽开始时间早于当前时间，则将状态设置为不可用
+            if (slotStartTime < now) {
+              status = "×";
+            }
+          }
+        }
 
         // 计算价格
         const price = getRoomTimeSlotPrice(

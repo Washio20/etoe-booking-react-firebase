@@ -21,6 +21,11 @@ export const metadata: Metadata = {
   referrer: "origin-when-cross-origin",
   creator: "etoe hotel",
   publisher: "etoe hotel",
+  icons: {
+    icon: "/images/favicon.ico",
+    shortcut: "/images/favicon.ico",
+    apple: "/images/favicon.ico",
+  },
   formatDetection: {
     email: false,
     telephone: false,
@@ -58,6 +63,9 @@ export default function RootLayout({
             --font-zen-kaku-gothic: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
           }
         `}} />
+        <link rel="icon" href="/images/favicon.ico" />
+        <link rel="shortcut icon" href="/images/favicon.ico" />
+        <link rel="apple-touch-icon" href="/images/favicon.ico" />
       </head>
       <body
         className="antialiased"

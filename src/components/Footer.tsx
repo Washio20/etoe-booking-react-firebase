@@ -14,20 +14,26 @@ const Footer = () => {
               etoe hotel
             </h3> */}
             <div className="flex items-center space-x-3">
-              <Image
+              {/* <Image
                 src="/images/image6.png"
                 alt="Hotel Image 1"
                 width={40}
                 height={40}
                 className="rounded-lg"
-              />
-              <Image
-                src="/images/image7.png"
-                alt="Hotel Image 2"
-                width={40}
-                height={40}
-                className="rounded-lg"
-              />
+              /> */}
+              <Link
+                href="https://www.instagram.com/etoe_tokyo?igsh=OXdkaTZodDN6a2li&utm_source=qr"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Image
+                  src="/images/image7.png"
+                  alt="Hotel Image 2"
+                  width={40}
+                  height={40}
+                  className="rounded-lg"
+                />
+              </Link>
               <Link
                 href="https://etoehotel.com"
                 target="_blank"
@@ -73,13 +79,19 @@ const Footer = () => {
                 height={40}
                 className="rounded-lg"
               />
-              <Image
-                src="/images/image7.png"
-                alt="Hotel Image 2"
-                width={40}
-                height={40}
-                className="rounded-lg"
-              />
+              <Link
+                href="https://www.instagram.com/etoe_tokyo?igsh=OXdkaTZodDN6a2li&utm_source=qr"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Image
+                  src="/images/image7.png"
+                  alt="Hotel Image 2"
+                  width={40}
+                  height={40}
+                  className="rounded-lg"
+                />
+              </Link>
             </div>
             <Link
               href="https://etoehotel.com"
