@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { Reservation } from "@/types/reservation";
 import { toDate } from "@/utils/date";
+import Image from "next/image";
 
 export default function ReservationDetailPage({
   params,
@@ -33,6 +34,10 @@ export default function ReservationDetailPage({
     isAdmin: false,
     checkComplete: false,
   });
+
+  const [roomAssignments, setRoomAssignments] = useState<any[]>([]);
+  const [roomCards, setRoomCards] = useState<any[]>([]);
+  const [loadingRoomData, setLoadingRoomData] = useState(false);
 
   // 部屋タイプのマッピング
   const roomTypeNames: Record<string, string> = {
@@ -108,6 +113,55 @@ export default function ReservationDetailPage({
 
     fetchReservationDetail();
   }, [user, adminState, reservationId]);
+
+  // 获取房间分配和卡片信息
+  useEffect(() => {
+    const fetchRoomData = async () => {
+      if (!user || !adminState.isAdmin || !adminState.checkComplete || !reservation) return;
+      
+      setLoadingRoomData(true);
+      
+      try {
+        const token = await user.getIdToken();
+        
+        // 获取房间分配信息
+        const assignmentsResponse = await fetch(
+          `/api/admin/room-assignments?reservationId=${reservationId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        
+        if (assignmentsResponse.ok) {
+          const assignmentsData = await assignmentsResponse.json();
+          setRoomAssignments(assignmentsData.assignments || []);
+        }
+        
+        // 获取卡片信息
+        const cardsResponse = await fetch(
+          `/api/admin/cards?reservationId=${reservationId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        
+        if (cardsResponse.ok) {
+          const cardsData = await cardsResponse.json();
+          setRoomCards(cardsData.cards || []);
+        }
+      } catch (error) {
+        console.error("部屋・カード情報取得エラー:", error);
+      } finally {
+        setLoadingRoomData(false);
+      }
+    };
+    
+    fetchRoomData();
+  }, [user, adminState, reservationId, reservation]);
 
   // キャンセルモーダルを開く
   const handleOpenCancelModal = () => {
@@ -207,6 +261,11 @@ export default function ReservationDetailPage({
   //     );
   //   }
   // };
+
+  // 房间类型编号格式化
+  const formatRoomNumber = (physicalRoomId: string) => {
+    return physicalRoomId.replace('room_', '');
+  };
 
   // ローディング表示
   if (loading || !adminState.checkComplete) {
@@ -476,26 +535,6 @@ export default function ReservationDetailPage({
                         ""}
                     </div>
                   </div>
-                  {reservation.startDateTime && reservation.endDateTime && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                      <div className="text-sm text-gray-500 font-zen-kaku-gothic">
-                        予約時間(内部):
-                      </div>
-                      <div className="md:col-span-2 text-gray-700 font-zen-kaku-gothic">
-                        {format(
-                          toDate(reservation.startDateTime) || new Date(),
-                          "HH:mm",
-                          { locale: ja }
-                        )}
-                        〜
-                        {format(
-                          toDate(reservation.endDateTime) || new Date(),
-                          "HH:mm",
-                          { locale: ja }
-                        )}
-                      </div>
-                    </div>
-                  )}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                     <div className="text-sm text-gray-500 font-zen-kaku-gothic">
                       部屋タイプ:
@@ -731,6 +770,343 @@ export default function ReservationDetailPage({
                 </div>
               </div>
 
+              {/* 部屋割り当て情報 */}
+              {roomAssignments.length > 0 && (
+                <div className="mb-6 pb-4 border-b border-gray-100">
+                  <h2 className="text-lg font-bold text-gray-800 mb-3 font-zen-kaku-gothic">
+                    部屋割り当て情報
+                  </h2>
+                  <div className="space-y-4">
+                    {roomAssignments.map((assignment, index) => (
+                      <div key={index} className="p-3 bg-gray-50 rounded-md">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
+                          <div className="text-sm text-gray-500 font-zen-kaku-gothic">
+                            部屋タイプ:
+                          </div>
+                          <div className="md:col-span-2 text-gray-700 font-zen-kaku-gothic">
+                            {roomTypeNames[assignment.roomType] || assignment.roomType}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
+                          <div className="text-sm text-gray-500 font-zen-kaku-gothic">
+                            部屋番号:
+                          </div>
+                          <div className="md:col-span-2 text-gray-700 font-zen-kaku-gothic">
+                            {formatRoomNumber(assignment.physicalRoomId)}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                          <div className="text-sm text-gray-500 font-zen-kaku-gothic">
+                            利用時間:
+                          </div>
+                          <div className="md:col-span-2 text-gray-700 font-zen-kaku-gothic">
+                            {(() => {
+                              // 调试信息
+                              console.log("房间分配数据:", JSON.stringify(assignment));
+                              
+                              // 检查可能的时间字段名
+                              const possibleStartFields = ['startAt', 'startDateTime', 'start_at', 'startTime'];
+                              const possibleEndFields = ['endAt', 'endDateTime', 'end_at', 'endTime'];
+                              
+                              // 查找可用的开始时间字段
+                              let startTimeValue = null;
+                              for (const field of possibleStartFields) {
+                                if (assignment[field]) {
+                                  startTimeValue = assignment[field];
+                                  console.log(`找到开始时间字段: ${field}`, startTimeValue);
+                                  break;
+                                }
+                              }
+                              
+                              // 查找可用的结束时间字段
+                              let endTimeValue = null;
+                              for (const field of possibleEndFields) {
+                                if (assignment[field]) {
+                                  endTimeValue = assignment[field];
+                                  console.log(`找到结束时间字段: ${field}`, endTimeValue);
+                                  break;
+                                }
+                              }
+                              
+                              if (!startTimeValue || !endTimeValue) {
+                                return "時間情報なし (利用可能なフィールドが見つかりません)";
+                              }
+                              
+                              try {
+                                // 处理不同类型的时间戳
+                                const formatAssignmentDate = (dateValue: any) => {
+                                  if (!dateValue) return null;
+                                  
+                                  console.log("处理日期值:", typeof dateValue, dateValue);
+                                  
+                                  // 处理Firestore时间戳对象
+                                  if (typeof dateValue === 'object') {
+                                    if (dateValue.seconds || dateValue._seconds) {
+                                      const seconds = dateValue.seconds || dateValue._seconds;
+                                      return new Date(seconds * 1000);
+                                    }
+                                    
+                                    // 检查nanoseconds字段 - Firestore Timestamp的另一种形式
+                                    if (dateValue.nanoseconds !== undefined) {
+                                      const seconds = dateValue.seconds || 0;
+                                      return new Date(seconds * 1000);
+                                    }
+                                    
+                                    // 如果是Date对象
+                                    if (dateValue instanceof Date) {
+                                      return dateValue;
+                                    }
+                                    
+                                    // 尝试toDate方法 - Firestore Timestamp
+                                    if (typeof dateValue.toDate === 'function') {
+                                      return dateValue.toDate();
+                                    }
+                                  }
+                                  
+                                  // 处理ISO字符串
+                                  if (typeof dateValue === 'string') {
+                                    const date = new Date(dateValue);
+                                    if (!isNaN(date.getTime())) {
+                                      return date;
+                                    }
+                                  }
+                                  
+                                  // 处理数字时间戳（毫秒）
+                                  if (typeof dateValue === 'number') {
+                                    return new Date(dateValue);
+                                  }
+                                  
+                                  return null;
+                                };
+                                
+                                const startDate = formatAssignmentDate(startTimeValue);
+                                const endDate = formatAssignmentDate(endTimeValue);
+                                
+                                console.log("转换后的日期:", startDate, endDate);
+                                
+                                if (!startDate || !endDate) {
+                                  console.error("无效的分配日期格式:", startTimeValue, endTimeValue);
+                                  return "時間情報の形式が無効です";
+                                }
+                                
+                                return (
+                                  <>
+                                    {format(startDate, "yyyy年MM月dd日", { locale: ja })}
+                                    {" "}
+                                    {format(startDate, "HH:mm", { locale: ja })}
+                                    {" 〜 "}
+                                    {format(endDate, "HH:mm", { locale: ja })}
+                                  </>
+                                );
+                              } catch (error) {
+                                console.error("分配日期格式化错误:", error, assignment);
+                                return "時間情報の処理中にエラーが発生しました";
+                              }
+                            })()}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 入室カード情報 */}
+              {roomCards.length > 0 && (
+                <div className="mb-6 pb-4 border-b border-gray-100">
+                  <h2 className="text-lg font-bold text-gray-800 mb-3 font-zen-kaku-gothic">
+                    入室カード情報
+                  </h2>
+                  <div className="space-y-6">
+                    {roomCards.map((card, index) => (
+                      <div key={index} className="p-4 bg-gray-50 rounded-md">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <div className="mb-3">
+                              <span className="text-sm text-gray-500 font-zen-kaku-gothic block mb-1">
+                                部屋番号:
+                              </span>
+                              <span className="text-gray-700 font-zen-kaku-gothic font-medium">
+                                {formatRoomNumber(card.physicalRoomId)} 
+                              </span>
+                            </div>
+                            <div className="mb-3">
+                              <span className="text-sm text-gray-500 font-zen-kaku-gothic block mb-1">
+                                カード番号:
+                              </span>
+                              <span className="text-gray-700 font-zen-kaku-gothic break-all">
+                                {card.cardNumber}
+                              </span>
+                            </div>
+                            <div className="mb-3">
+                              <span className="text-sm text-gray-500 font-zen-kaku-gothic block mb-1">
+                                有効期間:
+                              </span>
+                              <span className="text-gray-700 font-zen-kaku-gothic">
+                                {(() => {
+                                  // 调试信息
+                                  console.log("卡片数据:", JSON.stringify(card));
+                                  
+                                  // 检查可能的时间字段名
+                                  const possibleStartFields = ['startAt', 'startDateTime', 'start_at', 'startTime', 'validFrom'];
+                                  const possibleEndFields = ['endAt', 'endDateTime', 'end_at', 'endTime', 'validUntil'];
+                                  
+                                  // 查找可用的开始时间字段
+                                  let startTimeValue = null;
+                                  for (const field of possibleStartFields) {
+                                    if (card[field]) {
+                                      startTimeValue = card[field];
+                                      console.log(`找到卡片开始时间字段: ${field}`, startTimeValue);
+                                      break;
+                                    }
+                                  }
+                                  
+                                  // 查找可用的结束时间字段
+                                  let endTimeValue = null;
+                                  for (const field of possibleEndFields) {
+                                    if (card[field]) {
+                                      endTimeValue = card[field];
+                                      console.log(`找到卡片结束时间字段: ${field}`, endTimeValue);
+                                      break;
+                                    }
+                                  }
+                                  
+                                  if (!startTimeValue || !endTimeValue) {
+                                    return "時間情報なし (利用可能なフィールドが見つかりません)";
+                                  }
+                                  
+                                  try {
+                                    // 处理不同类型的时间戳
+                                    const formatCardDate = (dateValue: any) => {
+                                      if (!dateValue) return null;
+                                      
+                                      console.log("处理卡片日期值:", typeof dateValue, dateValue);
+                                      
+                                      // 处理Firestore时间戳对象
+                                      if (typeof dateValue === 'object') {
+                                        if (dateValue.seconds || dateValue._seconds) {
+                                          const seconds = dateValue.seconds || dateValue._seconds;
+                                          return new Date(seconds * 1000);
+                                        }
+                                        
+                                        // 检查nanoseconds字段 - Firestore Timestamp的另一种形式
+                                        if (dateValue.nanoseconds !== undefined) {
+                                          const seconds = dateValue.seconds || 0;
+                                          return new Date(seconds * 1000);
+                                        }
+                                        
+                                        // 如果是Date对象
+                                        if (dateValue instanceof Date) {
+                                          return dateValue;
+                                        }
+                                        
+                                        // 尝试toDate方法 - Firestore Timestamp
+                                        if (typeof dateValue.toDate === 'function') {
+                                          return dateValue.toDate();
+                                        }
+                                      }
+                                      
+                                      // 处理ISO字符串
+                                      if (typeof dateValue === 'string') {
+                                        const date = new Date(dateValue);
+                                        if (!isNaN(date.getTime())) {
+                                          return date;
+                                        }
+                                      }
+                                      
+                                      // 处理数字时间戳（毫秒）
+                                      if (typeof dateValue === 'number') {
+                                        return new Date(dateValue);
+                                      }
+                                      
+                                      return null;
+                                    };
+                                    
+                                    const startDate = formatCardDate(startTimeValue);
+                                    const endDate = formatCardDate(endTimeValue);
+                                    
+                                    console.log("转换后的卡片日期:", startDate, endDate);
+                                    
+                                    if (!startDate || !endDate) {
+                                      console.error("无效的卡片日期格式:", startTimeValue, endTimeValue);
+                                      return "時間情報の形式が無効です";
+                                    }
+                                    
+                                    // 使用format格式化日期
+                                    return (
+                                      <>
+                                        {format(startDate, "yyyy年MM月dd日", { locale: ja })}
+                                        {" "}
+                                        {format(startDate, "HH:mm", { locale: ja })}
+                                        {" 〜 "}
+                                        {format(endDate, "HH:mm", { locale: ja })}
+                                      </>
+                                    );
+                                  } catch (error) {
+                                    console.error("卡片日期格式化错误:", error, card);
+                                    return "時間情報の処理中にエラーが発生しました";
+                                  }
+                                })()}
+                              </span>
+                            </div>
+                            <div className="mb-3">
+                              <span className="text-sm text-gray-500 font-zen-kaku-gothic block mb-1">
+                                メール送信状況:
+                              </span>
+                              <span className={`text-sm font-medium ${reservation.cardEmailSent ? 'text-green-600' : 'text-orange-500'}`}>
+                                {reservation.cardEmailSent ? '✓ 送信済み' : '未送信'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-center justify-center">
+                            {card.barcode && (
+                              <div className="text-center">
+                                <span className="text-sm text-gray-500 font-zen-kaku-gothic block mb-2">
+                                  入室用バーコード:
+                                </span>
+                                {card.barcode.startsWith('data:image') ? (
+                                  <Image
+                                    src={card.barcode}
+                                    alt="バーコード"
+                                    width={300}
+                                    height={100}
+                                    className="max-w-full h-auto mx-auto"
+                                  />
+                                ) : (
+                                  <div 
+                                    dangerouslySetInnerHTML={{ __html: card.barcode }}
+                                    className="max-w-full overflow-auto"
+                                  />
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {loadingRoomData && (
+                <div className="mb-6 text-center py-4">
+                  <p className="text-gray-500 font-zen-kaku-gothic">
+                    部屋・カード情報を読み込み中...
+                  </p>
+                </div>
+              )}
+
+              {!loadingRoomData && roomAssignments.length === 0 && (
+                <div className="mb-6 pb-4 border-b border-gray-100">
+                  <h2 className="text-lg font-bold text-gray-800 mb-3 font-zen-kaku-gothic">
+                    部屋割り当て情報
+                  </h2>
+                  <p className="text-gray-500 font-zen-kaku-gothic py-2">
+                    まだ部屋が割り当てられていません
+                  </p>
+                </div>
+              )}
+
               {/* 操作ボタン */}
               <div className="flex justify-end space-x-3">
                 {/* {reservation.paymentStatus === "paid" && (
@@ -747,6 +1123,15 @@ export default function ReservationDetailPage({
                 >
                   予約を削除
                 </button> */}
+                
+                {roomAssignments.length > 0 && !reservation.cardEmailSent && (
+                  <button
+                    onClick={() => router.push(`/admin/card-issue?email=${reservation.userEmail}`)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-zen-kaku-gothic hover:bg-blue-700 transition-colors"
+                  >
+                    カード情報をメール送信
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -756,3 +1141,4 @@ export default function ReservationDetailPage({
     </Layout>
   );
 }
+

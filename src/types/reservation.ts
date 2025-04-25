@@ -54,6 +54,12 @@ export interface Reservation {
     createdAt: FirestoreTimestamp | Date | string;
     status: string;
   };
+  confirmationEmailSent?: boolean;
+  confirmationEmailSentAt?: any;
+  cancellationEmailSent?: boolean;
+  cancellationEmailSentAt?: any;
+  cardEmailSent?: boolean;
+  cardEmailSentAt?: any;
 }
 
 // 房间卡信息

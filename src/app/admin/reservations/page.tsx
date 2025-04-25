@@ -31,6 +31,10 @@ export default function ReservationsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("");
   const [roomTypeFilter, setRoomTypeFilter] = useState("all");
+  
+  // 分页相关状态
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // 部屋タイプのマッピング
   const roomTypeNames: Record<string, string> = {
@@ -104,90 +108,6 @@ export default function ReservationsPage() {
     fetchReservations();
   }, [user, adminState]);
 
-  // 予約をキャンセルする処理
-  // const handleCancelReservation = async (reservationId: string) => {
-  //   if (!confirm("この予約をキャンセルしてもよろしいですか？")) {
-  //     return;
-  //   }
-
-  //   try {
-  //     const token = await user?.getIdToken();
-
-  //     const response = await fetch(
-  //       `/api/admin/reservations/${reservationId}/cancel`,
-  //       {
-  //         method: "POST",
-  //         headers: {
-  //           Authorization: `Bearer ${token}`,
-  //           "Content-Type": "application/json",
-  //         },
-  //       }
-  //     );
-
-  //     if (!response.ok) {
-  //       throw new Error("予約のキャンセルに失敗しました");
-  //     }
-
-  //     // 成功したら予約リストを更新
-  //     setReservations((prevReservations) =>
-  //       prevReservations.map((reservation) =>
-  //         reservation.id === reservationId
-  //           ? { ...reservation, paymentStatus: "cancelled" }
-  //           : reservation
-  //       )
-  //     );
-
-  //     alert("予約をキャンセルしました");
-  //   } catch (error) {
-  //     console.error("キャンセルエラー:", error);
-  //     alert(
-  //       error instanceof Error
-  //         ? error.message
-  //         : "予約のキャンセル処理中にエラーが発生しました"
-  //     );
-  //   }
-  // };
-
-  // 予約を削除する処理
-  // const handleDeleteReservation = async (reservationId: string) => {
-  //   if (
-  //     !confirm("この予約を削除してもよろしいですか？この操作は元に戻せません。")
-  //   ) {
-  //     return;
-  //   }
-
-  //   try {
-  //     const token = await user?.getIdToken();
-
-  //     const response = await fetch(`/api/admin/reservations/${reservationId}`, {
-  //       method: "DELETE",
-  //       headers: {
-  //         Authorization: `Bearer ${token}`,
-  //       },
-  //     });
-
-  //     if (!response.ok) {
-  //       throw new Error("予約の削除に失敗しました");
-  //     }
-
-  //     // 成功したら予約リストから削除
-  //     setReservations((prevReservations) =>
-  //       prevReservations.filter(
-  //         (reservation) => reservation.id !== reservationId
-  //       )
-  //     );
-
-  //     alert("予約を削除しました");
-  //   } catch (error) {
-  //     console.error("削除エラー:", error);
-  //     alert(
-  //       error instanceof Error
-  //         ? error.message
-  //         : "予約の削除処理中にエラーが発生しました"
-  //     );
-  //   }
-  // };
-
   // フィルター処理済みの予約リスト
   const filteredReservations = reservations.filter((reservation) => {
     // 検索語句でフィルタリング（メールアドレスなど）
@@ -218,6 +138,26 @@ export default function ReservationsPage() {
     const dateB = toDate(b.createdAt) || new Date();
     return dateB.getTime() - dateA.getTime();
   });
+  
+  // 分页计算
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentReservations = sortedReservations.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(sortedReservations.length / itemsPerPage);
+  
+  // 切换页面的函数
+  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+  
+  // 搜索或筛选条件变化时重置页码
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, dateFilter, roomTypeFilter]);
+  
+  // 改变每页显示数量
+  const handleItemsPerPageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setItemsPerPage(Number(e.target.value));
+    setCurrentPage(1); // 重置到第一页
+  };
 
   // ローディング表示
   if (loading || !adminState.checkComplete) {
@@ -394,6 +334,31 @@ export default function ReservationsPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
+              <div className="flex justify-between items-center mb-4">
+                <div className="text-sm text-gray-700 font-zen-kaku-gothic">
+                  全 <span className="font-medium">{sortedReservations.length}</span> 件中{" "}
+                  <span className="font-medium">{indexOfFirstItem + 1}</span> から{" "}
+                  <span className="font-medium">
+                    {Math.min(indexOfLastItem, sortedReservations.length)}
+                  </span> 件を表示
+                </div>
+                <div className="flex items-center">
+                  <label htmlFor="itemsPerPage" className="mr-2 text-sm text-gray-700 font-zen-kaku-gothic">
+                    表示件数:
+                  </label>
+                  <select
+                    id="itemsPerPage"
+                    value={itemsPerPage}
+                    onChange={handleItemsPerPageChange}
+                    className="border border-gray-300 rounded-md text-sm px-2 py-1"
+                  >
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                  </select>
+                </div>
+              </div>
+              
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -442,7 +407,7 @@ export default function ReservationsPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {sortedReservations.map((reservation) => {
+                  {currentReservations.map((reservation) => {
                     // 予約作成日時フォーマット
                     const createdDate =
                       toDate(reservation.createdAt) || new Date();
@@ -540,6 +505,107 @@ export default function ReservationsPage() {
                   })}
                 </tbody>
               </table>
+              
+              {/* 分页控件 */}
+              {totalPages > 1 && (
+                <div className="px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6 mt-4">
+                  <div className="flex-1 flex justify-between sm:hidden">
+                    <button
+                      onClick={() => paginate(Math.max(1, currentPage - 1))}
+                      disabled={currentPage === 1}
+                      className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
+                        currentPage === 1
+                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                          : "bg-white text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      前へ
+                    </button>
+                    <button
+                      onClick={() => paginate(Math.min(totalPages, currentPage + 1))}
+                      disabled={currentPage === totalPages}
+                      className={`ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
+                        currentPage === totalPages
+                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                          : "bg-white text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      次へ
+                    </button>
+                  </div>
+                  <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm text-gray-700 font-zen-kaku-gothic">
+                        <span className="font-medium">{currentPage}</span> / <span className="font-medium">{totalPages}</span> ページ
+                      </p>
+                    </div>
+                    <div>
+                      <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="ページネーション">
+                        <button
+                          onClick={() => paginate(Math.max(1, currentPage - 1))}
+                          disabled={currentPage === 1}
+                          className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium ${
+                            currentPage === 1
+                              ? "text-gray-300 cursor-not-allowed"
+                              : "text-gray-500 hover:bg-gray-50"
+                          }`}
+                        >
+                          <span className="sr-only">前へ</span>
+                          &laquo;
+                        </button>
+                        
+                        {/* 页码按钮 - 显示逻辑优化 */}
+                        {Array.from({ length: Math.min(5, totalPages) }).map((_, index) => {
+                          let pageNum;
+                          // 如果总页数少于5，显示所有页码
+                          if (totalPages <= 5) {
+                            pageNum = index + 1;
+                          }
+                          // 如果当前页在开头，显示1-5
+                          else if (currentPage <= 3) {
+                            pageNum = index + 1;
+                          }
+                          // 如果当前页在末尾，显示末尾5页
+                          else if (currentPage >= totalPages - 2) {
+                            pageNum = totalPages - 4 + index;
+                          }
+                          // 其他情况，显示当前页及其前后2页
+                          else {
+                            pageNum = currentPage - 2 + index;
+                          }
+                          
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => paginate(pageNum)}
+                              className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                currentPage === pageNum
+                                  ? "z-10 bg-indigo-50 border-indigo-500 text-indigo-600"
+                                  : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+                        
+                        <button
+                          onClick={() => paginate(Math.min(totalPages, currentPage + 1))}
+                          disabled={currentPage === totalPages}
+                          className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium ${
+                            currentPage === totalPages
+                              ? "text-gray-300 cursor-not-allowed"
+                              : "text-gray-500 hover:bg-gray-50"
+                          }`}
+                        >
+                          <span className="sr-only">次へ</span>
+                          &raquo;
+                        </button>
+                      </nav>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -382,20 +382,22 @@ export default function DateTimeTable({
                   const isSelected =
                     selectedDateIndex === colIndex &&
                     selectedTimeIndex === rowIndex;
-                  const isWeekend =
-                    actualDates[colIndex]?.getDay() === 0 ||
-                    actualDates[colIndex]?.getDay() === 6;
+                  
+                  // 确定当前单元格的背景色
+                  let bgColor = "bg-white";
+                  if (status === "×") {
+                    bgColor = "bg-[#E8E8E8]";
+                  } else if (isSelected) {
+                    bgColor = "bg-[#C78C51] bg-opacity-20";
+                  }
+                  
+                  // 确定可点击状态
+                  const isClickable = status !== "×";
 
                   return (
                     <div
                       key={colIndex}
-                      className={`flex items-center justify-center min-h-[36px] md:min-h-auto border-b border-r border-[#BBBBBB] ${
-                        status === "×"
-                          ? "bg-[#E8E8E8]"
-                          : isSelected
-                          ? "bg-[#C78C51] bg-opacity-20"
-                          : "bg-white"
-                      }`}
+                      className={`flex items-center justify-center min-h-[36px] md:min-h-auto border-b border-r border-[#BBBBBB] ${bgColor}`}
                       onClick={() => {
                         handleTimeSlotClick(colIndex, rowIndex, status);
                       }}
@@ -403,7 +405,7 @@ export default function DateTimeTable({
                       <span
                         className={`text-sm md:text-base tracking-[0.06em] font-zen-kaku-gothic ${
                           status === "×" ? "text-[#444444]" : "text-[#C78C51]"
-                        } ${status !== "×" ? "cursor-pointer" : ""}`}
+                        } ${isClickable ? "cursor-pointer" : ""}`}
                       >
                         {status}
                       </span>

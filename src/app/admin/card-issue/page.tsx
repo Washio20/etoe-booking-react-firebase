@@ -21,6 +21,7 @@ interface ExtendedReservation extends Reservation {
   hasRoomAssignment?: boolean;
   hasSlowRoomAssignment?: boolean;
   slowRoomTime?: string;
+  cardEmailSent?: boolean; // 添加卡片邮件发送状态
 }
 
 // 删除这两个接口的定义，因为它们与导入的接口冲突
@@ -264,10 +265,14 @@ export default function CardIssueManagementPage() {
             (a: any) => a.roomType === "slow_room"
           );
         
+        // 检查是否已发送卡片邮件
+        const cardEmailSent = assignmentData.reservation?.cardEmailSent === true;
+        
         newReservations[reservationIndex] = {
           ...newReservations[reservationIndex],
           hasRoomAssignment: hasMainRoomAssignment,
           hasSlowRoomAssignment: hasSlowRoomAssignment,
+          cardEmailSent: cardEmailSent,
         };
       });
       
@@ -309,49 +314,84 @@ export default function CardIssueManagementPage() {
       setGeneratedCard(null);
       setGeneratedSlowRoomCard(null);
       setError1(null);
+      // 邮件状态重置 - 确保使用预约的实际状态
+      setEmailSent(reservation.cardEmailSent === true);
       // 隐藏预约列表，转到房间分配视图
       setShowReservationList(false);
 
-      // 检查是否为套餐预约
-      const isSetPlan = reservation.slowRoomAsSetPlan === true;
-      setShowSetPlanSection(isSetPlan);
-
       const idToken = await user.getIdToken();
 
-      // 获取主房间可用性
-      const response = await fetch(
-        `/api/admin/room-availability?reservationId=${reservation.id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${idToken}`,
-          },
+      // 如果已经分配了房间，获取分配信息和卡片信息
+      if (reservation.hasRoomAssignment) {
+        // 获取房间分配信息
+        const roomAssignmentsResponse = await fetch(
+          `/api/admin/room-assignments?reservationId=${reservation.id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${idToken}`,
+            },
+          }
+        );
+        
+        if (!roomAssignmentsResponse.ok) {
+          throw new Error("部屋割り当て情報の取得に失敗しました");
         }
-      );
-
-      if (!response.ok) {
-        throw new Error("部屋の空き状況の取得に失敗しました");
-      }
-
-      const data = await response.json();
-
-      // 主房间可用性 - 只保留与预约类型匹配的房间
-      const filteredAvailableRooms: { [key: string]: boolean } = {};
-
-      Object.entries(data.availableRooms || {}).forEach(
-        ([roomId, isAvailable]) => {
-          // 检查房间类型是否与预约类型匹配
-          if (isRoomTypeMatch(roomId, reservation.roomType)) {
-            filteredAvailableRooms[roomId] = isAvailable as boolean;
+        
+        const roomAssignmentsData = await roomAssignmentsResponse.json();
+        
+        // 获取与此预约相关的所有卡片
+        const cardsResponse = await fetch(
+          `/api/admin/cards?reservationId=${reservation.id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${idToken}`,
+            },
+          }
+        );
+        
+        if (!cardsResponse.ok) {
+          throw new Error("カード情報の取得に失敗しました");
+        }
+        
+        const cardsData = await cardsResponse.json();
+        
+        if (cardsData.cards && cardsData.cards.length > 0) {
+          // 主房间卡片
+          const mainCard = cardsData.cards.find((card: any) => 
+            roomNumberToType[card.physicalRoomId] === reservation.roomType
+          );
+          
+          if (mainCard) {
+            setGeneratedCard(mainCard);
+            setSelectedRoom(mainCard.physicalRoomId);
+          }
+          
+          // 如果是套餐预约，查找slow room卡片
+          if (reservation.slowRoomAsSetPlan) {
+            const slowRoomCard = cardsData.cards.find((card: any) => 
+              roomNumberToType[card.physicalRoomId] === "slow_room"
+            );
+            
+            if (slowRoomCard) {
+              setGeneratedSlowRoomCard(slowRoomCard);
+              setSelectedSlowRoom(slowRoomCard.physicalRoomId);
+              setShowSetPlanSection(true);
+            }
           }
         }
-      );
+        
+        // 隐藏可用房间选择，直接显示已分配的房间和卡片
+        setAvailableRooms({});
+        setAvailableSlowRooms({});
+        
+      } else {
+        // 检查是否为套餐预约
+        const isSetPlan = reservation.slowRoomAsSetPlan === true;
+        setShowSetPlanSection(isSetPlan);
 
-      setAvailableRooms(filteredAvailableRooms);
-
-      // 如果是套餐预约，获取Slow Room可用性
-      if (isSetPlan) {
-        const slowRoomResponse = await fetch(
-          `/api/admin/slow-room-availability?reservationId=${reservation.id}`,
+        // 获取主房间可用性
+        const response = await fetch(
+          `/api/admin/room-availability?reservationId=${reservation.id}`,
           {
             headers: {
               Authorization: `Bearer ${idToken}`,
@@ -359,25 +399,57 @@ export default function CardIssueManagementPage() {
           }
         );
 
-        if (slowRoomResponse.ok) {
-          const slowRoomData = await slowRoomResponse.json();
+        if (!response.ok) {
+          throw new Error("部屋の空き状況の取得に失敗しました");
+        }
 
-          // Slow Room可用性 - 只保留slow_room类型的房间
-          const filteredSlowRooms: { [key: string]: boolean } = {};
+        const data = await response.json();
 
-          Object.entries(slowRoomData.availableRooms || {}).forEach(
-            ([roomId, isAvailable]) => {
-              // 检查是否为Slow Room
-              if (roomNumberToType[roomId] === "slow_room") {
-                filteredSlowRooms[roomId] = isAvailable as boolean;
-              }
+        // 主房间可用性 - 只保留与预约类型匹配的房间
+        const filteredAvailableRooms: { [key: string]: boolean } = {};
+
+        Object.entries(data.availableRooms || {}).forEach(
+          ([roomId, isAvailable]) => {
+            // 检查房间类型是否与预约类型匹配
+            if (isRoomTypeMatch(roomId, reservation.roomType)) {
+              filteredAvailableRooms[roomId] = isAvailable as boolean;
+            }
+          }
+        );
+
+        setAvailableRooms(filteredAvailableRooms);
+
+        // 如果是套餐预约，获取Slow Room可用性
+        if (isSetPlan) {
+          const slowRoomResponse = await fetch(
+            `/api/admin/slow-room-availability?reservationId=${reservation.id}`,
+            {
+              headers: {
+                Authorization: `Bearer ${idToken}`,
+              },
             }
           );
 
-          setAvailableSlowRooms(filteredSlowRooms);
-        } else {
-          console.error("Slow Room可用性获取失败");
-          setAvailableSlowRooms({});
+          if (slowRoomResponse.ok) {
+            const slowRoomData = await slowRoomResponse.json();
+
+            // Slow Room可用性 - 只保留slow_room类型的房间
+            const filteredSlowRooms: { [key: string]: boolean } = {};
+
+            Object.entries(slowRoomData.availableRooms || {}).forEach(
+              ([roomId, isAvailable]) => {
+                // 检查是否为Slow Room
+                if (roomNumberToType[roomId] === "slow_room") {
+                  filteredSlowRooms[roomId] = isAvailable as boolean;
+                }
+              }
+            );
+
+            setAvailableSlowRooms(filteredSlowRooms);
+          } else {
+            console.error("Slow Room可用性获取失败");
+            setAvailableSlowRooms({});
+          }
         }
       }
     } catch (error) {
@@ -613,21 +685,6 @@ export default function CardIssueManagementPage() {
     } finally {
       setIssuingCard(false);
     }
-  };
-
-  // 重置回预约列表状态
-  const resetToReservationList = () => {
-    setSelectedReservation(null);
-    setSelectedRoom(null);
-    setSelectedSlowRoom(null);
-    setGeneratedCard(null);
-    setGeneratedSlowRoomCard(null);
-    setAvailableRooms({});
-    setAvailableSlowRooms({});
-    setEmailSent(false);
-    setError1(null);
-    setShowSetPlanSection(false);
-    setShowReservationList(true);
   };
 
   // 发送邮件
@@ -1012,9 +1069,29 @@ export default function CardIssueManagementPage() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             {reservation.hasRoomAssignment ? (
-                              <span className="text-green-600 font-medium">
-                                ✓ 割り当て済み
-                              </span>
+                              <div className="flex flex-col space-y-2">
+                                <span className="text-green-600 font-medium">
+                                  ✓ 割り当て済み
+                                </span>
+                                {!reservation.cardEmailSent && (
+                                  <div>
+                                    <span className="text-orange-500 text-xs block">
+                                      メール未送信
+                                    </span>
+                                    <button
+                                      onClick={() => checkRoomAvailability(reservation)}
+                                      className="text-blue-600 hover:text-blue-900 text-xs mt-1"
+                                    >
+                                      メール送信へ
+                                    </button>
+                                  </div>
+                                )}
+                                {reservation.cardEmailSent && (
+                                  <span className="text-green-500 text-xs">
+                                    ✓ メール送信済み
+                                  </span>
+                                )}
+                              </div>
                             ) : (
                               <button
                                 onClick={() => checkRoomAvailability(reservation)}
@@ -1185,11 +1262,47 @@ export default function CardIssueManagementPage() {
                 <div className="p-4">
                   {/* 主房间分配部分 */}
                   <div className="mb-4">
-                    {selectedReservation.hasRoomAssignment ? (
-                      <div className="bg-green-50 p-3 rounded-md mb-4">
-                        <p className="text-green-700 font-zen-kaku-gothic text-sm">
-                          この部屋タイプは既に割り当て済みです
-                        </p>
+                    {selectedReservation.hasRoomAssignment && generatedCard ? (
+                      <div className="bg-white border border-gray-200 rounded-md p-4 mb-4">
+                        <h3 className="text-md font-medium text-gray-700 mb-3 font-zen-kaku-gothic">
+                          割り当て済み - {roomTypeMapping[selectedReservation.roomType] || selectedReservation.roomType}：
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-sm text-gray-700 mb-1">
+                              <span className="font-medium">部屋番号:</span> {generatedCard.physicalRoomId.replace("room_", "")}
+                            </p>
+                            <p className="text-sm text-gray-700 mb-1">
+                              <span className="font-medium">カード番号:</span> {generatedCard.cardNumber}
+                            </p>
+                            <p className="text-sm text-gray-700 mb-1">
+                              <span className="font-medium">有効期間:</span>{" "}
+                              {formatTimestamp(generatedCard.startAt)} ~ {formatTimestamp(generatedCard.endAt)}
+                            </p>
+                          </div>
+                          <div className="flex justify-center items-center">
+                            {generatedCard.barcode && (
+                              <div>
+                                {generatedCard.barcode.startsWith("data:image") ? (
+                                  <Image
+                                    src={generatedCard.barcode}
+                                    alt="バーコード"
+                                    width={300}
+                                    height={100}
+                                    className="max-w-full h-auto"
+                                  />
+                                ) : (
+                                  <div
+                                    dangerouslySetInnerHTML={{
+                                      __html: generatedCard.barcode,
+                                    }}
+                                    className="max-w-full overflow-auto"
+                                  />
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     ) : (
                       <>
@@ -1263,82 +1376,127 @@ export default function CardIssueManagementPage() {
                   </div>
 
                   {/* Slow Room分配部分 - 仅在套餐预约且需要分配时显示 */}
-                  {showSetPlanSection && (
+                  {showSetPlanSection && selectedReservation?.slowRoomAsSetPlan && (
                     <div className="mt-6 pt-4 border-t border-gray-200">
-                      <h3 className="text-md font-medium text-gray-700 mb-3 font-zen-kaku-gothic">
-                        セットプラン - スロールーム：
-                        <span className="text-xs ml-2 text-gray-500">
-                          ({selectedReservation.slowRoomTime || "時間指定なし"})
-                        </span>
-                      </h3>
-
-                      {selectedReservation.hasSlowRoomAssignment ? (
-                        <div className="bg-green-50 p-3 rounded-md mb-4">
-                          <p className="text-green-700 font-zen-kaku-gothic text-sm">
-                            セットプランのSlow Roomは既に割り当て済みです
-                          </p>
+                      {selectedReservation.hasSlowRoomAssignment && generatedSlowRoomCard ? (
+                        <div className="bg-white border border-gray-200 rounded-md p-4 mb-4">
+                          <h3 className="text-md font-medium text-gray-700 mb-3 font-zen-kaku-gothic">
+                            割り当て済み - スロールーム：
+                            {generatedSlowRoomCard.startAt && (
+                              <span className="text-xs ml-2 text-gray-500">
+                                ({formatTimestamp(generatedSlowRoomCard.startAt).split(' ')[1]})
+                              </span>
+                            )}
+                          </h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-sm text-gray-700 mb-1">
+                                <span className="font-medium">部屋番号:</span> {generatedSlowRoomCard.physicalRoomId.replace("room_", "")}
+                              </p>
+                              <p className="text-sm text-gray-700 mb-1">
+                                <span className="font-medium">カード番号:</span> {generatedSlowRoomCard.cardNumber}
+                              </p>
+                              <p className="text-sm text-gray-700 mb-1">
+                                <span className="font-medium">有効期間:</span>{" "}
+                                {formatTimestamp(generatedSlowRoomCard.startAt)} ~ {formatTimestamp(generatedSlowRoomCard.endAt)}
+                              </p>
+                            </div>
+                            <div className="flex justify-center items-center">
+                              {generatedSlowRoomCard.barcode && (
+                                <div>
+                                  {generatedSlowRoomCard.barcode.startsWith("data:image") ? (
+                                    <Image
+                                      src={generatedSlowRoomCard.barcode}
+                                      alt="スロールームバーコード"
+                                      width={300}
+                                      height={100}
+                                      className="max-w-full h-auto"
+                                    />
+                                  ) : (
+                                    <div
+                                      dangerouslySetInnerHTML={{
+                                        __html: generatedSlowRoomCard.barcode,
+                                      }}
+                                      className="max-w-full overflow-auto"
+                                    />
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       ) : (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                          {Object.entries(availableSlowRooms).map(
-                            ([roomId, isAvailable]) => {
-                              // Slow Room总是匹配的
-                              const isMatched =
-                                roomNumberToType[roomId] === "slow_room";
+                        <>
+                          <h3 className="text-md font-medium text-gray-700 mb-3 font-zen-kaku-gothic">
+                            セットプラン - スロールーム：
+                            {selectedReservation.slowRoomStartDateTime && (
+                              <span className="text-xs ml-2 text-gray-500">
+                                ({formatTimestamp(selectedReservation.slowRoomStartDateTime).split(' ')[1]})
+                              </span>
+                            )}
+                          </h3>
 
-                              // 跳过不是Slow Room类型的房间
-                              if (!isMatched) {
-                                return null;
-                              }
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                            {Object.entries(availableSlowRooms).map(
+                              ([roomId, isAvailable]) => {
+                                // Slow Room总是匹配的
+                                const isMatched =
+                                  roomNumberToType[roomId] === "slow_room";
 
-                              return (
-                                <div
-                                  key={roomId}
-                                  className={`border rounded-md p-3 text-center ${
-                                    !isAvailable
-                                      ? "bg-gray-100 opacity-50"
-                                      : !isMatched
-                                      ? "bg-gray-50 border-gray-300"
-                                      : selectedSlowRoom === roomId
-                                      ? "bg-white border-2 border-blue-700 shadow-sm"
-                                      : "bg-white border-gray-300 hover:border-blue-500 cursor-pointer"
-                                  }`}
-                                  onClick={() => {
-                                    if (
-                                      isAvailable &&
-                                      isMatched &&
-                                      !generatedSlowRoomCard
-                                    ) {
-                                      handleSlowRoomSelection(roomId);
-                                    }
-                                  }}
-                                >
-                                  <div className="font-medium text-gray-900">
-                                    {roomId.replace("room_", "")}
-                                  </div>
-                                  <div className="text-xs text-gray-500 mt-1">
-                                    スロールーム
-                                  </div>
+                                // 跳过不是Slow Room类型的房间
+                                if (!isMatched) {
+                                  return null;
+                                }
+
+                                return (
                                   <div
-                                    className={`text-xs mt-2 px-2 py-1 rounded-full ${
+                                    key={roomId}
+                                    className={`border rounded-md p-3 text-center ${
                                       !isAvailable
-                                        ? "bg-red-100 text-red-800"
-                                        : "bg-green-100 text-green-800"
+                                        ? "bg-gray-100 opacity-50"
+                                        : !isMatched
+                                        ? "bg-gray-50 border-gray-300"
+                                        : selectedSlowRoom === roomId
+                                        ? "bg-white border-2 border-blue-700 shadow-sm"
+                                        : "bg-white border-gray-300 hover:border-blue-500 cursor-pointer"
                                     }`}
+                                    onClick={() => {
+                                      if (
+                                        isAvailable &&
+                                        isMatched &&
+                                        !generatedSlowRoomCard
+                                      ) {
+                                        handleSlowRoomSelection(roomId);
+                                      }
+                                    }}
                                   >
-                                    {isAvailable ? "空き" : "使用中"}
+                                    <div className="font-medium text-gray-900">
+                                      {roomId.replace("room_", "")}
+                                    </div>
+                                    <div className="text-xs text-gray-500 mt-1">
+                                      スロールーム
+                                    </div>
+                                    <div
+                                      className={`text-xs mt-2 px-2 py-1 rounded-full ${
+                                        !isAvailable
+                                          ? "bg-red-100 text-red-800"
+                                          : "bg-green-100 text-green-800"
+                                      }`}
+                                    >
+                                      {isAvailable ? "空き" : "使用中"}
+                                    </div>
                                   </div>
-                                </div>
-                              );
-                            }
-                          )}
-                        </div>
+                                );
+                              }
+                            )}
+                          </div>
+                        </>
                       )}
                     </div>
                   )}
 
-                  {/* 选择房间后的确认按钮 */}
-                  {(selectedRoom || selectedReservation.hasRoomAssignment) &&
+                  {/* 只在尚未分配房间时显示确认按钮 */}
+                  {!selectedReservation.hasRoomAssignment && (selectedRoom || selectedReservation.hasRoomAssignment) &&
                     (!showSetPlanSection ||
                       selectedSlowRoom ||
                       selectedReservation.hasSlowRoomAssignment) &&
@@ -1359,24 +1517,80 @@ export default function CardIssueManagementPage() {
                         </button>
                       </div>
                     )}
+                  
+                  {/* 邮件发送部分 - 仅在已分配且未发邮件的预约进入时显示（不是通过发行卡片按钮生成的情况） */}
+                  {selectedReservation?.hasRoomAssignment && !emailSent && (
+                    <div className="border-t border-gray-200 mt-6 pt-4 pb-2 px-4">
+                      <div className="bg-gray-50 p-4 rounded-md">
+                        <h3 className="text-md font-medium text-gray-700 mb-3 font-zen-kaku-gothic">
+                          カード情報メール送信
+                        </h3>
+                        {emailSent ? (
+                          <div className="text-center">
+                            <p className="text-green-600 font-medium font-zen-kaku-gothic">
+                              ✓ カード情報のメールが送信済みです
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="text-center">
+                            <p className="text-sm text-gray-600 font-zen-kaku-gothic mb-4">
+                              お客様にカード情報のメールを送信します。
+                            </p>
+                            <button
+                              onClick={sendCardEmail}
+                              disabled={sendingEmail}
+                              className={`px-4 py-2 rounded-md text-sm font-zen-kaku-gothic ${
+                                sendingEmail
+                                  ? "bg-gray-400 text-white"
+                                  : "bg-blue-600 text-white hover:bg-blue-700"
+                              }`}
+                            >
+                              {sendingEmail
+                                ? "送信中..."
+                                : "お客様にメール送信"}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           )}
 
-          {/* 生成されたカード */}
-          {(generatedCard || generatedSlowRoomCard) && (
+          {/* 邮件发送成功提示 - 当在已分配房间页面发送邮件成功后显示 */}
+          {selectedReservation?.hasRoomAssignment && emailSent && (
+            <div className="mt-6 bg-green-50 p-4 rounded-lg border border-green-200">
+              <div className="text-center">
+                <div className="flex items-center justify-center mb-2">
+                  <svg className="w-6 h-6 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                  <p className="text-lg font-medium text-green-700 font-zen-kaku-gothic">
+                    メール送信完了
+                  </p>
+                </div>
+                <p className="text-sm text-green-600 font-zen-kaku-gothic">
+                  カード情報のメールがお客様に正常に送信されました。
+                </p>
+                <button
+                  onClick={goBackToList}
+                  className="mt-4 px-4 py-2 bg-gray-700 text-white rounded-md text-sm font-zen-kaku-gothic hover:bg-gray-800"
+                >
+                  一覧に戻る
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* 生成されたカード - 仅当通过本页面新生成卡片时显示 */}
+          {(generatedCard || generatedSlowRoomCard) && !selectedReservation?.hasRoomAssignment && (
             <div className="bg-green-50 p-6 rounded-lg border border-green-200 mt-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-medium text-gray-800 font-zen-kaku-gothic">
                   生成されたカード
                 </h2>
-                <button
-                  onClick={resetToReservationList}
-                  className="px-3 py-1 bg-gray-500 text-white rounded-md text-sm font-zen-kaku-gothic hover:bg-gray-600"
-                >
-                  新規割り当て
-                </button>
               </div>
 
               {/* 主房间卡片 */}
@@ -1487,9 +1701,18 @@ export default function CardIssueManagementPage() {
               )}
 
               <div className="mt-4 text-center">
-                <p className="text-sm text-gray-600 font-zen-kaku-gothic">
-                  このカードは正常に発行され、データベースに保存されました。
-                </p>
+                {emailSent ? (
+                  <div className="mb-4">
+                    <p className="text-green-600 font-medium font-zen-kaku-gothic">
+                      ✓ カード情報のメールが送信済みです
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-600 font-zen-kaku-gothic mb-4">
+                    このカードは正常に発行され、データベースに保存されました。
+                    お客様にメールで送信する必要があります。
+                  </p>
+                )}
                 <div className="mt-4">
                   <button
                     onClick={sendCardEmail}
