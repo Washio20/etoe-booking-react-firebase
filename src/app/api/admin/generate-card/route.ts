@@ -198,6 +198,7 @@ export async function POST(req: Request) {
         owner_client_id: CLIENT_ID,
         symbol_type: "pdf417",
       };
+      console.log("测试用-准备调用外部API创建卡片...",cardData);
 
       // 调用API
       const response = await fetch(CARD_API_URL, {

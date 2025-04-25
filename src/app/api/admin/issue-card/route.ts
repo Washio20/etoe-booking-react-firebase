@@ -21,9 +21,6 @@ const CARD_API_TOKEN = process.env.CARD_API_TOKEN || "stayforge_test_token_123";
 // 客户端ID
 const CLIENT_ID = "client_etoehotel";
 
-// 使用测试模式（不调用实际API）
-const USE_TEST_MODE = true;
-
 // 房间号对应的房间类型映射
 const roomNumberToType: { [key: string]: string } = {
   room_101: "tototo",
@@ -148,7 +145,6 @@ const createRoomCard = async (
     let cardKey = cardNumber;
     let barcode = "";
 
-    if (!USE_TEST_MODE) {
       try {
         console.log("准备调用外部API创建卡片...");
 
@@ -159,16 +155,37 @@ const createRoomCard = async (
           throw new Error("无法获取API令牌");
         }
 
-        // 请求卡API创建卡
+        // 转换日期为日本时区的ISO字符串格式
+        // 使用日本时区格式化日期时间
+        const formatDateTimeJP = (date: Date): string => {
+          // 设置为日本时区 (UTC+9)
+          const offset = 9 * 60; // 日本是UTC+9，偏移量为9小时（分钟计算）
+          const jpTime = new Date(date.getTime() + offset * 60000);
+          
+          // 格式化为ISO8601格式，但使用JST时区
+          return jpTime.toISOString().replace('Z', '+09:00');
+        };
+        
+        const startDateJST = formatDateTimeJP(startDateTime);
+        const endDateJST = formatDateTimeJP(endDateTime);
+        
+        console.log("转换后的日本时区时间参数:", {
+          startDateTime: startDateJST,
+          endDateTime: endDateJST
+        });
+
+        // 请求卡API创建卡 - 使用日本时区时间
         const cardData = {
           number: cardNumber,
           name: `ETOE-${reservationId}`,
           devices: [deviceId],
-          start_at: getFirebaseTimestamp(startDateTime),
-          end_at: getFirebaseTimestamp(endDateTime),
+          start_at: startDateJST, // 使用日本时区ISO字符串
+          end_at: endDateJST, // 使用日本时区ISO字符串
           owner_client_id: CLIENT_ID,
           symbol_type: "pdf417",
         };
+
+        console.log("客户用-准备调用外部API创建卡片...", cardData);
 
         // 调用API
         const response = await fetch(CARD_API_URL, {
@@ -208,11 +225,6 @@ const createRoomCard = async (
         console.log("使用本地生成的卡号作为备选方案");
         barcode = await generateBarcode(cardNumber);
       }
-    } else {
-      // 测试模式，使用本地生成的条形码
-      console.log("测试模式：使用本地生成的条形码");
-      barcode = await generateBarcode(cardNumber);
-    }
 
     // 生成二维码
     const qrcode = await generateQRCode(cardNumber);

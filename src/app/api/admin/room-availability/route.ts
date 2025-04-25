@@ -7,12 +7,25 @@ import {
   SUITE_ROOM_MAPPING,
   SLOW_ROOM_MAPPING,
 } from "@/types/room";
+import { toDate, formatToJapaneseDate } from "@/utils/date";
 
 // 确保Firebase Admin已初始化
 initAdmin();
 
 // 设置时区为日本时区
 process.env.TZ = "Asia/Tokyo";
+
+// 格式化日期时间为日本格式，与Firebase显示格式一致
+const formatDateTimeJP = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const seconds = date.getSeconds().toString().padStart(2, '0');
+  
+  return `${year}年${month}月${day}日 ${hours}:${minutes}:${seconds} UTC+9`;
+};
 
 export async function GET(req: Request) {
   try {
@@ -98,21 +111,14 @@ export async function GET(req: Request) {
     // 1. 优先使用新的bookingDate字段（Timestamp类型）
     if (reservation.bookingDate) {
       try {
-        if (
-          typeof reservation.bookingDate === "object" &&
-          "seconds" in reservation.bookingDate
-        ) {
-          bookingDate = new Date(reservation.bookingDate.seconds * 1000);
+        bookingDate = toDate(reservation.bookingDate);
+        if (bookingDate) {
           console.log(
-            "使用bookingDate字段（Timestamp）:",
-            bookingDate.toISOString()
+            "使用bookingDate字段:",
+            formatDateTimeJP(bookingDate)
           );
         } else {
-          bookingDate = new Date(reservation.bookingDate);
-          console.log(
-            "使用bookingDate字段（日期字符串）:",
-            bookingDate.toISOString()
-          );
+          throw new Error("无法转换bookingDate");
         }
       } catch (e) {
         console.error("解析bookingDate失败:", e);
@@ -140,36 +146,41 @@ export async function GET(req: Request) {
       );
 
       try {
-        if (typeof reservationDate === "string") {
-          // 1. 尝试解析 YYYY年MM月DD日 格式
-          const match = reservationDate.match(/(\d+)年(\d+)月(\d+)日/);
-          if (match) {
-            const [_, year, month, day] = match;
-            bookingDate = new Date(
-              parseInt(year),
-              parseInt(month) - 1,
-              parseInt(day)
-            );
+        bookingDate = toDate(reservationDate);
+        
+        // 如果toDate返回null，尝试其他方法解析
+        if (!bookingDate) {
+          if (typeof reservationDate === "string") {
+            // 1. 尝试解析 YYYY年MM月DD日 格式
+            const match = reservationDate.match(/(\d+)年(\d+)月(\d+)日/);
+            if (match) {
+              const [_, year, month, day] = match;
+              bookingDate = new Date(
+                parseInt(year),
+                parseInt(month) - 1,
+                parseInt(day)
+              );
+            }
+            // 2. 尝试解析 YYYY-MM-DD 格式
+            else if (reservationDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+              bookingDate = new Date(reservationDate);
+            }
+            // 3. 尝试直接解析任何可以被Date构造函数识别的格式
+            else {
+              bookingDate = new Date(reservationDate);
+            }
           }
-          // 2. 尝试解析 YYYY-MM-DD 格式
-          else if (reservationDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-            bookingDate = new Date(reservationDate);
+          // 4. 处理 Firestore Timestamp 对象 
+          else if (
+            typeof reservationDate === "object" &&
+            "seconds" in reservationDate
+          ) {
+            bookingDate = new Date(reservationDate.seconds * 1000);
           }
-          // 3. 尝试直接解析任何可以被Date构造函数识别的格式
+          // 5. 其他未知格式
           else {
             bookingDate = new Date(reservationDate);
           }
-        }
-        // 4. 处理 Firestore Timestamp 对象
-        else if (
-          typeof reservationDate === "object" &&
-          "seconds" in reservationDate
-        ) {
-          bookingDate = new Date(reservationDate.seconds * 1000);
-        }
-        // 5. 其他未知格式
-        else {
-          bookingDate = new Date(reservationDate);
         }
 
         // 验证日期是否有效
@@ -194,7 +205,7 @@ export async function GET(req: Request) {
       );
     }
 
-    console.log("最终解析的预约日期:", bookingDate.toISOString());
+    console.log("最终解析的预约日期:", formatDateTimeJP(bookingDate));
 
     if (!roomType) {
       console.error("缺少房间类型");
@@ -216,21 +227,12 @@ export async function GET(req: Request) {
       // 1. 优先使用新的字段结构（startDateTime和endDateTime）
       if (reservation.startDateTime && reservation.endDateTime) {
         try {
-          startDateTime =
-            typeof reservation.startDateTime === "object" &&
-            "seconds" in reservation.startDateTime
-              ? new Date(reservation.startDateTime.seconds * 1000)
-              : new Date(reservation.startDateTime);
-
-          endDateTime =
-            typeof reservation.endDateTime === "object" &&
-            "seconds" in reservation.endDateTime
-              ? new Date(reservation.endDateTime.seconds * 1000)
-              : new Date(reservation.endDateTime);
+          startDateTime = toDate(reservation.startDateTime) || startDateTime;
+          endDateTime = toDate(reservation.endDateTime) || endDateTime;
 
           console.log("使用startDateTime和endDateTime字段:", {
-            startDateTime: startDateTime.toISOString(),
-            endDateTime: endDateTime.toISOString(),
+            startDateTime: formatDateTimeJP(startDateTime),
+            endDateTime: formatDateTimeJP(endDateTime),
           });
         } catch (e) {
           console.error("解析startDateTime/endDateTime失败:", e);
@@ -337,21 +339,12 @@ export async function GET(req: Request) {
       // 1. 优先使用新的字段结构（startDateTime和endDateTime）
       if (reservation.startDateTime && reservation.endDateTime) {
         try {
-          startDateTime =
-            typeof reservation.startDateTime === "object" &&
-            "seconds" in reservation.startDateTime
-              ? new Date(reservation.startDateTime.seconds * 1000)
-              : new Date(reservation.startDateTime);
-
-          endDateTime =
-            typeof reservation.endDateTime === "object" &&
-            "seconds" in reservation.endDateTime
-              ? new Date(reservation.endDateTime.seconds * 1000)
-              : new Date(reservation.endDateTime);
+          startDateTime = toDate(reservation.startDateTime) || startDateTime;
+          endDateTime = toDate(reservation.endDateTime) || endDateTime;
 
           console.log("使用startDateTime和endDateTime字段:", {
-            startDateTime: startDateTime.toISOString(),
-            endDateTime: endDateTime.toISOString(),
+            startDateTime: formatDateTimeJP(startDateTime),
+            endDateTime: formatDateTimeJP(endDateTime),
           });
         } catch (e) {
           console.error("解析startDateTime/endDateTime失败:", e);
@@ -462,8 +455,8 @@ export async function GET(req: Request) {
     }
 
     console.log("最终预约时间范围:", {
-      startDateTime: startDateTime.toISOString(),
-      endDateTime: endDateTime.toISOString(),
+      startDateTime: formatDateTimeJP(startDateTime),
+      endDateTime: formatDateTimeJP(endDateTime),
     });
 
     // 获取该房间类型对应的所有物理房间
@@ -505,14 +498,20 @@ export async function GET(req: Request) {
     const dayEndTimestamp = Timestamp.fromDate(dayEnd);
 
     console.log("查询房间分配，日期范围:", {
-      dayStart: dayStart.toISOString(),
-      dayEnd: dayEnd.toISOString(),
+      dayStart: formatDateTimeJP(dayStart),
+      dayEnd: formatDateTimeJP(dayEnd),
     });
 
-    // 查询活跃的房间分配
+    // 查询活跃的房间分配，优化查询条件：
+    // 1. 状态为active
+    // 2. 开始时间小于等于当天结束时间（确保分配在查询日期开始或之前）
+    // 3. 结束时间大于等于当天开始时间（确保分配在查询日期结束或之后）
+    // 这样可以获取与查询日期有重叠的所有分配记录
     const assignmentsQuery = db
       .collection("roomAssignments")
-      .where("status", "==", "active");
+      .where("status", "==", "active")
+      .where("startDateTime", "<=", dayEndTimestamp)
+      .where("endDateTime", ">=", dayStartTimestamp);
 
     const assignmentsSnapshot = await assignmentsQuery.get();
 
@@ -528,43 +527,9 @@ export async function GET(req: Request) {
       let assignmentStartObj: Date, assignmentEndObj: Date;
 
       try {
-        // 处理不同格式的日期时间
-        if (
-          typeof assignment.startDateTime === "object" &&
-          assignment.startDateTime.seconds
-        ) {
-          // 如果是Firestore Timestamp
-          assignmentStartObj = new Date(
-            assignment.startDateTime.seconds * 1000
-          );
-          assignmentEndObj = new Date(assignment.endDateTime.seconds * 1000);
-        } else if (typeof assignment.startDateTime === "number") {
-          // 如果是数字时间戳
-          assignmentStartObj = new Date(assignment.startDateTime);
-          assignmentEndObj = new Date(assignment.endDateTime);
-        } else {
-          // 如果是ISO字符串或其他格式
-          assignmentStartObj = new Date(assignment.startDateTime);
-          assignmentEndObj = new Date(assignment.endDateTime);
-        }
-
-        // 检查日期是否相同（仅考虑年月日）
-        const assignmentDate = new Date(
-          assignmentStartObj.getFullYear(),
-          assignmentStartObj.getMonth(),
-          assignmentStartObj.getDate()
-        );
-
-        const requestedDate = new Date(
-          bookingDate.getFullYear(),
-          bookingDate.getMonth(),
-          bookingDate.getDate()
-        );
-
-        // 如果日期不同，跳过这条记录
-        if (assignmentDate.getTime() !== requestedDate.getTime()) {
-          return;
-        }
+        // 使用toDate处理不同格式的日期时间
+        assignmentStartObj = toDate(assignment.startDateTime) || new Date();
+        assignmentEndObj = toDate(assignment.endDateTime) || new Date();
 
         // 检查主房间时间冲突
         const mainRoomOverlap =
@@ -573,6 +538,7 @@ export async function GET(req: Request) {
         // 如果有重叠，添加到占用的房间集合中
         if (mainRoomOverlap) {
           occupiedRooms.add(assignment.physicalRoomId);
+          console.log(`房间 ${assignment.physicalRoomId} 在时间段 ${formatDateTimeJP(assignmentStartObj)} 至 ${formatDateTimeJP(assignmentEndObj)} 被占用`);
         }
       } catch (e) {
         console.error("处理房间分配记录时出错:", e, assignment);
