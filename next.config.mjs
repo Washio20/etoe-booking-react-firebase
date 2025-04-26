@@ -8,6 +8,17 @@ const nextConfig = {
   },
   // 添加对Google字体的处理
   optimizeFonts: false, // 禁用字体优化
+  
+  // 添加 rewrites 配置，处理 Firebase 邮箱验证链接
+  async rewrites() {
+    return [
+      {
+        // 捕获 Firebase 邮箱验证链接
+        source: '/__/auth/action',
+        destination: '/api/verify-email'
+      }
+    ];
+  },
 };
 
 export default nextConfig;

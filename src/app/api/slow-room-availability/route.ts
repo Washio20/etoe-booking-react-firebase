@@ -13,9 +13,6 @@ export const dynamic = "force-dynamic";
 // 设置时区为日本时区
 process.env.TZ = "Asia/Tokyo";
 
-// Slow Room的营业时间为9:00到23:40，23:40是最晚的结束时间
-console.log("Slow Room营业时间：9:00-23:40");
-
 // 辅助函数：解析时间字符串为Date对象
 function parseDateTimeString(date: Date, timeStr: string): Date | null {
   const match = timeStr.trim().match(/(\d+):(\d+)/);

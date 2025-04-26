@@ -25,7 +25,7 @@ export default function CommercialTransactionLawPage() {
 
             <section>
               <h2 className="font-medium">Webサイト</h2>
-              <p>nana-hotel.com</p>
+              <p>https://etoehotel.com</p>
             </section>
 
             <section>

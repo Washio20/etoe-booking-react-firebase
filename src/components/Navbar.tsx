@@ -48,8 +48,8 @@ const Navbar = () => {
     { name: "施設予約", href: "/" },
     { name: "予約一覧", href: "/reservations", requireLogin: true },
     { name: "会員情報", href: "/member", requireLogin: true },
-    { name: "利用ガイド", href: "/guide" },
-    { name: "よくある質問", href: "/faq" },
+    // { name: "利用ガイド", href: "/guide" },
+    // { name: "よくある質問", href: "/faq" },
     { name: "お問い合わせ", href: "/contact" },
   ];
 

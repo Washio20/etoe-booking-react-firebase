@@ -16,7 +16,7 @@ export default function ReservationConfirm() {
     date: "2024年1月1日",
     time: "20:00〜22:00",
     type: "サウナ",
-    room: "ROOM naNA",
+    room: "ROOM Sauna",
     roomType: "未選択",
     plan: "なし",
     price: "0,000",
