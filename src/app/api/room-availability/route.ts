@@ -575,7 +575,7 @@ function getDefaultTimeSlots(roomType: string): TimeSlotDefinition[] {
         { time: "16:00〜17:30", maxReservations: 1 },
         { time: "18:05〜19:35", maxReservations: 1 },
         { time: "20:10〜21:40", maxReservations: 1 },
-        { time: "22:15〜24:45", maxReservations: 1 },
+        { time: "22:15〜23:45", maxReservations: 1 },
         // { time: "00:20〜01:50", maxReservations: 1 },
       ];
     case "zabuun":

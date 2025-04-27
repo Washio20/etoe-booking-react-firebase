@@ -19,7 +19,7 @@ import {
 } from "firebase/firestore";
 import { auth, db, passwordResetSettings, emailVerificationSettings } from "./firebase";
 
-// 用户基本信息接口
+// ユーザー基本情報インターフェース
 export interface UserData {
   uid: string;
   email: string;
@@ -31,103 +31,134 @@ export interface UserData {
   updatedAt?: Timestamp;
 }
 
-// 设置认证Cookie的函数
+// 認証Cookie設定関数
 const setAuthCookie = async (user: User): Promise<void> => {
   try {
-    // 获取用户的ID Token
+    // ユーザーIDトークンの取得
     const token = await getIdToken(user);
 
-    // 设置cookie，有效期为7天
+    // Cookie設定、有効期間は7日間
     const expiration = new Date();
     expiration.setDate(expiration.getDate() + 7);
 
-    // 设置cookie
+    // Cookie設定
     document.cookie = `firebase_auth_token=${token}; expires=${expiration.toUTCString()}; path=/; SameSite=Strict`;
   } catch (error) {
-    console.error("设置认证Cookie失败:", error);
+    console.error("認証Cookie設定に失敗しました:", error);
   }
 };
 
-// 清除认证Cookie的函数
+// 認証Cookie削除関数
 const clearAuthCookie = (): void => {
   document.cookie =
     "firebase_auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict";
 };
 
-// 注册新用户
+// 新規ユーザー登録
 export const registerUser = async (
   email: string,
   password: string,
   userData: Omit<UserData, "uid" | "email" | "createdAt" | "updatedAt">
 ): Promise<{ success: boolean; data?: User; error?: any }> => {
   try {
-    // 1. 在 Firebase Auth 中创建用户
+    // 1. Firebase Authでユーザー作成
     const userCredential: UserCredential = await createUserWithEmailAndPassword(
       auth,
       email,
       password
     );
 
-    // 2. 获取新用户的 UID
+    // 2. 新規ユーザーのUID取得
     const user = userCredential.user;
 
-    // 3. 发送邮箱验证邮件
-    await sendEmailVerification(user, emailVerificationSettings);
+    // 3. メール認証メール送信 - パラメータ追加
+    const productionDomain = process.env.NEXT_PUBLIC_BASE_URL || 'https://book.etoehotel.com';
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    const verificationUrl = isProduction
+      ? `${productionDomain}/__/auth/action`
+      : emailVerificationSettings.url;
+    
+    // 明確な設定を使用
+    const actionCodeSettings = {
+      url: verificationUrl,
+      handleCodeInApp: true,
+      // カスタムパラメータ追加 - メールとユーザーIDでユーザー識別を容易に
+      // 注意: Firebaseは一部のパラメータをフィルタリングする可能性がありますが、これらは通常安全です
+      dynamicLinkDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    };
 
-    // 4. 在 Firestore 中创建用户文档
+    await sendEmailVerification(user, actionCodeSettings);
+
+    // 4. Firestoreにユーザードキュメント作成
     await setDoc(doc(db, "users", user.uid), {
       uid: user.uid,
       email: user.email,
-      emailVerified: false, // 初始状态为未验证
+      emailVerified: false, // 初期状態は未認証
       ...userData,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
 
-    // 5. 设置认证Cookie
+    // 5. 認証Cookie設定
     await setAuthCookie(user);
 
     return { success: true, data: user };
   } catch (error) {
-    console.error("注册失败:", error);
+    console.error("登録に失敗しました:", error);
     return { success: false, error };
   }
 };
 
-// 检查邮箱是否已验证
+// メール認証状態確認
 export const checkEmailVerification = async (): Promise<boolean> => {
   try {
-    // 强制刷新用户，以获取最新的验证状态
+    // ユーザー情報を強制更新して最新の認証状態を取得
     if (auth.currentUser) {
       await auth.currentUser.reload();
       return auth.currentUser.emailVerified;
     }
     return false;
   } catch (error) {
-    console.error("检查邮箱验证状态失败:", error);
+    console.error("メール認証状態確認に失敗しました:", error);
     return false;
   }
 };
 
-// 重新发送验证邮件
+// 認証メール再送信
 export const resendVerificationEmail = async (): Promise<{
   success: boolean;
   error?: any;
 }> => {
   try {
     if (!auth.currentUser) {
-      return { success: false, error: "用户未登录" };
+      return { success: false, error: "ユーザーがログインしていません" };
     }
 
-    await sendEmailVerification(auth.currentUser, emailVerificationSettings);
+    // 現在の環境設定を取得
+    const productionDomain = process.env.NEXT_PUBLIC_BASE_URL || 'https://book.etoehotel.com';
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    // 本番環境では常に本番ドメインを使用
+    const verificationUrl = isProduction
+      ? `${productionDomain}/__/auth/action`
+      : emailVerificationSettings.url;
+    
+    // 明確なURL設定を使用
+    const actionCodeSettings = {
+      url: verificationUrl,
+      handleCodeInApp: true
+    };
+
+    await sendEmailVerification(auth.currentUser, actionCodeSettings);
     return { success: true };
   } catch (error) {
-    console.error("重新发送验证邮件失败:", error);
+    console.error("認証メール再送信に失敗しました:", error);
     return { success: false, error };
   }
 };
 
-// 用户登录
+// ユーザーログイン
 export const loginUser = async (
   email: string,
   password: string
@@ -137,21 +168,21 @@ export const loginUser = async (
   error?: any;
 }> => {
   try {
-    // 1. 使用 Firebase Auth 登录
+    // 1. Firebase Authでログイン
     const userCredential: UserCredential = await signInWithEmailAndPassword(
       auth,
       email,
       password
     );
 
-    // 2. 获取用户
+    // 2. ユーザー取得
     const user = userCredential.user;
 
-    // 3. 检查用户是否在 Firestore 中有文档
+    // 3. ユーザーがFirestoreにドキュメントを持っているか確認
     const userDocRef = doc(db, "users", user.uid);
     const userDoc = await getDoc(userDocRef);
 
-    // 4. 如果用户文档不存在，则创建基本信息
+    // 4. ユーザードキュメントが存在しない場合、基本情報を作成
     if (!userDoc.exists()) {
       await setDoc(userDocRef, {
         uid: user.uid,
@@ -161,14 +192,14 @@ export const loginUser = async (
         updatedAt: serverTimestamp(),
       });
     } else {
-      // 5. 更新最后登录时间和邮箱验证状态
+      // 5. 最終ログイン時間とメール認証状態を更新
       await updateDoc(userDocRef, {
         lastLogin: serverTimestamp(),
         emailVerified: user.emailVerified,
       });
     }
 
-    // 6. 设置认证Cookie
+    // 6. 認証Cookie設定
     await setAuthCookie(user);
 
     return {
@@ -176,12 +207,12 @@ export const loginUser = async (
       data: Object.assign(user, { emailVerified: user.emailVerified }),
     };
   } catch (error) {
-    console.error("登录失败:", error);
+    console.error("ログインに失敗しました:", error);
     return { success: false, error };
   }
 };
 
-// 用户登出
+// ユーザーログアウト
 export const logoutUser = async (): Promise<{
   success: boolean;
   error?: any;
@@ -189,40 +220,40 @@ export const logoutUser = async (): Promise<{
   try {
     await signOut(auth);
 
-    // 清除认证Cookie
+    // 認証Cookie削除
     clearAuthCookie();
 
     return { success: true };
   } catch (error) {
-    console.error("登出失败:", error);
+    console.error("ログアウトに失敗しました:", error);
     return { success: false, error };
   }
 };
 
-// 获取当前用户
+// 現在のユーザー取得
 export const getCurrentUser = (): User | null => {
   return auth.currentUser;
 };
 
-// 监听认证状态变化，并更新cookie
+// 認証状態変更リスナー設定、Cookieを更新
 export const setupAuthListener = (): (() => void) => {
   return onAuthStateChanged(auth, async (user) => {
     if (user) {
-      // 用户已登录，设置cookie
+      // ユーザーがログイン中、Cookieを設定
       await setAuthCookie(user);
     } else {
-      // 用户已登出，清除cookie
+      // ユーザーがログアウト、Cookieを削除
       clearAuthCookie();
     }
   });
 };
 
-// 为了保持向后兼容性，保留onAuthStateChange函数
+// 後方互換性のため、onAuthStateChange関数を保持
 export const onAuthStateChange = (callback: (user: User | null) => void) => {
   return onAuthStateChanged(auth, callback);
 };
 
-// 获取用户数据
+// ユーザーデータ取得
 export const getUserData = async (
   uid: string
 ): Promise<{ success: boolean; data?: UserData; error?: any }> => {
@@ -233,15 +264,15 @@ export const getUserData = async (
     if (userDoc.exists()) {
       return { success: true, data: userDoc.data() as UserData };
     } else {
-      return { success: false, error: "用户数据不存在" };
+      return { success: false, error: "ユーザーデータが存在しません" };
     }
   } catch (error) {
-    console.error("获取用户数据失败:", error);
+    console.error("ユーザーデータ取得に失敗しました:", error);
     return { success: false, error };
   }
 };
 
-// 更新用户数据
+// ユーザーデータ更新
 export const updateUserData = async (
   uid: string,
   userData: Partial<Omit<UserData, "uid" | "email" | "createdAt">>
@@ -256,21 +287,21 @@ export const updateUserData = async (
 
     return { success: true };
   } catch (error) {
-    console.error("更新用户数据失败:", error);
+    console.error("ユーザーデータ更新に失敗しました:", error);
     return { success: false, error };
   }
 };
 
-// 密码重置
+// パスワードリセット
 export const resetPassword = async (
   email: string
 ): Promise<{ success: boolean; error?: any }> => {
   try {
-    // 使用配置的密码重置设置
+    // 設定したパスワードリセット設定を使用
     await sendPasswordResetEmail(auth, email, passwordResetSettings);
     return { success: true };
   } catch (error) {
-    console.error("密码重置失败:", error);
+    console.error("パスワードリセットに失敗しました:", error);
     return { success: false, error };
   }
 };

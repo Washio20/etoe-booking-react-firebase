@@ -62,47 +62,47 @@ export default function AdminRoomList() {
   }, []);
 
   // 处理删除房间
-  const handleDeleteRoom = async (roomId: string) => {
-    // 确认删除
-    if (!confirm("この客室を削除してもよろしいですか？")) {
-      return;
-    }
+  // const handleDeleteRoom = async (roomId: string) => {
+  //   // 确认删除
+  //   if (!confirm("この客室を削除してもよろしいですか？")) {
+  //     return;
+  //   }
 
-    try {
-      // 获取用户的ID令牌
-      const user = auth.currentUser;
-      if (!user) {
-        throw new Error("ログインが必要です");
-      }
+  //   try {
+  //     // 获取用户的ID令牌
+  //     const user = auth.currentUser;
+  //     if (!user) {
+  //       throw new Error("ログインが必要です");
+  //     }
 
-      const token = await user.getIdToken();
+  //     const token = await user.getIdToken();
 
-      // 构建URL
-      const url = new URL("/api/rooms", window.location.origin);
-      url.searchParams.append("id", roomId);
+  //     // 构建URL
+  //     const url = new URL("/api/rooms", window.location.origin);
+  //     url.searchParams.append("id", roomId);
 
-      // 发送删除请求
-      const response = await fetch(url.toString(), {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+  //     // 发送删除请求
+  //     const response = await fetch(url.toString(), {
+  //       method: "DELETE",
+  //       headers: {
+  //         Authorization: `Bearer ${token}`,
+  //         "Content-Type": "application/json",
+  //       },
+  //     });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "削除に失敗しました");
-      }
+  //     if (!response.ok) {
+  //       const errorData = await response.json();
+  //       throw new Error(errorData.error || "削除に失敗しました");
+  //     }
 
-      // 更新房间列表
-      setRooms((prevRooms) => prevRooms.filter((room) => room.id !== roomId));
-      alert("客室が削除されました。");
-    } catch (error) {
-      console.error("删除房间失败:", error);
-      alert("削除に失敗しました。もう一度お試しください。");
-    }
-  };
+  //     // 更新房间列表
+  //     setRooms((prevRooms) => prevRooms.filter((room) => room.id !== roomId));
+  //     alert("客室が削除されました。");
+  //   } catch (error) {
+  //     console.error("删除房间失败:", error);
+  //     alert("削除に失敗しました。もう一度お試しください。");
+  //   }
+  // };
 
   // 过滤房间数据
   const filteredRooms =
@@ -278,12 +278,12 @@ export default function AdminRoomList() {
                   >
                     編集
                   </button>
-                  <button
+                  {/* <button
                     onClick={() => handleDeleteRoom(room.id)}
                     className="text-red-600 hover:text-red-800 text-sm font-zen-kaku-gothic"
                   >
                     削除
-                  </button>
+                  </button> */}
                 </div>
               </div>
             </div>

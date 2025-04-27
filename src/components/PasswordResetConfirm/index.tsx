@@ -17,9 +17,8 @@ export default function PasswordResetConfirm() {
   const [email, setEmail] = useState("");
   const [verificationFailed, setVerificationFailed] = useState(false);
 
-  // 获取URL中的重置代码和模式 - 这些是必要的参数
+  // 获取URL中的重置代码 - 这是必要的参数
   const oobCode = searchParams.get("oobCode");
-  const mode = searchParams.get("mode");
 
   // 验证重置代码
   useEffect(() => {
@@ -130,78 +129,75 @@ export default function PasswordResetConfirm() {
 
   return (
     <div className="w-full max-w-md mx-auto">
-      <div className="bg-white rounded-lg p-6 shadow-md border">
-        <h2 className="text-2xl font-bold mb-6">新しいパスワードを設定</h2>
-        <p className="mb-6">
-          アカウント <span className="font-medium">{email}</span>{" "}
-          の新しいパスワードを設定してください
-        </p>
+      <h2 className="text-2xl font-bold mb-6">新しいパスワードを設定</h2>
+      <p className="mb-6">
+        新しいパスワードを設定してください
+      </p>
 
-        {error && (
-          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
-            {error}
-          </div>
-        )}
+      {error && (
+        <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
+          {error}
+        </div>
+      )}
 
-        <form onSubmit={handleSubmit}>
-          <div className="space-y-4">
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium mb-1"
-              >
-                新しいパスワード
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setPassword(e.target.value)
-                }
-                className="w-full border border-[#BBBBBB] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#444444]"
-                required
-                minLength={6}
-              />
-              <p className="text-xs text-gray-500 mt-1">6文字以上</p>
-            </div>
-
-            <div>
-              <label
-                htmlFor="confirmPassword"
-                className="block text-sm font-medium mb-1"
-              >
-                パスワード(確認)
-              </label>
-              <input
-                id="confirmPassword"
-                type="password"
-                value={confirmPassword}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setConfirmPassword(e.target.value)
-                }
-                className="w-full border border-[#BBBBBB] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#444444]"
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="w-full bg-[#444444] text-white py-2 rounded-full hover:bg-[#333333] transition-colors"
-              disabled={loading}
+      <form onSubmit={handleSubmit}>
+        <div className="space-y-4">
+          <div>
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium mb-1"
             >
-              {loading ? (
-                <>
-                  <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
-                  設定中...
-                </>
-              ) : (
-                "パスワードを設定"
-              )}
-            </button>
+              新しいパスワード
+            </label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setPassword(e.target.value)
+              }
+              className="w-full border border-[#BBBBBB] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#444444]"
+              required
+              minLength={6}
+            />
+            <p className="text-xs text-gray-500 mt-1">6文字以上</p>
           </div>
-        </form>
-      </div>
+
+          <div>
+            <label
+              htmlFor="confirmPassword"
+              className="block text-sm font-medium mb-1"
+            >
+              パスワード(確認)
+            </label>
+            <input
+              id="confirmPassword"
+              type="password"
+              value={confirmPassword}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setConfirmPassword(e.target.value)
+              }
+              className="w-full border border-[#BBBBBB] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#444444]"
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            className="w-full bg-[#444444] text-white py-2 rounded-full hover:bg-[#333333] transition-colors"
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
+                設定中...
+              </>
+            ) : (
+              "パスワードを設定"
+            )}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

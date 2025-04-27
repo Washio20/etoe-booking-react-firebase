@@ -89,7 +89,7 @@ export default function EditRoomPage({ params }: EditRoomPageProps) {
           "16:00〜17:30",
           "18:05〜19:35",
           "20:10〜21:40",
-          "22:15〜24:45",
+          "22:15〜23:45",
           // "00:20〜01:50",
         ];
       case "zabuun":
