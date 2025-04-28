@@ -395,216 +395,143 @@ interface DateSelectorProps {
   onDateChange: (date: Date) => void;
 }
 
-// 日历选择组件
+// 日期选择组件（替换原有的日历组件）
 const DateSelector: React.FC<DateSelectorProps> = ({
   selectedDate,
   onDateChange,
 }) => {
   const today = new Date();
-  const [currentMonth, setCurrentMonth] = useState(today.getMonth());
-  const [currentYear, setCurrentYear] = useState(today.getFullYear());
-
-  // 获取当月的所有日期
-  const getDaysInMonth = () => {
-    const firstDay = new Date(currentYear, currentMonth, 1);
-    const lastDay = new Date(currentYear, currentMonth + 1, 0);
-
-    // 获取月初是周几
-    const startDayOfWeek = firstDay.getDay();
-
-    // 生成日历网格
-    const days = [];
-
-    // 计算本月初的日期和当前日期
-    const currentDate = new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      today.getDate()
-    );
-
-    // 如果当前月份和年份与日历显示的一致，则从当天开始显示
-    const startingDate =
-      currentYear === today.getFullYear() && currentMonth === today.getMonth()
-        ? today.getDate()
-        : 1;
-
-    // 计算日历网格的起始位置
-    const firstDayPosition = startDayOfWeek;
-
-    // 如果显示当前月份，并且从当天开始显示
-    if (
-      currentYear === today.getFullYear() &&
-      currentMonth === today.getMonth()
-    ) {
-      // 填充从月初到当天前的空白
-      const currentDayPosition = firstDayPosition + startingDate - 1;
-      for (let i = 0; i < currentDayPosition; i++) {
-        days.push(null);
-      }
-
-      // 填充从当天开始的日期
-      for (let i = startingDate; i <= lastDay.getDate(); i++) {
-        const date = new Date(currentYear, currentMonth, i);
-        days.push(date);
-      }
-    } else {
-      // 填充月初前的空白
-      for (let i = 0; i < startDayOfWeek; i++) {
-        days.push(null);
-      }
-
-      // 填充当月的日期
-      for (let i = 1; i <= lastDay.getDate(); i++) {
-        const date = new Date(currentYear, currentMonth, i);
-        days.push(date);
-      }
+  const weekDayNames = ["日", "月", "火", "水", "木", "金", "土"];
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  
+  // 生成未来21天的日期数组
+  const generateDateList = () => {
+    const dates = [];
+    for (let i = 0; i < 21; i++) {
+      const date = new Date();
+      date.setDate(today.getDate() + i);
+      dates.push(date);
     }
-
-    return days;
+    return dates;
   };
-
-  // 处理上个月按钮点击
-  const handlePrevMonth = () => {
-    if (currentMonth === 0) {
-      setCurrentMonth(11);
-      setCurrentYear(currentYear - 1);
-    } else {
-      setCurrentMonth(currentMonth - 1);
+  
+  const dateList = generateDateList();
+  
+  // 添加滚动控制函数
+  const scrollLeft = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: -200, behavior: 'smooth' });
     }
   };
-
-  // 处理下个月按钮点击
-  const handleNextMonth = () => {
-    if (currentMonth === 11) {
-      setCurrentMonth(0);
-      setCurrentYear(currentYear + 1);
-    } else {
-      setCurrentMonth(currentMonth + 1);
+  
+  const scrollRight = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: 200, behavior: 'smooth' });
     }
   };
-
-  // 检查是否可以点击上个月按钮
-  const canClickPrevMonth = () => {
-    // 如果当前显示的是当前月份，则不允许查看上个月
-    if (
-      currentYear === today.getFullYear() &&
-      currentMonth === today.getMonth()
-    ) {
-      return false;
-    }
-
-    const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-    const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
-    return new Date(prevYear, prevMonth + 1, 0) >= today;
-  };
-
+  
   // 检查是否是选中的日期
-  const isSelectedDate = (date: Date | null) => {
-    if (!date || !selectedDate) return false;
-
+  const isSelectedDate = (date: Date) => {
+    if (!selectedDate) return false;
+    
     return (
       date.getDate() === selectedDate.getDate() &&
       date.getMonth() === selectedDate.getMonth() &&
       date.getFullYear() === selectedDate.getFullYear()
     );
   };
-
+  
   // 检查是否是今天
-  const isToday = (date: Date | null) => {
-    if (!date) return false;
-
+  const isToday = (date: Date) => {
     return (
       date.getDate() === today.getDate() &&
       date.getMonth() === today.getMonth() &&
       date.getFullYear() === today.getFullYear()
     );
   };
-
+  
   // 获取日期按钮样式
-  const getDateButtonStyle = (date: Date | null) => {
-    if (!date)
-      return "text-gray-300 bg-white border-gray-200 cursor-not-allowed";
-
+  const getDateButtonStyle = (date: Date) => {
     const dayOfWeek = date.getDay();
-
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    
+    let baseStyle = "flex flex-col items-center justify-center p-2 rounded-md border transition-all w-[72px] h-[76px] ";
+    
     if (isSelectedDate(date)) {
-      return "bg-[#C78C51] bg-opacity-20 border-[#C78C51] border-2 text-[#444444] font-bold hover:bg-[#C78C51] hover:bg-opacity-30";
+      return baseStyle + "bg-[#C78C51] bg-opacity-20 border-[#C78C51] border-2 text-[#444444] font-bold";
     } else if (isToday(date)) {
-      return "border-[#C78C51] border-2 text-[#444444] hover:bg-[#C78C51] hover:bg-opacity-10";
-    } else if (dayOfWeek === 0) {
-      // 周日
-      return "border-rose-200 text-rose-500 hover:bg-rose-50";
-    } else if (dayOfWeek === 6) {
-      // 周六
-      return "border-blue-200 text-blue-500 hover:bg-blue-50";
+      return baseStyle + "border-[#C78C51] border-2 text-[#444444]";
+    } else if (dayOfWeek === 0) { // 周日
+      return baseStyle + "border-rose-200 text-rose-500 hover:bg-rose-50";
+    } else if (dayOfWeek === 6) { // 周六
+      return baseStyle + "border-blue-200 text-blue-500 hover:bg-blue-50";
     } else {
-      return "border-gray-200 text-[#444444] hover:bg-gray-50";
+      return baseStyle + "border-gray-200 text-[#444444] hover:bg-gray-50";
     }
   };
-
-  const days = getDaysInMonth();
+  
+  // 格式化显示日期
+  const formatDate = (date: Date) => {
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    return `${month}/${day}`;
+  };
+  
+  // 获取日期完整格式（用于辅助功能）
+  const getFullDateString = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    const weekDay = weekDayNames[date.getDay()];
+    return `${year}年${month}月${day}日(${weekDay})`;
+  };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between mb-3">
-        <button
-          onClick={handlePrevMonth}
-          disabled={!canClickPrevMonth()}
-          className={`w-8 h-8 flex items-center justify-center rounded-full border-2 shadow-sm transition-colors ${
-            canClickPrevMonth()
-              ? "border-[#444444] text-[#444444] hover:bg-gray-100"
-              : "text-gray-300 border-gray-300 cursor-not-allowed opacity-50"
-          }`}
+    <div className="w-full">
+      <div className="relative">
+        {/* PC端滚动按钮 */}
+        <button 
+          onClick={scrollLeft}
+          className="absolute left-0 top-1/2 transform -translate-y-1/2 z-10 hidden md:flex items-center justify-center w-8 h-8 bg-white rounded-full shadow-md border border-gray-200 hover:bg-gray-50 focus:outline-none"
+          aria-label="前の日付を見る"
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronLeft className="w-4 h-4 text-gray-600" />
         </button>
-        <h3 className="text-base font-medium text-[#444444] font-zen-kaku-gothic">
-          {currentYear}年{currentMonth + 1}月
-        </h3>
-        <button
-          onClick={handleNextMonth}
-          className="w-8 h-8 flex items-center justify-center rounded-full border-2 border-[#444444] text-[#444444] hover:bg-gray-100 shadow-sm transition-colors"
+        
+        <div 
+          ref={scrollContainerRef}
+          className="overflow-x-auto hide-scrollbar pb-2 md:px-10 md:py-2 touch-pan-x"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      </div>
-
-      <div className="grid grid-cols-7 gap-1.5">
-        {weekDays.map((day, index) => (
-          <div
-            key={day}
-            className={`text-center text-xs font-medium py-2 font-zen-kaku-gothic rounded-md ${
-              index === 0
-                ? "bg-[#D77777] text-[#444444]"
-                : index === 6
-                ? "bg-[#6AA3C6] text-[#444444]"
-                : "bg-[#444444] text-white"
-            } ${index === 0 ? "rounded-l-md" : ""} ${
-              index === 6 ? "rounded-r-md" : ""
-            }`}
-          >
-            {day}
+          <div className="flex space-x-2 min-w-max py-1">
+            {dateList.map((date, index) => (
+              <button
+                key={index}
+                onClick={() => onDateChange(date)}
+                className={getDateButtonStyle(date)}
+                aria-label={getFullDateString(date)}
+                aria-pressed={isSelectedDate(date)}
+              >
+                <span className={`text-xs font-medium mb-1 ${date.getDay() === 0 ? 'text-rose-500' : date.getDay() === 6 ? 'text-blue-500' : 'text-gray-500'}`}>
+                  {weekDayNames[date.getDay()]}
+                </span>
+                <span className="text-sm font-bold">{formatDate(date)}</span>
+                {isToday(date) && (
+                  <span className="text-[10px] mt-1 bg-[#C78C51] text-white px-1 rounded-sm">今日</span>
+                )}
+              </button>
+            ))}
           </div>
-        ))}
-
-        {days.map((date, index) => (
-          <button
-            key={index}
-            disabled={!date}
-            onClick={() => {
-              if (date instanceof Date) {
-                onDateChange(date);
-              }
-            }}
-            className={`h-10 flex items-center justify-center text-sm border rounded-md shadow-sm transition-all font-zen-kaku-gothic ${
-              date instanceof Date
-                ? getDateButtonStyle(date)
-                : "text-gray-300 bg-white border-gray-200 cursor-not-allowed"
-            }`}
-          >
-            {date instanceof Date ? date.getDate() : ""}
-          </button>
-        ))}
+        </div>
+        
+        {/* PC端滚动按钮 */}
+        <button 
+          onClick={scrollRight}
+          className="absolute right-0 top-1/2 transform -translate-y-1/2 z-10 hidden md:flex items-center justify-center w-8 h-8 bg-white rounded-full shadow-md border border-gray-200 hover:bg-gray-50 focus:outline-none"
+          aria-label="次の日付を見る"
+        >
+          <ChevronRight className="w-4 h-4 text-gray-600" />
+        </button>
       </div>
     </div>
   );
@@ -1028,6 +955,15 @@ export default function ImprovedPureSlowRoomSelection({
 
   // 处理日期选择
   const handleDateChange = (date: Date) => {
+    // 检查日期是否在有效范围内（今天到未来3周）
+    const maxAllowedDate = new Date();
+    maxAllowedDate.setDate(maxAllowedDate.getDate() + 21); // 今天 + 21天 = 3周后
+    
+    // 如果日期超过了最大允许日期，则不允许选择
+    if (date > maxAllowedDate) {
+      return;
+    }
+    
     setSelectedDate(date);
 
     // 修复：获取准确的本地日期字符串，避免时区问题导致日期偏差
@@ -1186,6 +1122,15 @@ export default function ImprovedPureSlowRoomSelection({
             selectedDate={selectedDate}
             onDateChange={handleDateChange}
           />
+          
+          {/* 添加滚动提示信息（仅在移动端显示） */}
+          <div className="mt-1 text-left text-[11px] text-gray-500 md:hidden font-zen-kaku-gothic">
+            ※ 左右にスワイプして、他の日付を確認できます
+          </div>
+
+          <div className="mt-2 text-[11px] md:text-xs text-gray-500 font-zen-kaku-gothic">
+            ※ 本日から3週間以内の日付のみ予約可能です
+          </div>
         </div>
 
         {/* 時間選択 */}

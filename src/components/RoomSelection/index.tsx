@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, TouchEvent } from "react";
 import Image from "next/image";
-import { InfoIcon, X } from "lucide-react";
+import { InfoIcon, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { createPortal } from "react-dom";
 import DateTimeSelection from "../DateTimeSelection";
 import PureSlowRoomSelection from "../PureSlowRoomSelection";
@@ -14,6 +14,88 @@ interface RoomInfoModalProps {
 }
 
 function RoomInfoModal({ room, onClose }: RoomInfoModalProps) {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const sliderRef = useRef<HTMLDivElement>(null);
+  
+  // 合并主图和附加图片
+  const allImages = room ? 
+    [room.imageUrl, ...(room.images || [])].filter(Boolean) : 
+    [];
+  
+  // 在弹窗显示时禁用背景滚动
+  useEffect(() => {
+    // 保存原始的overflow样式
+    const originalStyle = document.body.style.overflow;
+    
+    // 禁用滚动
+    document.body.style.overflow = 'hidden';
+    
+    // 清理函数：恢复滚动
+    return () => {
+      document.body.style.overflow = originalStyle;
+    };
+  }, []);
+  
+  // 处理图片轮播
+  const nextImage = useCallback(() => {
+    setCurrentImageIndex((prev) => 
+      prev === allImages.length - 1 ? 0 : prev + 1
+    );
+  }, [allImages.length]);
+  
+  const prevImage = useCallback(() => {
+    setCurrentImageIndex((prev) => 
+      prev === 0 ? allImages.length - 1 : prev - 1
+    );
+  }, [allImages.length]);
+  
+  // 使用ref和useEffect添加事件监听器，而不是内联的onTouch属性
+  useEffect(() => {
+    const slider = sliderRef.current;
+    if (!slider || allImages.length <= 1) return;
+    
+    let startX: number;
+    
+    const handleTouchStart = (e: Event) => {
+      const touchEvent = e as unknown as TouchEvent;
+      startX = touchEvent.touches[0].clientX;
+    };
+    
+    const handleTouchMove = (e: Event) => {
+      // 不在这里调用preventDefault，而是只阻止冒泡
+      e.stopPropagation();
+    };
+    
+    const handleTouchEnd = (e: Event) => {
+      const touchEvent = e as unknown as TouchEvent;
+      const endX = touchEvent.changedTouches[0].clientX;
+      const diff = startX - endX;
+      
+      // 判断滑动方向和距离
+      if (Math.abs(diff) > 50) {
+        if (diff > 0) {
+          // 向左滑动
+          nextImage();
+        } else {
+          // 向右滑动
+          prevImage();
+        }
+      }
+    };
+    
+    // 添加带有options的事件监听器
+    slider.addEventListener('touchstart', handleTouchStart, { passive: true });
+    slider.addEventListener('touchmove', handleTouchMove, { passive: true });
+    slider.addEventListener('touchend', handleTouchEnd, { passive: true });
+    
+    // 清理函数
+    return () => {
+      slider.removeEventListener('touchstart', handleTouchStart);
+      slider.removeEventListener('touchmove', handleTouchMove);
+      slider.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [allImages.length, nextImage, prevImage]);
+
   if (!room) return null;
 
   if (typeof window === "undefined") return null;
@@ -22,8 +104,18 @@ function RoomInfoModal({ room, onClose }: RoomInfoModalProps) {
     <div
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]"
       style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0 }}
+      onClick={onClose}
     >
-      <div className="bg-white rounded-lg p-4 max-w-2xl w-[95%] md:w-full mx-auto my-4 max-h-[90vh] overflow-y-auto">
+      <div 
+        className="bg-white rounded-lg p-4 max-w-2xl w-[95%] md:w-full mx-auto my-4 max-h-[90vh] overflow-y-auto overscroll-none"
+        onClick={(e) => e.stopPropagation()} // 阻止点击内容区域关闭弹窗
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchMove={(e) => {
+          e.stopPropagation(); 
+          // 允许内部滚动，但阻止背景滚动
+        }}
+        onTouchEnd={(e) => e.stopPropagation()}
+      >
         <div className="flex justify-end mb-2">
           <button
             onClick={onClose}
@@ -33,13 +125,65 @@ function RoomInfoModal({ room, onClose }: RoomInfoModalProps) {
           </button>
         </div>
         <div className="px-2 sm:px-8">
-          <div className="relative w-full h-[180px] sm:h-[320px] mb-4">
-            <Image
-              src={room.imageUrl || "/images/room-placeholder.jpg"}
-              alt={room.roomType}
-              fill
-              className="object-contain rounded-lg"
-            />
+          {/* 轮播图 */}
+          <div 
+            ref={sliderRef}
+            className="relative w-full h-[180px] sm:h-[320px] mb-4 touch-pan-x select-none"
+          >
+            {allImages.length > 0 ? (
+              <>
+                <Image
+                  src={allImages[currentImageIndex] || "/images/room-placeholder.jpg"}
+                  alt={`${room.roomType} - 画像 ${currentImageIndex + 1}`}
+                  fill
+                  className="object-contain rounded-lg"
+                />
+                
+                {/* 只有多张图片时显示轮播控制 */}
+                {allImages.length > 1 && (
+                  <>
+                    {/* 轮播指示器 */}
+                    <div className="absolute bottom-2 left-0 right-0 flex justify-center space-x-2">
+                      {allImages.map((_, index) => (
+                        <button
+                          key={index}
+                          onClick={() => setCurrentImageIndex(index)}
+                          className={`w-2 h-2 rounded-full ${
+                            index === currentImageIndex
+                              ? "bg-white"
+                              : "bg-white/50"
+                          }`}
+                          aria-label={`画像 ${index + 1} へ移動`}
+                        />
+                      ))}
+                    </div>
+                    
+                    {/* 左右箭头 - 只在PC端显示 */}
+                    <button
+                      onClick={prevImage}
+                      className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/30 rounded-full p-1 hover:bg-black/50 transition-colors hidden md:block"
+                      aria-label="前の画像"
+                    >
+                      <ChevronLeft className="h-6 w-6 text-white" />
+                    </button>
+                    <button
+                      onClick={nextImage}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/30 rounded-full p-1 hover:bg-black/50 transition-colors hidden md:block"
+                      aria-label="次の画像"
+                    >
+                      <ChevronRight className="h-6 w-6 text-white" />
+                    </button>
+                  </>
+                )}
+              </>
+            ) : (
+              <Image
+                src="/images/room-placeholder.jpg"
+                alt={room.roomType}
+                fill
+                className="object-contain rounded-lg"
+              />
+            )}
           </div>
           <table className="w-full border-collapse mb-8">
             <tbody>

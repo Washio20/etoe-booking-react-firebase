@@ -76,7 +76,7 @@ async function sendEmailWithGmailApi(
 ${subject}
 
 etoe sauna & stay｜お部屋カード情報のご案内
-このたびは、etoeをご予約いただき、誠にありがとうございます。
+このたびは、etoe sauna & stayをご予約いただき、誠にありがとうございます。
 ご滞在予定のお部屋にご入室いただくためのカード情報をお届けいたします。
 詳細なご予約内容は、会員ページよりご確認いただけます。
 
@@ -328,7 +328,7 @@ export async function POST(req: Request) {
       <div style="padding: 20px; border: 1px solid #ddd; background-color: #fff;">
         <p>${userName} 様</p>
         
-        <p>この度はetoe hotelをご予約いただき、誠にありがとうございます。</p>
+        <p>この度はetoe sauna & stayをご予約いただき、誠にありがとうございます。</p>
         <p>ご予約のお部屋の入室カード情報をお送りいたします。</p>
         
         <div style="background-color: #f9f9f9; padding: 15px; margin: 20px 0; border-left: 4px solid #444444;">
@@ -396,7 +396,7 @@ export async function POST(req: Request) {
     `;
 
     // 邮件主题 - 恢复使用原始日文标题
-    const emailSubject = "【etoe hotel】ご予約のお部屋カード情報";
+    const emailSubject = "【etoe sauna & stay】ご予約のお部屋カード情報";
 
     console.log("准备发送邮件到:", userEmail);
 
