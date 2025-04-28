@@ -9,13 +9,23 @@ const nextConfig = {
   // 添加对Google字体的处理
   optimizeFonts: false, // 禁用字体优化
   
+  // 在生产环境中设置资源前缀
+  assetPrefix: process.env.NODE_ENV === 'production' 
+    ? process.env.NEXT_PUBLIC_BASE_URL || 'https://book.etoehotel.com'
+    : undefined,
+  
   // 添加 rewrites 配置，处理 Firebase 邮箱验证链接
   async rewrites() {
     return [
       {
-        // 捕获 Firebase 邮箱验证链接
+        // 捕获 Firebase 默认邮箱验证链接
         source: '/__/auth/action',
-        destination: '/api/verify-email'
+        destination: '/auth/action'
+      },
+      {
+        // 捕获 Firebase 密码重置链接（兼容旧的URL模式）
+        source: '/__/auth/handler',
+        destination: '/auth/action'
       }
     ];
   },

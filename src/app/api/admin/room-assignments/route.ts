@@ -91,8 +91,8 @@ export async function GET(req: Request) {
         reservationId: data.reservationId,
         roomType: data.roomType,
         physicalRoomId: data.physicalRoomId,
-        startAt: data.startAt,
-        endAt: data.endAt,
+        startDateTime: data.startDateTime,
+        endDateTime: data.endDateTime,
         createdAt: data.createdAt,
         updatedAt: data.updatedAt,
       };

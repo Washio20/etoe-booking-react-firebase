@@ -9,7 +9,7 @@ import AdminLayout from "@/components/AdminLayout";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { Reservation } from "@/types/reservation";
-import { toDate } from "@/utils/date";
+import { toDate, formatTimestamp, convertToDate } from "@/utils/date";
 import Image from "next/image";
 
 export default function ReservationDetailPage({
@@ -136,6 +136,7 @@ export default function ReservationDetailPage({
         
         if (assignmentsResponse.ok) {
           const assignmentsData = await assignmentsResponse.json();
+          console.log("房间分配数据:", assignmentsData);
           setRoomAssignments(assignmentsData.assignments || []);
         }
         
@@ -172,95 +173,6 @@ export default function ReservationDetailPage({
   const handleCloseCancelModal = () => {
     setIsCancelModalOpen(false);
   };
-
-  // 予約をキャンセルする処理
-  // const handleCancelReservation = async () => {
-  //   if (!confirm("この予約をキャンセルしてもよろしいですか？")) {
-  //     return;
-  //   }
-
-  //   setIsSubmitting(true);
-
-  //   try {
-  //     const token = await user?.getIdToken();
-
-  //     const response = await fetch(
-  //       `/api/admin/reservations/${reservationId}/cancel`,
-  //       {
-  //         method: "POST",
-  //         headers: {
-  //           Authorization: `Bearer ${token}`,
-  //           "Content-Type": "application/json",
-  //         },
-  //         body: JSON.stringify({ refundPercentage }),
-  //       }
-  //     );
-
-  //     if (!response.ok) {
-  //       throw new Error("予約のキャンセルに失敗しました");
-  //     }
-
-  //     const result = await response.json();
-
-  //     // 成功したら予約データを更新
-  //     setReservation((prev) =>
-  //       prev
-  //         ? {
-  //             ...prev,
-  //             paymentStatus: "cancelled",
-  //             refund: result.refund,
-  //           }
-  //         : null
-  //     );
-
-  //     setIsCancelModalOpen(false);
-  //     alert("予約をキャンセルしました");
-  //   } catch (error) {
-  //     console.error("キャンセルエラー:", error);
-  //     alert(
-  //       error instanceof Error
-  //         ? error.message
-  //         : "予約のキャンセル処理中にエラーが発生しました"
-  //     );
-  //   } finally {
-  //     setIsSubmitting(false);
-  //   }
-  // };
-
-  // 予約を削除する処理
-  // const handleDeleteReservation = async () => {
-  //   if (
-  //     !confirm("この予約を削除してもよろしいですか？この操作は元に戻せません。")
-  //   ) {
-  //     return;
-  //   }
-
-  //   try {
-  //     const token = await user?.getIdToken();
-
-  //     const response = await fetch(`/api/admin/reservations/${reservationId}`, {
-  //       method: "DELETE",
-  //       headers: {
-  //         Authorization: `Bearer ${token}`,
-  //       },
-  //     });
-
-  //     if (!response.ok) {
-  //       throw new Error("予約の削除に失敗しました");
-  //     }
-
-  //     alert("予約を削除しました");
-  //     // 削除成功後、一覧ページに戻る
-  //     router.push("/admin/reservations");
-  //   } catch (error) {
-  //     console.error("削除エラー:", error);
-  //     alert(
-  //       error instanceof Error
-  //         ? error.message
-  //         : "予約の削除処理中にエラーが発生しました"
-  //     );
-  //   }
-  // };
 
   // 房间类型编号格式化
   const formatRoomNumber = (physicalRoomId: string) => {
@@ -313,78 +225,6 @@ export default function ReservationDetailPage({
       </Layout>
     );
   }
-
-  // 取消モーダル
-  // const renderCancelModal = () => {
-  //   if (!isCancelModalOpen || !reservation) return null;
-
-  //   return (
-  //     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-  //       <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-  //         <h3 className="text-lg font-bold mb-4 font-zen-kaku-gothic">
-  //           予約キャンセル
-  //         </h3>
-
-  //         <p className="text-sm text-gray-600 mb-4 font-zen-kaku-gothic">
-  //           この予約をキャンセルします。返金率を選択してください。
-  //         </p>
-
-  //         <div className="mb-6">
-  //           <label className="block text-sm font-medium text-gray-700 mb-1 font-zen-kaku-gothic">
-  //             返金率
-  //           </label>
-  //           <div className="flex items-center mb-4">
-  //             <input
-  //               type="range"
-  //               min="0"
-  //               max="100"
-  //               step="10"
-  //               value={refundPercentage}
-  //               onChange={(e) => setRefundPercentage(parseInt(e.target.value))}
-  //               className="w-full"
-  //             />
-  //             <span className="ml-2 text-sm font-zen-kaku-gothic">
-  //               {refundPercentage}%
-  //             </span>
-  //           </div>
-
-  //           <div className="text-sm bg-gray-50 p-3 rounded border border-gray-200 font-zen-kaku-gothic">
-  //             <p>料金: ¥{parseInt(reservation.price).toLocaleString()}</p>
-  //             <p>
-  //               返金額: ¥
-  //               {Math.floor(
-  //                 (parseInt(reservation.price) * refundPercentage) / 100
-  //               ).toLocaleString()}
-  //             </p>
-  //             <p>
-  //               キャンセル料: ¥
-  //               {Math.floor(
-  //                 (parseInt(reservation.price) * (100 - refundPercentage)) / 100
-  //               ).toLocaleString()}
-  //             </p>
-  //           </div>
-  //         </div>
-
-  //         <div className="flex justify-end space-x-2">
-  //           <button
-  //             onClick={handleCloseCancelModal}
-  //             className="px-4 py-2 bg-gray-200 text-gray-700 rounded text-sm font-zen-kaku-gothic"
-  //             disabled={isSubmitting}
-  //           >
-  //             キャンセル
-  //           </button>
-  //           {/* <button
-  //             onClick={handleCancelReservation}
-  //             className="px-4 py-2 bg-red-600 text-white rounded text-sm font-zen-kaku-gothic"
-  //             disabled={isSubmitting}
-  //           >
-  //             {isSubmitting ? "処理中..." : "予約をキャンセルする"}
-  //           </button> */}
-  //         </div>
-  //       </div>
-  //     </div>
-  //   );
-  // };
 
   return (
     <Layout>
@@ -475,11 +315,7 @@ export default function ReservationDetailPage({
                 {reservation.createdAt && (
                   <p className="text-sm text-gray-500 mt-2 font-zen-kaku-gothic">
                     予約日時:{" "}
-                    {format(
-                      toDate(reservation.createdAt) || new Date(),
-                      "yyyy年MM月dd日 HH:mm",
-                      { locale: ja }
-                    )}
+                    {formatTimestamp(reservation.createdAt, "yyyy年MM月dd日 HH:mm", "不明")}
                   </p>
                 )}
               </div>
@@ -490,6 +326,14 @@ export default function ReservationDetailPage({
                   顧客情報
                 </h2>
                 <div className="space-y-2">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    <div className="text-sm text-gray-500 font-zen-kaku-gothic">
+                      お名前:
+                    </div>
+                    <div className="md:col-span-2 text-gray-700 break-all font-zen-kaku-gothic">
+                      {reservation.userFullName || "未設定"}
+                    </div>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                     <div className="text-sm text-gray-500 font-zen-kaku-gothic">
                       メールアドレス:
@@ -556,19 +400,9 @@ export default function ReservationDetailPage({
                           reservation.slowRoomEndDateTime && (
                             <span className="block text-xs text-gray-500">
                               (
-                              {format(
-                                toDate(reservation.slowRoomStartDateTime) ||
-                                  new Date(),
-                                "HH:mm",
-                                { locale: ja }
-                              )}
+                              {formatTimestamp(reservation.slowRoomStartDateTime, "HH:mm")}
                               〜
-                              {format(
-                                toDate(reservation.slowRoomEndDateTime) ||
-                                  new Date(),
-                                "HH:mm",
-                                { locale: ja }
-                              )}
+                              {formatTimestamp(reservation.slowRoomEndDateTime, "HH:mm")}
                               )
                             </span>
                           )}
@@ -640,11 +474,9 @@ export default function ReservationDetailPage({
                           キャンセル日時:
                         </div>
                         <div className="md:col-span-2 text-gray-700 font-zen-kaku-gothic">
-                          {format(
-                            toDate(reservation.cancelledAt) || new Date(),
-                            "yyyy年MM月dd日 HH:mm",
-                            { locale: ja }
-                          )}
+                          {reservation.cancelledAt 
+                            ? formatTimestamp(reservation.cancelledAt, "yyyy年MM月dd日 HH:mm", "不明")
+                            : "不明"}
                         </div>
                       </div>
                     )}
@@ -706,20 +538,7 @@ export default function ReservationDetailPage({
                           <div className="md:col-span-2 text-gray-700 font-zen-kaku-gothic">
                             {(() => {
                               try {
-                                // 使用toDate辅助函数统一处理所有日期类型
-                                const dateObj = toDate(
-                                  reservation.refund.createdAt
-                                );
-                                if (dateObj) {
-                                  return format(
-                                    dateObj,
-                                    "yyyy年MM月dd日 HH:mm",
-                                    { locale: ja }
-                                  );
-                                }
-
-                                // 如果无法处理，返回原始值
-                                return String(reservation.refund.createdAt);
+                                return formatTimestamp(reservation.refund.createdAt, "yyyy年MM月dd日 HH:mm", "日付情報なし");
                               } catch (e) {
                                 console.error("日付フォーマットエラー:", e);
                                 return "日付データエラー";
@@ -744,13 +563,7 @@ export default function ReservationDetailPage({
                       作成日時:
                     </div>
                     <div className="md:col-span-2 text-gray-700 font-zen-kaku-gothic">
-                      {reservation.createdAt
-                        ? format(
-                            toDate(reservation.createdAt) || new Date(),
-                            "yyyy年MM月dd日 HH:mm:ss",
-                            { locale: ja }
-                          )
-                        : "不明"}
+                      {formatTimestamp(reservation.createdAt, "yyyy年MM月dd日 HH:mm:ss", "不明")}
                     </div>
                   </div>
                   {reservation.updatedAt && (
@@ -759,11 +572,7 @@ export default function ReservationDetailPage({
                         更新日時:
                       </div>
                       <div className="md:col-span-2 text-gray-700 font-zen-kaku-gothic">
-                        {format(
-                          toDate(reservation.updatedAt) || new Date(),
-                          "yyyy年MM月dd日 HH:mm:ss",
-                          { locale: ja }
-                        )}
+                        {formatTimestamp(reservation.updatedAt, "yyyy年MM月dd日 HH:mm:ss", "不明")}
                       </div>
                     </div>
                   )}
@@ -801,105 +610,30 @@ export default function ReservationDetailPage({
                           </div>
                           <div className="md:col-span-2 text-gray-700 font-zen-kaku-gothic">
                             {(() => {
-                              // 调试信息
-                              console.log("房间分配数据:", JSON.stringify(assignment));
-                              
-                              // 检查可能的时间字段名
-                              const possibleStartFields = ['startAt', 'startDateTime', 'start_at', 'startTime'];
-                              const possibleEndFields = ['endAt', 'endDateTime', 'end_at', 'endTime'];
-                              
-                              // 查找可用的开始时间字段
-                              let startTimeValue = null;
-                              for (const field of possibleStartFields) {
-                                if (assignment[field]) {
-                                  startTimeValue = assignment[field];
-                                  console.log(`找到开始时间字段: ${field}`, startTimeValue);
-                                  break;
-                                }
-                              }
-                              
-                              // 查找可用的结束时间字段
-                              let endTimeValue = null;
-                              for (const field of possibleEndFields) {
-                                if (assignment[field]) {
-                                  endTimeValue = assignment[field];
-                                  console.log(`找到结束时间字段: ${field}`, endTimeValue);
-                                  break;
-                                }
-                              }
-                              
-                              if (!startTimeValue || !endTimeValue) {
-                                return "時間情報なし (利用可能なフィールドが見つかりません)";
-                              }
-                              
                               try {
-                                // 处理不同类型的时间戳
-                                const formatAssignmentDate = (dateValue: any) => {
-                                  if (!dateValue) return null;
+                                // 直接使用startDateTime和endDateTime字段，这是数据库中实际存在的字段
+                                if (assignment.startDateTime && assignment.endDateTime) {
+                                  const startDate = convertToDate(assignment.startDateTime);
+                                  const endDate = convertToDate(assignment.endDateTime);
                                   
-                                  console.log("处理日期值:", typeof dateValue, dateValue);
-                                  
-                                  // 处理Firestore时间戳对象
-                                  if (typeof dateValue === 'object') {
-                                    if (dateValue.seconds || dateValue._seconds) {
-                                      const seconds = dateValue.seconds || dateValue._seconds;
-                                      return new Date(seconds * 1000);
-                                    }
-                                    
-                                    // 检查nanoseconds字段 - Firestore Timestamp的另一种形式
-                                    if (dateValue.nanoseconds !== undefined) {
-                                      const seconds = dateValue.seconds || 0;
-                                      return new Date(seconds * 1000);
-                                    }
-                                    
-                                    // 如果是Date对象
-                                    if (dateValue instanceof Date) {
-                                      return dateValue;
-                                    }
-                                    
-                                    // 尝试toDate方法 - Firestore Timestamp
-                                    if (typeof dateValue.toDate === 'function') {
-                                      return dateValue.toDate();
-                                    }
+                                  if (startDate && endDate) {
+                                    return (
+                                      <>
+                                        {format(startDate, "yyyy年MM月dd日", { locale: ja })}
+                                        {" "}
+                                        {format(startDate, "HH:mm", { locale: ja })}
+                                        {" 〜 "}
+                                        {format(endDate, "HH:mm", { locale: ja })}
+                                      </>
+                                    );
                                   }
-                                  
-                                  // 处理ISO字符串
-                                  if (typeof dateValue === 'string') {
-                                    const date = new Date(dateValue);
-                                    if (!isNaN(date.getTime())) {
-                                      return date;
-                                    }
-                                  }
-                                  
-                                  // 处理数字时间戳（毫秒）
-                                  if (typeof dateValue === 'number') {
-                                    return new Date(dateValue);
-                                  }
-                                  
-                                  return null;
-                                };
-                                
-                                const startDate = formatAssignmentDate(startTimeValue);
-                                const endDate = formatAssignmentDate(endTimeValue);
-                                
-                                console.log("转换后的日期:", startDate, endDate);
-                                
-                                if (!startDate || !endDate) {
-                                  console.error("无效的分配日期格式:", startTimeValue, endTimeValue);
-                                  return "時間情報の形式が無効です";
                                 }
                                 
-                                return (
-                                  <>
-                                    {format(startDate, "yyyy年MM月dd日", { locale: ja })}
-                                    {" "}
-                                    {format(startDate, "HH:mm", { locale: ja })}
-                                    {" 〜 "}
-                                    {format(endDate, "HH:mm", { locale: ja })}
-                                  </>
-                                );
+                                // 如果没有可用的日期时间数据
+                                console.log("日時データがありません:", assignment);
+                                return "時間情報がありません";
                               } catch (error) {
-                                console.error("分配日期格式化错误:", error, assignment);
+                                console.error("日付フォーマットエラー:", error, assignment);
                                 return "時間情報の処理中にエラーが発生しました";
                               }
                             })()}
@@ -944,106 +678,31 @@ export default function ReservationDetailPage({
                               </span>
                               <span className="text-gray-700 font-zen-kaku-gothic">
                                 {(() => {
-                                  // 调试信息
-                                  console.log("卡片数据:", JSON.stringify(card));
-                                  
-                                  // 检查可能的时间字段名
-                                  const possibleStartFields = ['startAt', 'startDateTime', 'start_at', 'startTime', 'validFrom'];
-                                  const possibleEndFields = ['endAt', 'endDateTime', 'end_at', 'endTime', 'validUntil'];
-                                  
-                                  // 查找可用的开始时间字段
-                                  let startTimeValue = null;
-                                  for (const field of possibleStartFields) {
-                                    if (card[field]) {
-                                      startTimeValue = card[field];
-                                      console.log(`找到卡片开始时间字段: ${field}`, startTimeValue);
-                                      break;
-                                    }
-                                  }
-                                  
-                                  // 查找可用的结束时间字段
-                                  let endTimeValue = null;
-                                  for (const field of possibleEndFields) {
-                                    if (card[field]) {
-                                      endTimeValue = card[field];
-                                      console.log(`找到卡片结束时间字段: ${field}`, endTimeValue);
-                                      break;
-                                    }
-                                  }
-                                  
-                                  if (!startTimeValue || !endTimeValue) {
-                                    return "時間情報なし (利用可能なフィールドが見つかりません)";
-                                  }
-                                  
                                   try {
-                                    // 处理不同类型的时间戳
-                                    const formatCardDate = (dateValue: any) => {
-                                      if (!dateValue) return null;
+                                    // 直接使用startAt和endAt字段，这是数据库中实际存在的字段
+                                    if (card.startAt && card.endAt) {
+                                      const startDate = convertToDate(card.startAt);
+                                      const endDate = convertToDate(card.endAt);
                                       
-                                      console.log("处理卡片日期值:", typeof dateValue, dateValue);
-                                      
-                                      // 处理Firestore时间戳对象
-                                      if (typeof dateValue === 'object') {
-                                        if (dateValue.seconds || dateValue._seconds) {
-                                          const seconds = dateValue.seconds || dateValue._seconds;
-                                          return new Date(seconds * 1000);
-                                        }
-                                        
-                                        // 检查nanoseconds字段 - Firestore Timestamp的另一种形式
-                                        if (dateValue.nanoseconds !== undefined) {
-                                          const seconds = dateValue.seconds || 0;
-                                          return new Date(seconds * 1000);
-                                        }
-                                        
-                                        // 如果是Date对象
-                                        if (dateValue instanceof Date) {
-                                          return dateValue;
-                                        }
-                                        
-                                        // 尝试toDate方法 - Firestore Timestamp
-                                        if (typeof dateValue.toDate === 'function') {
-                                          return dateValue.toDate();
-                                        }
+                                      if (startDate && endDate) {
+                                        // 日付をフォーマット
+                                        return (
+                                          <>
+                                            {format(startDate, "yyyy年MM月dd日", { locale: ja })}
+                                            {" "}
+                                            {format(startDate, "HH:mm", { locale: ja })}
+                                            {" 〜 "}
+                                            {format(endDate, "HH:mm", { locale: ja })}
+                                          </>
+                                        );
                                       }
-                                      
-                                      // 处理ISO字符串
-                                      if (typeof dateValue === 'string') {
-                                        const date = new Date(dateValue);
-                                        if (!isNaN(date.getTime())) {
-                                          return date;
-                                        }
-                                      }
-                                      
-                                      // 处理数字时间戳（毫秒）
-                                      if (typeof dateValue === 'number') {
-                                        return new Date(dateValue);
-                                      }
-                                      
-                                      return null;
-                                    };
-                                    
-                                    const startDate = formatCardDate(startTimeValue);
-                                    const endDate = formatCardDate(endTimeValue);
-                                    
-                                    console.log("转换后的卡片日期:", startDate, endDate);
-                                    
-                                    if (!startDate || !endDate) {
-                                      console.error("无效的卡片日期格式:", startTimeValue, endTimeValue);
-                                      return "時間情報の形式が無効です";
                                     }
                                     
-                                    // 使用format格式化日期
-                                    return (
-                                      <>
-                                        {format(startDate, "yyyy年MM月dd日", { locale: ja })}
-                                        {" "}
-                                        {format(startDate, "HH:mm", { locale: ja })}
-                                        {" 〜 "}
-                                        {format(endDate, "HH:mm", { locale: ja })}
-                                      </>
-                                    );
+                                    // 如果没有可用的日期时间数据
+                                    console.log("カード日時データがありません:", card);
+                                    return "カード有効期間情報がありません";
                                   } catch (error) {
-                                    console.error("卡片日期格式化错误:", error, card);
+                                    console.error("カード日付フォーマットエラー:", error, card);
                                     return "時間情報の処理中にエラーが発生しました";
                                   }
                                 })()}

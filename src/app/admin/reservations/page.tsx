@@ -9,7 +9,7 @@ import AdminLayout from "@/components/AdminLayout";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { Reservation } from "@/types/reservation";
-import { toDate } from "@/utils/date";
+import { toDate, formatTimestamp, getTimestampMillis } from "@/utils/date";
 
 export default function ReservationsPage() {
   const router = useRouter();
@@ -133,10 +133,11 @@ export default function ReservationsPage() {
 
   // 日付でソート（新しい順）
   const sortedReservations = [...filteredReservations].sort((a, b) => {
-    // createdAtがFirestoreのTimestampオブジェクトの場合の対応
-    const dateA = toDate(a.createdAt) || new Date();
-    const dateB = toDate(b.createdAt) || new Date();
-    return dateB.getTime() - dateA.getTime();
+    // 共通関数を使用して日時のタイムスタンプを取得
+    const timestampA = getTimestampMillis(a.createdAt);
+    const timestampB = getTimestampMillis(b.createdAt);
+    
+    return timestampB - timestampA;
   });
   
   // 分页计算
@@ -408,13 +409,10 @@ export default function ReservationsPage() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {currentReservations.map((reservation) => {
-                    // 予約作成日時フォーマット
-                    const createdDate =
-                      toDate(reservation.createdAt) || new Date();
-                    const formattedCreatedDate = format(
-                      createdDate,
-                      "yyyy/MM/dd HH:mm",
-                      { locale: ja }
+                    // 予約作成日時フォーマット - 共通関数を使用
+                    const formattedCreatedDate = formatTimestamp(
+                      reservation.createdAt, 
+                      "yyyy/MM/dd HH:mm"
                     );
 
                     // 日付と時間の表示 - 新しいフィールドを優先
@@ -442,10 +440,10 @@ export default function ReservationsPage() {
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 font-zen-kaku-gothic">
                           <div className="flex flex-col">
                             <span className="truncate max-w-[150px]">
-                              {reservation.userEmail}
+                              {reservation.userFullName || "未設定"}
                             </span>
-                            <span className="text-xs text-gray-500">
-                              {reservation.userId?.slice(0, 8)}
+                            <span className="text-xs text-gray-500 truncate max-w-[150px]">
+                              {reservation.userEmail}
                             </span>
                           </div>
                         </td>

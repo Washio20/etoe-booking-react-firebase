@@ -208,6 +208,8 @@ const createRoomCard = async (
 
         const cardResponse = await response.json();
 
+        console.log("外部API返回的卡片信息:", cardResponse);
+
         // 使用外部API返回的卡片密钥
         cardKey = cardResponse.number;
 

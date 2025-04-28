@@ -80,10 +80,28 @@ export async function GET(
     // 格式化数据
     const reservationData = reservationDoc.data();
 
+    // 获取用户完整信息
+    let userFullName = reservationData?.userFullName || null;
+    
+    // 如果没有用户全名且有userId，尝试从users集合获取
+    if (!userFullName && reservationData?.userId) {
+      try {
+        const userDoc = await db.collection("users").doc(reservationData.userId).get();
+        if (userDoc.exists) {
+          const userData = userDoc.data();
+          userFullName = userData?.fullName || null;
+        }
+      } catch (error) {
+        console.error("获取用户信息失败:", error);
+      }
+    }
+
     // 处理预约详情数据
     const reservation = {
       id: reservationDoc.id,
       ...reservationData,
+      // 添加用户全名
+      userFullName: userFullName,
       // 处理日期时间字段 - 保留原始格式，让前端处理显示
       createdAt: reservationData?.createdAt || null,
       updatedAt: reservationData?.updatedAt || null,
