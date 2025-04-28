@@ -155,32 +155,34 @@ const createRoomCard = async (
           throw new Error("无法获取API令牌");
         }
 
-        // 转换日期为日本时区的ISO字符串格式
-        // 使用日本时区格式化日期时间
+        // 创建日本时区的日期时间对象
+        const bufferStartDateTime = new Date(startDateTime.getTime() - 5 * 60 * 1000);
+        const bufferEndDateTime = new Date(endDateTime.getTime() + 5 * 60 * 1000);
+
+        // 转换为日本时区的ISO字符串
         const formatDateTimeJP = (date: Date): string => {
           // 设置为日本时区 (UTC+9)
           const offset = 9 * 60; // 日本是UTC+9，偏移量为9小时（分钟计算）
           const jpTime = new Date(date.getTime() + offset * 60000);
-          
           // 格式化为ISO8601格式，但使用JST时区
           return jpTime.toISOString().replace('Z', '+09:00');
         };
-        
-        const startDateJST = formatDateTimeJP(startDateTime);
-        const endDateJST = formatDateTimeJP(endDateTime);
-        
+
+        const startDateJST = formatDateTimeJP(bufferStartDateTime);
+        const endDateJST = formatDateTimeJP(bufferEndDateTime);
+
         console.log("转换后的日本时区时间参数:", {
           startDateTime: startDateJST,
           endDateTime: endDateJST
         });
 
-        // 请求卡API创建卡 - 使用日本时区时间
+        // 调用外部API创建卡片
         const cardData = {
           number: cardNumber,
           name: `ETOE-${reservationId}`,
           devices: [deviceId],
-          start_at: startDateJST, // 使用日本时区ISO字符串
-          end_at: endDateJST, // 使用日本时区ISO字符串
+          start_at: startDateJST, // 使用日本时区ISO字符串，已包含5分钟缓冲
+          end_at: endDateJST, // 使用日本时区ISO字符串，已包含5分钟缓冲
           owner_client_id: CLIENT_ID,
           symbol_type: "pdf417",
         };

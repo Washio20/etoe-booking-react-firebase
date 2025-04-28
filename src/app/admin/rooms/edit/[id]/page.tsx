@@ -38,6 +38,7 @@ export default function EditRoomPage({ params }: EditRoomPageProps) {
     category: "private_sauna",
     imageUrl: "",
     thumbnailUrl: "",
+    images: [],
     prices: [
       {
         timeRange: "平日(昼): 10:00-16:00",
@@ -634,7 +635,7 @@ export default function EditRoomPage({ params }: EditRoomPageProps) {
                     htmlFor="imageUrl"
                     className="block text-sm font-medium text-gray-700 mb-1 font-zen-kaku-gothic"
                   >
-                    画像URL <span className="text-red-500">*</span>
+                    メイン画像URL <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -646,6 +647,66 @@ export default function EditRoomPage({ params }: EditRoomPageProps) {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                     placeholder="/images/room-image.jpg"
                   />
+                  <p className="mt-1 text-xs text-gray-500 font-zen-kaku-gothic">
+                    メイン画像として表示される画像です
+                  </p>
+                </div>
+
+                {/* 追加画像 */}
+                <div>
+                  <label
+                    className="block text-sm font-medium text-gray-700 mb-1 font-zen-kaku-gothic"
+                  >
+                    追加画像 <span className="text-gray-400">(任意)</span>
+                  </label>
+                  <div className="space-y-2">
+                    {formData.images && formData.images.map((imageUrl, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={imageUrl}
+                          onChange={(e) => {
+                            const newImages = [...(formData.images || [])];
+                            newImages[index] = e.target.value;
+                            setFormData(prev => ({...prev, images: newImages}));
+                          }}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                          placeholder="/images/room-image-2.jpg"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newImages = [...(formData.images || [])];
+                            newImages.splice(index, 1);
+                            setFormData(prev => ({...prev, images: newImages}));
+                          }}
+                          className="p-2 text-red-500 hover:bg-red-50 rounded-md"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormData(prev => ({
+                          ...prev, 
+                          images: [...(prev.images || []), ""]
+                        }));
+                      }}
+                      className="mt-2 inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                      </svg>
+                      画像を追加
+                    </button>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500 font-zen-kaku-gothic">
+                    追加画像はポップアップでスライド表示されます
+                  </p>
                 </div>
 
                 {/* サムネイルURL */}

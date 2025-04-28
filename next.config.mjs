@@ -9,6 +9,11 @@ const nextConfig = {
   // 添加对Google字体的处理
   optimizeFonts: false, // 禁用字体优化
   
+  // 添加图片域名配置
+  images: {
+    domains: ['firebasestorage.googleapis.com'],
+  },
+  
   // 在生产环境中设置资源前缀
   assetPrefix: process.env.NODE_ENV === 'production' 
     ? process.env.NEXT_PUBLIC_BASE_URL || 'https://book.etoehotel.com'

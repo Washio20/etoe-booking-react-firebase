@@ -40,6 +40,7 @@ export interface Room {
   category: RoomCategory;
   imageUrl: string;
   thumbnailUrl: string;
+  images?: string[]; // 添加多张图片数组
   prices: PriceInfo[];
   duration: string;
   extension: string;

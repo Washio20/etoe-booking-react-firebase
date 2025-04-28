@@ -44,6 +44,27 @@ export async function GET(request: NextRequest) {
 
     // 解析日期
     const date = parseISO(dateStr);
+    
+    // 检查日期是否在允许范围内（今天到未来3周）
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const maxAllowedDate = new Date();
+    maxAllowedDate.setDate(maxAllowedDate.getDate() + 21); // 3周后
+    maxAllowedDate.setHours(23, 59, 59, 999);
+    
+    // 如果日期早于今天或晚于3周后，拒绝请求
+    if (date < today || date > maxAllowedDate) {
+      return NextResponse.json(
+        { 
+          error: "予約可能な日付は本日から3週間以内です",
+          timeSlots: [],
+          date: dateStr,
+          maxReservations: 0
+        },
+        { status: 400 }
+      );
+    }
 
     // 格式化为YYYY-MM-DD，用于查询dailyInventory
     const formattedDate = format(date, "yyyy-MM-dd");

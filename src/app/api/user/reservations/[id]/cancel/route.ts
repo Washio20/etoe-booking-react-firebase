@@ -38,7 +38,7 @@ async function sendCancellationConfirmationEmail(
     const gmail = google.gmail({ version: "v1", auth: oAuth2Client });
 
     // 邮件主题
-    const subject = "【etoe hotel】ご予約キャンセル確認";
+    const subject = "【etoe sauna & stay】ご予約キャンセル確認";
     
     // 手动使用RFC2047标准编码邮件标题
     const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString("base64")}?=`;

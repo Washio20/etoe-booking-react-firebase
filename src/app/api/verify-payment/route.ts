@@ -77,7 +77,7 @@ async function sendReservationConfirmationEmail(
     const gmail = google.gmail({ version: "v1", auth: oAuth2Client });
 
     // 邮件主题
-    const subject = "【etoe hotel】ご予約ありがとうございます";
+    const subject = "【etoe sauna & stay】ご予約ありがとうございます";
     
     // 手动使用RFC2047标准编码邮件标题
     const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString("base64")}?=`;
@@ -97,7 +97,7 @@ ${subject}
 
 ${userName} 様
 
-etoe hotelをご予約いただき、誠にありがとうございます。
+etoe sauna & stayをご予約いただき、誠にありがとうございます。
 以下の予約内容で承りました。
 
 === ご予約内容 ===
@@ -120,7 +120,7 @@ etoe hotelをご予約いただき、誠にありがとうございます。
 予約の詳細はこちらから確認できます:
 ${reservationDetailsUrl}
 
-ご来館の際は、フロントにてお名前をお伝えください。
+ご予約の前日までに、入室パスコードをお送りいたします。
 ご予約の変更やキャンセルは、マイページからお手続きいただけます。
 
 その他ご不明な点がございましたら、お気軽にお問い合わせください。

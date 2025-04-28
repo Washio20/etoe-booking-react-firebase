@@ -55,6 +55,26 @@ export async function GET(request: NextRequest) {
 
     // 解析日期和时间
     const date = parseISO(dateStr);
+    
+    // 检查日期是否在允许范围内（今天到未来3周）
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const maxAllowedDate = new Date();
+    maxAllowedDate.setDate(maxAllowedDate.getDate() + 21); // 3周后
+    maxAllowedDate.setHours(23, 59, 59, 999);
+    
+    // 如果日期早于今天或晚于3周后，拒绝请求
+    if (date < today || date > maxAllowedDate) {
+      return NextResponse.json(
+        { 
+          error: "予約可能な日付は本日から3週間以内です",
+          isAvailable: false,
+          message: "予約可能な日付は本日から3週間以内です。別の日付を選択してください。"
+        },
+        { status: 400 }
+      );
+    }
 
     // 标准化时间格式
     const normalizeTimeStr = (timeStr: string) => {
