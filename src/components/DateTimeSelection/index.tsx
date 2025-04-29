@@ -656,8 +656,37 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
     }
   };
 
+  // Reusable coupon validation function
+  // クーポン検証ロジックを共通関数化
+  // coupon 驗證邏輯共用
+  const validateAndSaveCoupon = async () => {
+    setCouponError(null);
+    setCouponSuccess(null);
+    setCouponInfo(null);
+    if (!couponCode.trim()) {
+      setCouponError("クーポンコードを入力してください。");
+      return false;
+    }
+    try {
+      const res = await fetch(`/api/validate-coupon?code=${encodeURIComponent(couponCode)}`);
+      const data = await res.json();
+      if (!data.valid) {
+        setCouponError("クーポンコードが正しくありません。");
+        return false;
+      }
+      setCouponSuccess("クーポンコードが適用されました！");
+      setCouponInfo(data.coupon);
+      // Save coupon info to localStorage for confirm page
+      localStorage.setItem("couponInfo", JSON.stringify(data.coupon));
+      return true;
+    } catch (e) {
+      setCouponError("サーバーエラーが発生しました。後でもう一度お試しください。");
+      return false;
+    }
+  };
+
   // 处理预约按钮点击
-  const handleReservation = () => {
+  const handleReservation = async () => {
     // Coupon code validation before submit
     // 只做格式檢查（其餘已由 API 驗證）
     if (couponCode.trim() !== "" && !couponCode.trim()) {
@@ -666,6 +695,13 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
       return;
     }
     setCouponError(null);
+    // If couponCode is entered, validate it before proceeding
+    // クーポンコードが入力されている場合は事前に検証
+    // 有輸入 couponCode 時自動驗證
+    if (couponCode.trim() !== "") {
+      const valid = await validateAndSaveCoupon();
+      if (!valid) return;
+    }
     // Save coupon code to localStorage only when reservation is confirmed
     localStorage.setItem("couponCode", couponCode);
 
@@ -725,36 +761,8 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
     }
   };
 
-  // 处理checkbox变化
-  const handleTermsChange = () => {
-    setAgreeToTerms(!agreeToTerms);
-    if (showTermsError) setShowTermsError(false);
-  };
-
   // Handle coupon confirm
-  const handleCouponConfirm = async () => {
-    setCouponError(null);
-    setCouponSuccess(null);
-    setCouponInfo(null);
-    if (!couponCode.trim()) {
-      setCouponError("クーポンコードを入力してください。");
-      return;
-    }
-    try {
-      const res = await fetch(`/api/validate-coupon?code=${encodeURIComponent(couponCode)}`);
-      const data = await res.json();
-      if (!data.valid) {
-        setCouponError("クーポンコードが正しくありません。");
-        return;
-      }
-      setCouponSuccess("クーポンコードが適用されました！");
-      setCouponInfo(data.coupon);
-      // Save coupon info to localStorage for confirm page
-      localStorage.setItem("couponInfo", JSON.stringify(data.coupon));
-    } catch (e) {
-      setCouponError("サーバーエラーが発生しました。後でもう一度お試しください。");
-    }
-  };
+  const handleCouponConfirm = validateAndSaveCoupon;
 
   // 如果正在加载
   if (isLoading) {
@@ -823,7 +831,10 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
               id="agree-to-terms"
               className="w-4 h-4 md:w-5 md:h-5 accent-[#444444]"
               checked={agreeToTerms}
-              onChange={handleTermsChange}
+              onChange={() => {
+                setAgreeToTerms(!agreeToTerms);
+                if (showTermsError) setShowTermsError(false);
+              }}
             />
             <label
               htmlFor="agree-to-terms"

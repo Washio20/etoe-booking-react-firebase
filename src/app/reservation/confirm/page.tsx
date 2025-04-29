@@ -448,12 +448,12 @@ export default function ReservationConfirm() {
       };
 
       // 在控制台记录价格信息，用于调试
-      console.log("预约价格信息:", {
-        原始总价: (reservation.totalPrice + discountAmount),
-        优惠券折扣: discountAmount,
-        最终价格: reservation.totalPrice,
-        优惠券ID: appliedCoupon ? appliedCoupon.id : "未使用优惠券"
-      });
+      // console.log("预约价格信息:", {
+      //   原始总价: (reservation.totalPrice + discountAmount),
+      //   优惠券折扣: discountAmount,
+      //   最终价格: reservation.totalPrice,
+      //   优惠券ID: appliedCoupon ? appliedCoupon.id : "未使用优惠券"
+      // });
 
       // 如果是新用户，先保存用户信息
       if (isNewUser) {
@@ -505,7 +505,11 @@ export default function ReservationConfirm() {
 
       // 重定向到Stripe支付页面
       if (url) {
-        // 保存预约信息到localStorage，支付成功后可以使用
+        // Remove all coupon-related localStorage before redirecting to payment
+        // Stripe決済ページ遷移前にクーポン関連のlocalStorageを全て削除
+        // 跳轉到Stripe支付頁面前清除所有coupon相關localStorage
+        localStorage.removeItem('couponCode');
+        localStorage.removeItem('couponInfo');
         localStorage.setItem(
           "pendingReservation",
           JSON.stringify(reservationData)
