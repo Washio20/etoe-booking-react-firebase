@@ -440,6 +440,10 @@ export default function ReservationConfirm() {
         endDateTime: endDateTime ? endDateTime.toISOString() : null,
         displayDate: displayDate, // 用于UI显示的格式化日期
         displayTimeRange: displayTimeRange, // 用于UI显示的时间段（可能包含日期）
+        // Add couponId for checkout API (if available)
+        // Checkout API用のcouponIdを追加（あれば）
+        // 結帳API用的couponId（如果有）
+        couponId: couponInfo?.id || null,
       };
 
       // 如果是新用户，先保存用户信息
@@ -501,6 +505,17 @@ export default function ReservationConfirm() {
         window.location.href = url;
       } else {
         throw new Error("支払いURLの取得に失敗しました");
+      }
+
+      // Set couponCode in cookies for backend to use during Checkout
+      // Checkout生成時にバックエンドが利用できるようにcouponCodeをcookieに保存
+      // 結帳時後端可用的couponCode寫入cookie
+      if (couponCode) {
+        // Set cookie, path=/, expires in 1 hour
+        document.cookie = `couponCode=${encodeURIComponent(couponCode)}; path=/; max-age=3600`;
+      } else {
+        // Remove cookie if no couponCode
+        document.cookie = 'couponCode=; path=/; max-age=0';
       }
     } catch (error) {
       console.error("支払い処理中のエラー:", error);
@@ -763,12 +778,6 @@ export default function ReservationConfirm() {
               {/* Show detailed discount info below if available */}
               {couponInfo && (
                 <span className="text-green-700 text-xs font-zen-kaku-gothic">
-                  割引：
-                  {couponInfo.percent_off
-                    ? `${couponInfo.percent_off}% OFF`
-                    : couponInfo.amount_off
-                      ? `-${couponInfo.amount_off.toLocaleString()}${couponInfo.currency?.toUpperCase() || ''}`
-                      : ""}
                 </span>
               )}
               {/* Coupon discount note: Only show if coupon code is entered. */}

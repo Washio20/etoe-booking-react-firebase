@@ -4,6 +4,7 @@ import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { initAdmin } from "@/utils/firebase-admin";
 import { NextRequest } from "next/server";
+import { cookies } from 'next/headers';
 
 // 纯sauna房间类型列表
 const PURE_SAUNA_ROOM_TYPES = ["tototo", "fuuu", "zabuun", "toron"];
@@ -187,8 +188,32 @@ export async function POST(req: Request) {
       }
     }
 
-    // 创建Stripe支付会话
-    const stripeSession = await stripe.checkout.sessions.create({
+    // --- CouponCode to PromotionCodeId logic start ---
+    // Read couponCode from cookies
+    // cookieからcouponCodeを取得
+    // 從cookie取得couponCode
+    let promotionCodeId = null;
+    try {
+      const cookieStore = cookies();
+      const couponCode = cookieStore.get('couponCode')?.value || null;
+      if (couponCode) {
+        // Try to retrieve promotion code from Stripe by code
+        // Stripeからプロモーションコードを取得（codeで検索）
+        // 用Stripe API查詢promotion code（用code查）
+        const promoList = await stripe.promotionCodes.list({ code: couponCode, limit: 1 });
+        if (promoList.data && promoList.data.length > 0) {
+          promotionCodeId = promoList.data[0].id;
+        }
+      }
+    } catch (e) {
+      // Ignore cookie errors
+    }
+    // --- CouponCode to PromotionCodeId logic end ---
+
+    // Prepare session params for Stripe Checkout
+    // Stripe Checkout用のセッションパラメータを準備
+    // Stripe Checkout 參數準備
+    const sessionParams: any = {
       payment_method_types: ["card"],
       line_items: [
         {
@@ -204,13 +229,6 @@ export async function POST(req: Request) {
         },
       ],
       mode: "payment",
-      // Enable promo code input on the hosted Checkout page
-      allow_promotion_codes: true,
-      // discounts: [   //如果想要通過前端傳入promo code，則需要傳入Promotion Code ID。我先註釋掉了。
-      //   {        // 這需要在之前的階段將用戶輸入的promo code調用API查詢其ID，然後傳入。用戶體驗雖然好但麻煩一些。
-      //     promotion_code: "promo_ABC123xyz"  // replace with the actual Promotion Code ID
-      //   }
-      // ],
       success_url: `${baseUrl}/reservation-complete?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/reservation/confirm`,
       customer_email: userRecord.email,
@@ -227,7 +245,21 @@ export async function POST(req: Request) {
           PURE_SAUNA_ROOM_TYPES.includes(reservation.roomType)
         ),
       },
-    });
+    };
+
+    if (promotionCodeId) {
+      // Pre-apply promotion code
+      // プロモーションコードを事前適用
+      // 預先套用 promotion code
+      sessionParams.discounts = [{ promotion_code: promotionCodeId }];
+    } else {
+      // Allow user to enter promotion code
+      // ユーザーがプロモーションコードを入力できるようにする
+      // 允許用戶自行輸入 promotion code
+      sessionParams.allow_promotion_codes = true;
+    }
+
+    const stripeSession = await stripe.checkout.sessions.create(sessionParams);
     
 
     return NextResponse.json({ url: stripeSession.url });
