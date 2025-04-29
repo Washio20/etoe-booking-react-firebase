@@ -7,8 +7,6 @@ import { NextRequest } from "next/server";
 import admin from "firebase-admin";
 import { Coupon } from "@/types/coupon";
 
-import { cookies } from 'next/headers';
-
 // 纯sauna房间类型列表
 const PURE_SAUNA_ROOM_TYPES = ["tototo", "fuuu", "zabuun", "toron"];
 
@@ -207,33 +205,93 @@ export async function POST(req: Request) {
       }
     }
 
-    // --- CouponCode to PromotionCodeId logic start ---
-    // Read couponCode from cookies
-    // cookieからcouponCodeを取得
-    // 從cookie取得couponCode
-    let promotionCodeId = null;
-    try {
-      const cookieStore = cookies();
-      const couponCode = cookieStore.get('couponCode')?.value || null;
-      if (couponCode) {
-        // Try to retrieve promotion code from Stripe by code
-        // Stripeからプロモーションコードを取得（codeで検索）
-        // 用Stripe API查詢promotion code（用code查）
-        const promoList = await stripe.promotionCodes.list({ code: couponCode, limit: 1 });
-        if (promoList.data && promoList.data.length > 0) {
-          promotionCodeId = promoList.data[0].id;
+    // 添加优惠券处理
+    if (!skipCouponProcessing && reservation.couponId) {
+      try {
+        // 获取优惠券信息
+        const couponDoc = await db.collection("coupons").doc(reservation.couponId).get();
+        
+        if (couponDoc.exists) {
+          const coupon = couponDoc.data() as Coupon;
+          
+          // 验证优惠券是否有效
+          const now = admin.firestore.Timestamp.now();
+          const isValid = coupon.isActive && 
+                          coupon.validFrom <= now && 
+                          coupon.validTo >= now &&
+                          (coupon.usageLimit === -1 || coupon.usedCount < coupon.usageLimit);
+          
+          if (isValid) {
+            // 验证是否适用于当前房型
+            const isApplicable = coupon.applicableRoomTypes.length === 0 || 
+                                coupon.applicableRoomTypes.includes(reservation.roomType);
+            
+            if (isApplicable) {
+              // 计算折扣金额
+              if (coupon.discountType === 'fixed') {
+                discountAmount = Math.min(coupon.discountValue, amount);
+              } else {
+                // 百分比折扣
+                discountAmount = Math.floor(amount * (coupon.discountValue / 100));
+                if (coupon.maxDiscount && coupon.maxDiscount > 0) {
+                  discountAmount = Math.min(discountAmount, coupon.maxDiscount);
+                }
+              }
+              
+              // 应用折扣
+              amount -= discountAmount;
+              appliedCouponId = reservation.couponId;
+              
+              // 移除优惠券使用记录更新，将在后面统一处理
+            }
+          }
         }
+      } catch (error) {
+        console.error("优惠券处理错误:", error);
+        // 优惠券处理失败时，不应用折扣，但继续处理预约
+        appliedCouponId = null;
+        discountAmount = 0;
       }
-    } catch (e) {
-      // Ignore cookie errors
     }
-    // --- CouponCode to PromotionCodeId logic end ---
 
-    // Prepare session params for Stripe Checkout
-    // Stripe Checkout用のセッションパラメータを準備
-    // Stripe Checkout 參數準備
-    const sessionParams: any = {
+    // 确保金额不小于零
+    amount = Math.max(0, amount);
+    
+    // 记录最终金额，用于调试
+    console.log(`最终计算金额: ${amount}円，优惠券折扣: ${discountAmount}円`);
 
+    // 无论是否重新计算价格，只要有优惠券ID，都更新使用次数和创建记录
+    if (appliedCouponId) {
+      try {
+        const now = admin.firestore.Timestamp.now();
+        
+        // 移除优惠券使用次数更新逻辑，只有在支付成功后才更新使用次数
+        // await db.collection("coupons").doc(appliedCouponId).update({
+        //   usedCount: admin.firestore.FieldValue.increment(1),
+        //   updatedAt: now
+        // });
+        
+        // 创建优惠券使用记录，添加status字段
+        await db.collection("couponUsage").add({
+          couponId: appliedCouponId,
+          userId: userRecord.uid,
+          reservationId: null, // 此时还没有预约ID
+          discountAmount: discountAmount,
+          originalAmount: amount + discountAmount,
+          finalAmount: amount,
+          usedAt: now,
+          status: "pending" // 添加状态字段，初始状态为pending
+        });
+        
+        console.log(`已创建优惠券(${appliedCouponId})使用记录，状态为pending`);
+      } catch (error) {
+        console.error("创建优惠券使用记录失败:", error);
+        // 创建记录失败不应影响支付流程，继续执行
+      }
+    }
+
+    // 创建Stripe支付会话
+    const stripeSession = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: [
         {
@@ -268,21 +326,7 @@ export async function POST(req: Request) {
         discountAmount: String(discountAmount), // 添加折扣金额
         originalAmount: String(amount + discountAmount), // 添加原始金额
       },
-    };
-
-    if (promotionCodeId) {
-      // Pre-apply promotion code
-      // プロモーションコードを事前適用
-      // 預先套用 promotion code
-      sessionParams.discounts = [{ promotion_code: promotionCodeId }];
-    } else {
-      // Allow user to enter promotion code
-      // ユーザーがプロモーションコードを入力できるようにする
-      // 允許用戶自行輸入 promotion code
-      sessionParams.allow_promotion_codes = true;
-    }
-
-    const stripeSession = await stripe.checkout.sessions.create(sessionParams);
+    });
 
     return NextResponse.json({ url: stripeSession.url });
   } catch (error) {

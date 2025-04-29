@@ -6,22 +6,24 @@ import { useAuthState } from "react-firebase-hooks/auth";
 import Layout from "@/components/Layout";
 import AdminLayout from "@/components/AdminLayout";
 import { auth } from "@/utils/firebase";
-import { Coupon, CouponDiscountType } from "@/types/coupon";
+import { User } from "@/types/user";
 import { formatTimestamp } from "@/utils/date";
 
-export default function AdminCoupons() {
+export default function AdminUsersPage() {
   const router = useRouter();
   const [user, loading, error] = useAuthState(auth);
   const [adminState, setAdminState] = useState({
     isAdmin: false,
     checkComplete: false,
   });
-  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [searchEmail, setSearchEmail] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-  
+
   // 检查管理员权限
   useEffect(() => {
     if (loading) return;
@@ -44,9 +46,9 @@ export default function AdminCoupons() {
 
     checkAdminStatus();
   }, [user, loading]);
-  
-  // 加载优惠券列表
-  const loadCoupons = useCallback(async () => {
+
+  // 加载用户列表
+  const loadUsers = useCallback(async () => {
     if (!user || !adminState.isAdmin) return;
     
     try {
@@ -54,7 +56,13 @@ export default function AdminCoupons() {
       setErrorMessage(null);
       
       const idToken = await user.getIdToken();
-      const response = await fetch("/api/admin/coupons", {
+      let url = "/api/admin/users";
+      
+      if (searchEmail) {
+        url += `?email=${encodeURIComponent(searchEmail)}`;
+      }
+      
+      const response = await fetch(url, {
         headers: {
           Authorization: `Bearer ${idToken}`,
         },
@@ -62,42 +70,64 @@ export default function AdminCoupons() {
       
       if (response.ok) {
         const data = await response.json();
-        setCoupons(data.coupons || []);
+        setUsers(data.users || []);
+        setFilteredUsers(data.users || []);
         setCurrentPage(1);
       } else {
         const errorData = await response.json();
-        setErrorMessage(errorData.error || "クーポン情報の取得に失敗しました");
+        setErrorMessage(errorData.error || "ユーザー情報の取得に失敗しました");
       }
     } catch (error) {
-      console.error("Error loading coupons:", error);
-      setErrorMessage("クーポン情報の読み込み中にエラーが発生しました");
+      console.error("Error loading users:", error);
+      setErrorMessage("ユーザー情報の読み込み中にエラーが発生しました");
     } finally {
       setIsLoading(false);
     }
-  }, [user, adminState.isAdmin]);
-  
+  }, [user, adminState.isAdmin, searchEmail]);
+
   // 初始加载
   useEffect(() => {
     if (adminState.isAdmin) {
-      loadCoupons();
+      loadUsers();
     }
-  }, [adminState.isAdmin, loadCoupons]);
-  
-  // 处理创建新优惠券
-  const handleCreateCoupon = () => {
-    router.push("/admin/coupons/create");
+  }, [adminState.isAdmin, loadUsers]);
+
+  // 处理搜索
+  const handleSearch = () => {
+    if (searchEmail) {
+      const filtered = users.filter(user => 
+        user.email.toLowerCase().includes(searchEmail.toLowerCase()) ||
+        (user.fullName && user.fullName.toLowerCase().includes(searchEmail.toLowerCase()))
+      );
+      setFilteredUsers(filtered);
+    } else {
+      setFilteredUsers(users);
+    }
+    setCurrentPage(1);
   };
-  
+
+  // 处理重置搜索
+  const handleResetSearch = () => {
+    setSearchEmail("");
+    setFilteredUsers(users);
+    setCurrentPage(1);
+  };
+
+  // 添加查看详情函数
+  const handleViewDetails = (userId: string) => {
+    router.push(`/admin/users/${userId}`);
+  };
+
   // 计算分页数据
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentCoupons = coupons.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(coupons.length / itemsPerPage);
-  
+  const currentUsers = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+
   // 切换页面
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
-  
-  // 加载状态 - 用户加载中或权限检查未完成时显示
+
+  // 加载中状态
   if (loading || !adminState.checkComplete) {
     return (
       <Layout>
@@ -107,8 +137,8 @@ export default function AdminCoupons() {
       </Layout>
     );
   }
-  
-  // 未ログイン時の表示
+
+  // 用户未登录
   if (!user) {
     return (
       <Layout>
@@ -117,7 +147,7 @@ export default function AdminCoupons() {
             管理者ページにアクセスするには、ログインしてください。
           </p>
           <button
-            onClick={() => router.push("/login?returnTo=/admin/coupons")}
+            onClick={() => router.push("/login?returnTo=/admin/users")}
             className="px-6 py-2 bg-[#444444] text-white rounded-full text-sm tracking-wide font-zen-kaku-gothic hover:bg-[#333333] transition-colors"
           >
             ログイン
@@ -126,8 +156,8 @@ export default function AdminCoupons() {
       </Layout>
     );
   }
-  
-  // 管理者権限がない場合の表示
+
+  // 非管理员用户
   if (!adminState.isAdmin) {
     return (
       <Layout>
@@ -139,54 +169,79 @@ export default function AdminCoupons() {
       </Layout>
     );
   }
-  
+
   return (
     <Layout>
       <AdminLayout>
         <div className="space-y-6">
           <div className="border-b border-gray-300 pb-4">
             <h1 className="text-xl md:text-2xl font-bold text-gray-700 tracking-wider font-zen-kaku-gothic">
-              クーポン管理
+              ユーザー管理
             </h1>
           </div>
-          
-          {errorMessage && (
-            <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4">
-              <p className="text-red-700 text-sm font-zen-kaku-gothic">{errorMessage}</p>
-            </div>
-          )}
-          
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-            <div className="flex justify-between items-center bg-gray-50 px-4 py-3 border-b border-gray-200">
-              <h2 className="text-lg font-medium text-gray-800 font-zen-kaku-gothic">
-                クーポン一覧
-              </h2>
-              <div className="flex flex-row space-x-2">
+
+          {/* 検索フォーム */}
+          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <h2 className="text-lg font-medium text-gray-800 mb-4 font-zen-kaku-gothic">
+              ユーザー検索
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700 font-zen-kaku-gothic">
+                  メールアドレス/名前
+                </label>
+                <input
+                  type="text"
+                  value={searchEmail}
+                  onChange={(e) => setSearchEmail(e.target.value)}
+                  placeholder="メールアドレスまたは名前"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="flex items-end space-x-2">
                 <button
-                  onClick={() => router.push("/admin/coupon-analytics")}
-                  className="px-2 py-1.5 bg-teal-500 text-white rounded-md text-sm font-zen-kaku-gothic hover:bg-teal-600 transition-colors flex items-center justify-center"
+                  onClick={handleSearch}
+                  disabled={isLoading}
+                  className="px-4 py-2 bg-gray-800 text-white rounded-md text-sm font-zen-kaku-gothic hover:bg-gray-700"
                 >
-                  使用分析
+                  {isLoading ? "検索中..." : "検索"}
                 </button>
                 <button
-                  onClick={handleCreateCoupon}
-                  className="px-2 py-1.5 bg-[#444444] text-white rounded-md text-sm font-zen-kaku-gothic hover:bg-[#333333] transition-colors flex items-center justify-center"
+                  onClick={handleResetSearch}
+                  disabled={isLoading}
+                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md text-sm font-zen-kaku-gothic hover:bg-gray-300"
                 >
-                  新規作成
+                  リセット
                 </button>
               </div>
             </div>
-            
+          </div>
+
+          {/* エラーメッセージ */}
+          {errorMessage && (
+            <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4">
+              <p className="text-red-700 text-sm font-zen-kaku-gothic">
+                {errorMessage}
+              </p>
+            </div>
+          )}
+
+          {/* ユーザーリスト */}
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <h2 className="bg-gray-50 px-4 py-3 text-lg font-medium text-gray-800 font-zen-kaku-gothic border-b border-gray-200">
+              ユーザー一覧
+            </h2>
+
             {isLoading ? (
               <div className="p-6 text-center">
                 <p className="text-gray-500 font-zen-kaku-gothic">
                   データを読み込み中...
                 </p>
               </div>
-            ) : coupons.length === 0 ? (
+            ) : filteredUsers.length === 0 ? (
               <div className="p-6 text-center">
                 <p className="text-gray-500 font-zen-kaku-gothic">
-                  クーポンはまだありません
+                  検索条件に一致するユーザーはありません
                 </p>
               </div>
             ) : (
@@ -195,22 +250,25 @@ export default function AdminCoupons() {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        コード
+                        メールアドレス
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        クーポン名
+                        名前
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        割引内容
+                        性別
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        有効期間
+                        電話番号
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        使用状況
+                        登録日
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        状態
+                        最終ログイン
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        メール認証
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         操作
@@ -218,44 +276,45 @@ export default function AdminCoupons() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {currentCoupons.map((coupon) => (
-                      <tr key={coupon.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {coupon.code}
+                    {currentUsers.map((user) => (
+                      <tr key={user.uid} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {user.email}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {user.fullName || "-"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {coupon.name}
+                          {user.gender === "male" ? "男性" : 
+                           user.gender === "female" ? "女性" : "-"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {coupon.discountType === "fixed"
-                            ? `${coupon.discountValue.toLocaleString()}円引き`
-                            : `${coupon.discountValue}%オフ`}
-                          {coupon.minAmount > 0 && ` (${coupon.minAmount.toLocaleString()}円以上)`}
+                          {user.phone || "-"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatTimestamp(coupon.validFrom, "yyyy/MM/dd HH:mm")} 〜 
-                          <br />
-                          {formatTimestamp(coupon.validTo, "yyyy/MM/dd HH:mm")}
+                          {formatTimestamp(user.createdAt, "yyyy/MM/dd HH:mm", "未設定")}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {coupon.usedCount || 0} / {coupon.usageLimit === -1 ? "∞" : coupon.usageLimit}
+                          {formatTimestamp(user.lastLogin, "yyyy/MM/dd HH:mm", "未設定")}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span 
+                          <span
                             className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              coupon.isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                              user.emailVerified
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
                             }`}
                           >
-                            {coupon.isActive ? "有効" : "無効"}
+                            {user.emailVerified ? "認証済み" : "未認証"}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex space-x-2">
                             <button
-                              onClick={() => router.push(`/admin/coupons/edit/${coupon.id}`)}
+                              onClick={() => handleViewDetails(user.uid)}
                               className="text-sm px-3 py-1 rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
                             >
-                              修改
+                              詳細
                             </button>
                           </div>
                         </td>
@@ -264,6 +323,7 @@ export default function AdminCoupons() {
                   </tbody>
                 </table>
                 
+                {/* ページネーション */}
                 {totalPages > 1 && (
                   <div className="px-6 py-3 flex items-center justify-between border-t border-gray-200">
                     <div className="flex-1 flex justify-between sm:hidden">
@@ -293,10 +353,10 @@ export default function AdminCoupons() {
                     <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                       <div>
                         <p className="text-sm text-gray-700">
-                          全 <span className="font-medium">{coupons.length}</span> 件中{" "}
+                          全 <span className="font-medium">{filteredUsers.length}</span> 件中{" "}
                           <span className="font-medium">{indexOfFirstItem + 1}</span> から{" "}
                           <span className="font-medium">
-                            {Math.min(indexOfLastItem, coupons.length)}
+                            {Math.min(indexOfLastItem, filteredUsers.length)}
                           </span> 件を表示
                         </p>
                       </div>
@@ -351,4 +411,4 @@ export default function AdminCoupons() {
       </AdminLayout>
     </Layout>
   );
-}
+} 

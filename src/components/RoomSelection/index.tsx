@@ -255,11 +255,7 @@ function RoomInfoModal({ room, onClose }: RoomInfoModalProps) {
   );
 }
 
-interface Props {
-  initialCouponCode?: string | null;
-}
-
-export default function RoomSelection({ initialCouponCode }: Props) {
+export default function RoomSelection() {
   const [selectedRoomId, setSelectedRoomId] = useState<string>("");
   const [selectedRoomType, setSelectedRoomType] = useState<RoomType | "">("");
   const [selectedTab, setSelectedTab] = useState<RoomCategory | "">("");
@@ -551,7 +547,7 @@ export default function RoomSelection({ initialCouponCode }: Props) {
         (selectedTab === "slow_room" && isSlowRoom(selectedRoomType) ? (
           <PureSlowRoomSelection selectedRoomType={selectedRoomType} />
         ) : (
-          <DateTimeSelection selectedRoomType={selectedRoomType} initialCouponCode={initialCouponCode} />
+          <DateTimeSelection selectedRoomType={selectedRoomType} />
         ))}
 
       {isMounted && showInfoModal && (

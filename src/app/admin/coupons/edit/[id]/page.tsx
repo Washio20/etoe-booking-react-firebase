@@ -7,6 +7,7 @@ import Layout from "@/components/Layout";
 import AdminLayout from "@/components/AdminLayout";
 import { auth } from "@/utils/firebase";
 import { Coupon, CouponDiscountType } from "@/types/coupon";
+import { convertToDate } from "@/utils/date";
 
 // 表单数据类型
 interface CouponFormData {
@@ -95,26 +96,24 @@ export default function EditCoupon({ params }: { params: { id: string } }) {
         if (response.ok) {
           const couponData = await response.json();
           // 格式化日期时间字符串用于表单
-          const formatDateTime = (timestamp: any) => {
+          const formatDateTimeForInput = (timestamp: any) => {
             if (!timestamp) return "";
             
             try {
-              let date;
-              if (timestamp._seconds) {
-                date = new Date(timestamp._seconds * 1000);
-              } else if (timestamp.seconds) {
-                date = new Date(timestamp.seconds * 1000);
-              } else if (typeof timestamp === "object" && typeof timestamp.toDate === "function") {
-                date = timestamp.toDate();
-              } else {
-                date = new Date(timestamp);
-              }
+              const date = convertToDate(timestamp);
+              if (!date) return "";
               
-              if (isNaN(date.getTime())) {
-                return "";
-              }
+              // 调整为日本时区 (UTC+9)，因为HTML datetime-local输入控件需要本地时间
+              const japanTime = new Date(date.getTime() + (9 * 60 * 60 * 1000));
               
-              return date.toISOString().slice(0, 16); // 格式: YYYY-MM-DDTHH:MM
+              // 格式化为YYYY-MM-DDTHH:MM格式
+              const year = japanTime.getUTCFullYear();
+              const month = String(japanTime.getUTCMonth() + 1).padStart(2, '0');
+              const day = String(japanTime.getUTCDate()).padStart(2, '0');
+              const hours = String(japanTime.getUTCHours()).padStart(2, '0');
+              const minutes = String(japanTime.getUTCMinutes()).padStart(2, '0');
+              
+              return `${year}-${month}-${day}T${hours}:${minutes}`;
             } catch (error) {
               console.error("日期格式化错误:", error);
               return "";
@@ -130,8 +129,8 @@ export default function EditCoupon({ params }: { params: { id: string } }) {
             discountValue: couponData.coupon?.discountValue || 0,
             minAmount: couponData.coupon?.minAmount || 0,
             maxDiscount: couponData.coupon?.maxDiscount || 0,
-            validFrom: formatDateTime(couponData.coupon?.validFrom),
-            validTo: formatDateTime(couponData.coupon?.validTo),
+            validFrom: formatDateTimeForInput(couponData.coupon?.validFrom),
+            validTo: formatDateTimeForInput(couponData.coupon?.validTo),
             usageLimit: couponData.coupon?.usageLimit ?? -1,
             perUserLimit: couponData.coupon?.perUserLimit ?? -1,
             isActive: couponData.coupon?.isActive !== false, // 默认为true

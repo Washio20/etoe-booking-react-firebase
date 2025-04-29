@@ -53,8 +53,10 @@ export async function GET(req: Request) {
     // 获取所有优惠券
     const couponsSnapshot = await db.collection("coupons").get();
     
-    // 获取所有优惠券使用记录
-    const couponUsageSnapshot = await db.collection("couponUsage").get();
+    // 获取所有已完成的优惠券使用记录
+    const couponUsageSnapshot = await db.collection("couponUsage")
+      .where("status", "==", "completed")
+      .get();
     
     // 总优惠券数
     const totalCoupons = couponsSnapshot.size;
@@ -68,10 +70,10 @@ export async function GET(req: Request) {
       return data.isActive && data.validTo > now;
     }).length;
     
-    // 已使用优惠券数
+    // 已使用优惠券数（只计算已完成状态的记录）
     const usedCoupons = couponUsageSnapshot.size;
     
-    // 总折扣金额
+    // 总折扣金额（只计算已完成状态的记录）
     let totalDiscount = 0;
     couponUsageSnapshot.forEach(doc => {
       const data = doc.data();
@@ -90,7 +92,7 @@ export async function GET(req: Request) {
       }
     ];
     
-    // 统计每个优惠券的使用情况
+    // 统计每个优惠券的使用情况（只计算已完成状态的记录）
     const couponUsageMap = new Map();
     couponUsageSnapshot.forEach(doc => {
       const data = doc.data();
@@ -131,7 +133,7 @@ export async function GET(req: Request) {
       .sort((a, b) => b.usedCount - a.usedCount)
       .slice(0, 10);
     
-    // 按月统计使用情况
+    // 按月统计使用情况（只计算已完成状态的记录）
     const usageByMonthMap = new Map();
     couponUsageSnapshot.forEach(doc => {
       const data = doc.data();
