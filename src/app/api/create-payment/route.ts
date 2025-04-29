@@ -26,14 +26,14 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   // 设置时区为日本时区
   process.env.TZ = "Asia/Tokyo";
-
+  
   // 初始化Firebase Admin
   try {
     initAdmin();
   } catch (error) {
     console.error("Error initializing Firebase Admin SDK:", error);
   }
-
+  
   // 初始化Stripe客户端
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
     apiVersion: "2025-03-31.basil",
@@ -88,21 +88,18 @@ export async function POST(req: Request) {
     let skipCouponProcessing = false;
 
     // 如果前端已经提供了金额和折扣信息，跳过重复处理
-    if (
-      amount !== undefined &&
-      reservation.couponId &&
-      reservation.discountAmount
-    ) {
+    if (amount !== undefined && reservation.couponId && reservation.discountAmount) {
       console.log("使用前端提供的金额和折扣信息: ", {
         amount: amount,
         couponId: reservation.couponId,
-        discountAmount: reservation.discountAmount,
+        discountAmount: reservation.discountAmount
       });
       skipCouponProcessing = true;
     }
 
     // 如果没有提供金额，则计算价格
     if (amount === undefined) {
+
       // 获取房间类型和基础价格
       const roomType = reservation.roomType || "";
       let basePrice = 0;
@@ -212,46 +209,39 @@ export async function POST(req: Request) {
     if (!skipCouponProcessing && reservation.couponId) {
       try {
         // 获取优惠券信息
-        const couponDoc = await db
-          .collection("coupons")
-          .doc(reservation.couponId)
-          .get();
-
+        const couponDoc = await db.collection("coupons").doc(reservation.couponId).get();
+        
         if (couponDoc.exists) {
           const coupon = couponDoc.data() as Coupon;
-
+          
           // 验证优惠券是否有效
           const now = admin.firestore.Timestamp.now();
-          const isValid =
-            coupon.isActive &&
-            coupon.validFrom <= now &&
-            coupon.validTo >= now &&
-            (coupon.usageLimit === -1 || coupon.usedCount < coupon.usageLimit);
-
+          const isValid = coupon.isActive && 
+                          coupon.validFrom <= now && 
+                          coupon.validTo >= now &&
+                          (coupon.usageLimit === -1 || coupon.usedCount < coupon.usageLimit);
+          
           if (isValid) {
             // 验证是否适用于当前房型
-            const isApplicable =
-              coupon.applicableRoomTypes.length === 0 ||
-              coupon.applicableRoomTypes.includes(reservation.roomType);
-
+            const isApplicable = coupon.applicableRoomTypes.length === 0 || 
+                                coupon.applicableRoomTypes.includes(reservation.roomType);
+            
             if (isApplicable) {
               // 计算折扣金额
-              if (coupon.discountType === "fixed") {
+              if (coupon.discountType === 'fixed') {
                 discountAmount = Math.min(coupon.discountValue, amount);
               } else {
                 // 百分比折扣
-                discountAmount = Math.floor(
-                  amount * (coupon.discountValue / 100)
-                );
+                discountAmount = Math.floor(amount * (coupon.discountValue / 100));
                 if (coupon.maxDiscount && coupon.maxDiscount > 0) {
                   discountAmount = Math.min(discountAmount, coupon.maxDiscount);
                 }
               }
-
+              
               // 应用折扣
               amount -= discountAmount;
               appliedCouponId = reservation.couponId;
-
+              
               // 移除优惠券使用记录更新，将在后面统一处理
             }
           }
@@ -266,7 +256,7 @@ export async function POST(req: Request) {
 
     // 确保金额不小于零
     amount = Math.max(0, amount);
-
+    
     // 记录最终金额，用于调试
     console.log(`最终计算金额: ${amount}円，优惠券折扣: ${discountAmount}円`);
 
@@ -274,16 +264,13 @@ export async function POST(req: Request) {
     if (appliedCouponId) {
       try {
         const now = admin.firestore.Timestamp.now();
-
+        
         // 更新优惠券使用次数
-        await db
-          .collection("coupons")
-          .doc(appliedCouponId)
-          .update({
-            usedCount: admin.firestore.FieldValue.increment(1),
-            updatedAt: now,
-          });
-
+        await db.collection("coupons").doc(appliedCouponId).update({
+          usedCount: admin.firestore.FieldValue.increment(1),
+          updatedAt: now
+        });
+        
         // 创建优惠券使用记录
         await db.collection("couponUsage").add({
           couponId: appliedCouponId,
@@ -292,9 +279,9 @@ export async function POST(req: Request) {
           discountAmount: discountAmount,
           originalAmount: amount + discountAmount,
           finalAmount: amount,
-          usedAt: now,
+          usedAt: now
         });
-
+        
         console.log(`已更新优惠券(${appliedCouponId})使用次数和创建使用记录`);
       } catch (error) {
         console.error("更新优惠券使用记录失败:", error);
