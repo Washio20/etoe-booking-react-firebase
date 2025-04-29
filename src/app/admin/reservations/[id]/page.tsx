@@ -11,6 +11,7 @@ import { ja } from "date-fns/locale";
 import { Reservation } from "@/types/reservation";
 import { toDate, formatTimestamp, convertToDate } from "@/utils/date";
 import Image from "next/image";
+import { Coupon } from "@/types/coupon";
 
 export default function ReservationDetailPage({
   params,
@@ -28,6 +29,8 @@ export default function ReservationDetailPage({
   const [refundPercentage, setRefundPercentage] = useState(100); // 默认全额退款
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [couponDetail, setCouponDetail] = useState<Coupon | null>(null);
+  const [loadingCoupon, setLoadingCoupon] = useState(false);
 
   // 修改为使用对象状态
   const [adminState, setAdminState] = useState({
@@ -99,6 +102,11 @@ export default function ReservationDetailPage({
 
         const data = await response.json();
         setReservation(data.reservation);
+        
+        // 如果存在优惠券ID，获取优惠券详细信息
+        if (data.reservation.couponId) {
+          await fetchCouponDetail(data.reservation.couponId, token);
+        }
       } catch (error) {
         console.error("予約詳細取得エラー:", error);
         setErrorMessage(
@@ -113,6 +121,32 @@ export default function ReservationDetailPage({
 
     fetchReservationDetail();
   }, [user, adminState, reservationId]);
+
+  // 获取优惠券详细信息
+  const fetchCouponDetail = async (couponId: string, token: string) => {
+    if (!couponId) return;
+    
+    setLoadingCoupon(true);
+    
+    try {
+      const response = await fetch(`/api/admin/coupons/${couponId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setCouponDetail(data.coupon);
+      } else {
+        console.error("优惠券信息获取失败");
+      }
+    } catch (error) {
+      console.error("获取优惠券详情时出错:", error);
+    } finally {
+      setLoadingCoupon(false);
+    }
+  };
 
   // 获取房间分配和卡片信息
   useEffect(() => {
@@ -436,6 +470,79 @@ export default function ReservationDetailPage({
                       ¥{parseInt(String(reservation.price)).toLocaleString()}
                     </div>
                   </div>
+                  
+                  {/* 优惠券信息部分 */}
+                  {reservation.couponId && (
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                        <div className="text-sm text-gray-500 font-zen-kaku-gothic">
+                          クーポン:
+                        </div>
+                        <div className="md:col-span-2">
+                          <div className="text-gray-700 font-zen-kaku-gothic">
+                            <span className="text-blue-600">{reservation.couponId}</span>
+                            {loadingCoupon && (
+                              <span className="ml-2 text-xs text-gray-500">読み込み中...</span>
+                            )}
+                          </div>
+                          
+                          {couponDetail && (
+                            <div className="mt-2 p-3 bg-blue-50 rounded-md text-sm">
+                              <p className="font-medium text-gray-800 mb-1">{couponDetail.name}</p>
+                              <p className="text-gray-600 mb-2">{couponDetail.description}</p>
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div>
+                                  <span className="text-gray-500">種類:</span>{" "}
+                                  <span className="font-medium">
+                                    {couponDetail.discountType === 'fixed' ? '定額割引' : 'パーセント割引'}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">値:</span>{" "}
+                                  <span className="font-medium">
+                                    {couponDetail.discountType === 'fixed' 
+                                      ? `${couponDetail.discountValue.toLocaleString()}円` 
+                                      : `${couponDetail.discountValue}%`}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">コード:</span>{" "}
+                                  <span className="font-medium">{couponDetail.code}</span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">使用状態:</span>{" "}
+                                  <span className={`font-medium ${couponDetail.isActive ? 'text-green-600' : 'text-red-600'}`}>
+                                    {couponDetail.isActive ? '有効' : '無効'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {reservation.discountAmount && reservation.discountAmount > 0 && (
+                        <>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                            <div className="text-sm text-gray-500 font-zen-kaku-gothic">
+                              割引前:
+                            </div>
+                            <div className="md:col-span-2 text-gray-700 font-zen-kaku-gothic">
+                              ¥{(parseInt(String(reservation.price)) + parseInt(String(reservation.discountAmount))).toLocaleString()}
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                            <div className="text-sm text-gray-500 font-zen-kaku-gothic">
+                              割引額:
+                            </div>
+                            <div className="md:col-span-2 text-red-600 font-zen-kaku-gothic">
+                              -¥{parseInt(String(reservation.discountAmount)).toLocaleString()}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </>
+                  )}
+                  
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                     <div className="text-sm text-gray-500 font-zen-kaku-gothic">
                       支払い状況:

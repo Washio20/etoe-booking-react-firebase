@@ -4,6 +4,7 @@ import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { initAdmin } from "@/utils/firebase-admin";
 import { NextRequest } from "next/server";
+
 import { cookies } from 'next/headers';
 
 // 纯sauna房间类型列表
@@ -37,6 +38,9 @@ export async function POST(req: Request) {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
     apiVersion: "2025-03-31.basil",
   });
+
+  // 初始化Firestore
+  const db = getFirestore();
 
   try {
     // 获取授权头部
@@ -79,9 +83,22 @@ export async function POST(req: Request) {
 
     // 使用前端传递的金额，如果没有传递才使用默认计算方式
     let amount = reservation.amount;
+    let appliedCouponId = reservation.couponId || null;
+    let discountAmount = reservation.discountAmount || 0;
+    let skipCouponProcessing = false;
+
+    // 如果前端已经提供了金额和折扣信息，跳过重复处理
+    if (amount !== undefined && reservation.couponId && reservation.discountAmount) {
+      console.log("使用前端提供的金额和折扣信息: ", {
+        amount: amount,
+        couponId: reservation.couponId,
+        discountAmount: reservation.discountAmount
+      });
+      skipCouponProcessing = true;
+    }
 
     // 如果没有提供金额，则计算价格
-    if (!amount) {
+    if (amount === undefined) {
 
       // 获取房间类型和基础价格
       const roomType = reservation.roomType || "";
@@ -188,6 +205,7 @@ export async function POST(req: Request) {
       }
     }
 
+
     // --- CouponCode to PromotionCodeId logic start ---
     // Read couponCode from cookies
     // cookieからcouponCodeを取得
@@ -238,12 +256,15 @@ export async function POST(req: Request) {
         reservationTime: reservation.time,
         roomType: reservation.roomType || reservation.room,
         plan: reservation.plan,
-        price: String(amount),
-        needSlowRoom: String(reservation.needSlowRoom),
-        slowRoomTimeRange: slowRoomTimeRangeStr,
+        price: String(amount), // 添加价格到metadata
+        needSlowRoom: String(reservation.needSlowRoom), // 将布尔值转换为字符串
+        slowRoomTimeRange: slowRoomTimeRangeStr, // 添加slow room时间范围
         isPureSaunaRoom: String(
           PURE_SAUNA_ROOM_TYPES.includes(reservation.roomType)
-        ),
+        ), // 添加是否是纯sauna房间标记
+        couponId: appliedCouponId || "", // 添加优惠券ID
+        discountAmount: String(discountAmount), // 添加折扣金额
+        originalAmount: String(amount + discountAmount), // 添加原始金额
       },
     };
 

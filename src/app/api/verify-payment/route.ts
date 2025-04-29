@@ -425,14 +425,34 @@ export async function GET(req: Request) {
         displayTimeRange: session.metadata?.reservationTime,
         displaySlowRoomTimeRange: slowRoomTime,
 
-        // 保留原字段用于向后兼容
-        // reservationDate: session.metadata?.reservationDate,
-        // reservationTime: session.metadata?.reservationTime,
-        // plan: session.metadata?.plan,
-        // slowRoomTime: slowRoomTime,
-        // slowRoomStartTime: slowRoomStartTime,
-        // slowRoomEndTime: slowRoomEndTime,
+        // 优惠券相关信息
+        couponId: session.metadata?.couponId || null,
+        discountAmount: session.metadata?.discountAmount 
+          ? parseInt(session.metadata.discountAmount) 
+          : 0,
       });
+
+      // 如果应用了优惠券，更新优惠券使用记录
+      if (session.metadata?.couponId) {
+        // 获取预约ID
+        const reservationId = reservationRef.id;
+        
+        // 更新之前创建的优惠券使用记录，添加预约ID
+        const couponUsageQuery = await db
+          .collection("couponUsage")
+          .where("couponId", "==", session.metadata.couponId)
+          .where("userId", "==", userRecord.uid)
+          .orderBy("usedAt", "desc")
+          .limit(1)
+          .get();
+        
+        if (!couponUsageQuery.empty) {
+          await couponUsageQuery.docs[0].ref.update({
+            reservationId: reservationId,
+            updatedAt: admin.firestore.Timestamp.now()
+          });
+        }
+      }
 
       const reservationId = reservationRef.id;
 

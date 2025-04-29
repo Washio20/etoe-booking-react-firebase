@@ -6,6 +6,8 @@ import Layout from "@/components/Layout";
 import { auth } from "@/utils/firebase";
 import { onAuthStateChange, getUserData } from "@/utils/auth";
 import { User } from "firebase/auth";
+import { Coupon } from "@/types/coupon";
+import CouponSection from "@/components/CouponSection";
 
 export default function ReservationConfirm() {
   const router = useRouter();
@@ -429,7 +431,6 @@ export default function ReservationConfirm() {
         room: reservation.room,
         roomType: reservation.roomType,
         plan: reservation.plan,
-        amount: reservation.totalPrice,
         needSlowRoom: needSlowRoom,
         slowRoomTimeRange: slowRoomTimeRange
           ? JSON.stringify(slowRoomTimeRange)
@@ -445,6 +446,14 @@ export default function ReservationConfirm() {
         // 結帳API用的couponId（如果有）
         couponId: couponInfo?.id || null,
       };
+
+      // 在控制台记录价格信息，用于调试
+      console.log("预约价格信息:", {
+        原始总价: (reservation.totalPrice + discountAmount),
+        优惠券折扣: discountAmount,
+        最终价格: reservation.totalPrice,
+        优惠券ID: appliedCoupon ? appliedCoupon.id : "未使用优惠券"
+      });
 
       // 如果是新用户，先保存用户信息
       if (isNewUser) {
