@@ -55,54 +55,10 @@ export default function ReservationConfirm() {
   // 添加一个状态用于强制刷新
   const [metadataRefreshTrigger, setMetadataRefreshTrigger] = useState(0);
 
-  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
-  const [discountAmount, setDiscountAmount] = useState(0);
-  const [showCouponSection, setShowCouponSection] = useState(false);
-
-  // 计算折扣金额
-  const calculateDiscount = useCallback((coupon: any, originalPrice: number) => {
-    if (!coupon) return 0;
-    
-    if (coupon.discountType === 'fixed') {
-      // 固定金额折扣
-      return Math.min(coupon.discountValue, originalPrice);
-    } else {
-      // 百分比折扣
-      const discount = Math.floor(originalPrice * (coupon.discountValue / 100));
-      // 如果有最大折扣限制
-      if (coupon.maxDiscount) {
-        return Math.min(discount, coupon.maxDiscount);
-      }
-      return discount;
-    }
-  }, []);
-
-  // 处理应用优惠券
-  const handleCouponApplied = useCallback((coupon: any) => {
-    setAppliedCoupon(coupon);
-    
-    const originalPrice = reservation.totalPrice;
-    const discount = calculateDiscount(coupon, originalPrice);
-    setDiscountAmount(discount);
-    
-    // 更新价格显示
-    setReservation(prev => ({
-      ...prev,
-      totalPrice: prev.totalPrice - discount,
-    }));
-  }, [reservation.totalPrice, calculateDiscount]);
-
-  // 处理移除优惠券
-  const handleCouponRemoved = useCallback(() => {
-    // 恢复原始价格
-    setReservation(prev => ({
-      ...prev,
-      totalPrice: prev.totalPrice + discountAmount,
-    }));
-    
-    setAppliedCoupon(null);
-    setDiscountAmount(0);
-  }, [discountAmount]);
+  // Coupon code state for display
+  const [couponCode, setCouponCode] = useState("");
+  const [couponStatus, setCouponStatus] = useState<"valid" | "invalid" | "none">("none");
+  const [couponInfo, setCouponInfo] = useState<any>(null); // Store coupon details
 
   // 监听Firebase认证状态
   useEffect(() => {
@@ -486,22 +442,19 @@ export default function ReservationConfirm() {
         displayDate: displayDate, // 用于UI显示的格式化日期
         displayTimeRange: displayTimeRange, // 用于UI显示的时间段（可能包含日期）
 
-        // 添加优惠券信息
-        couponId: appliedCoupon ? appliedCoupon.id : null,
-        couponCode: appliedCoupon ? appliedCoupon.code : null,
-        discountAmount: discountAmount,
-        
-        // 优惠后的总价
-        amount: reservation.totalPrice,
+        // Add couponId for checkout API (if available)
+        // Checkout API用のcouponIdを追加（あれば）
+        // 結帳API用的couponId（如果有）
+        couponId: couponInfo?.id || null,
       };
 
       // 在控制台记录价格信息，用于调试
-      console.log("预约价格信息:", {
-        原始总价: (reservation.totalPrice + discountAmount),
-        优惠券折扣: discountAmount,
-        最终价格: reservation.totalPrice,
-        优惠券ID: appliedCoupon ? appliedCoupon.id : "未使用优惠券"
-      });
+      // console.log("预约价格信息:", {
+      //   原始总价: (reservation.totalPrice + discountAmount),
+      //   优惠券折扣: discountAmount,
+      //   最终价格: reservation.totalPrice,
+      //   优惠券ID: appliedCoupon ? appliedCoupon.id : "未使用优惠券"
+      // });
 
       // 如果是新用户，先保存用户信息
       if (isNewUser) {
@@ -553,7 +506,11 @@ export default function ReservationConfirm() {
 
       // 重定向到Stripe支付页面
       if (url) {
-        // 保存预约信息到localStorage，支付成功后可以使用
+        // Remove all coupon-related localStorage before redirecting to payment
+        // Stripe決済ページ遷移前にクーポン関連のlocalStorageを全て削除
+        // 跳轉到Stripe支付頁面前清除所有coupon相關localStorage
+        localStorage.removeItem('couponCode');
+        localStorage.removeItem('couponInfo');
         localStorage.setItem(
           "pendingReservation",
           JSON.stringify(reservationData)
@@ -562,6 +519,17 @@ export default function ReservationConfirm() {
         window.location.href = url;
       } else {
         throw new Error("支払いURLの取得に失敗しました");
+      }
+
+      // Set couponCode in cookies for backend to use during Checkout
+      // Checkout生成時にバックエンドが利用できるようにcouponCodeをcookieに保存
+      // 結帳時後端可用的couponCode寫入cookie
+      if (couponCode) {
+        // Set cookie, path=/, expires in 1 hour
+        document.cookie = `couponCode=${encodeURIComponent(couponCode)}; path=/; max-age=3600`;
+      } else {
+        // Remove cookie if no couponCode
+        document.cookie = 'couponCode=; path=/; max-age=0';
       }
     } catch (error) {
       console.error("支払い処理中のエラー:", error);
@@ -630,6 +598,23 @@ export default function ReservationConfirm() {
       return () => clearInterval(interval);
     }
   }, [user, checkEmailVerification]);
+
+  useEffect(() => {
+    const code = localStorage.getItem("couponCode") || "";
+    setCouponCode(code);
+    if (code.trim() === "") {
+      setCouponStatus("none");
+      setCouponInfo(null); // Clear coupon info from state
+      localStorage.removeItem("couponInfo"); // Remove coupon info from localStorage
+    } else {
+      setCouponStatus("valid");
+      // Read coupon info from localStorage
+      const info = localStorage.getItem("couponInfo");
+      if (info) {
+        setCouponInfo(JSON.parse(info));
+      }
+    }
+  }, []);
 
   // 如果用户正在加载，显示加载状态
   if (isLoading) {
@@ -736,334 +721,275 @@ export default function ReservationConfirm() {
 
   return (
     <Layout>
-      <div className="max-w-[920px] mx-auto px-4 py-6 md:py-12">
-        <div className="space-y-4 md:space-y-6">
-          {/* Title */}
-          <div className="border-b border-gray-300 pb-2 md:pb-4">
-            <h1 className="text-xl md:text-2xl font-bold text-gray-700 tracking-wider font-zen-kaku-gothic">
-              予約確認
-            </h1>
-          </div>
+      <div className="max-w-2xl mx-auto bg-white text-gray-900 rounded-2xl shadow-lg p-6 md:p-10 space-y-10">
+        {/* Title */}
+        <div className="border-b border-gray-200 pb-4 mb-2">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 tracking-wide font-zen-kaku-gothic">
+            予約確認
+          </h1>
+          <p className="text-red-600 text-sm md:text-base mt-2 font-zen-kaku-gothic">
+            まだ予約は完了しておりません。
+          </p>
+          <p className="text-gray-700 text-sm md:text-base mt-1 font-zen-kaku-gothic">
+            以下の内容でご予約を行います。
+          </p>
+        </div>
 
-          {/* Warning Message */}
-          <div className="space-y-2 md:space-y-4">
-            <p className="text-red-600 text-sm md:text-base font-zen-kaku-gothic">
-              まだ予約は完了しておりません。
-            </p>
-            <p className="text-gray-700 text-sm md:text-base font-zen-kaku-gothic">
-              以下の内容でご予約を行います。
-            </p>
-          </div>
-
-          {/* Reservation Details */}
-          <div className="space-y-3 md:space-y-5">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 text-sm md:text-base">
-              <div className="text-gray-700 font-medium font-zen-kaku-gothic md:font-normal">
-                予約日時
-              </div>
-              <div className="col-span-1 md:col-span-2 text-gray-700 font-zen-kaku-gothic pl-4 md:pl-0">
-                {reservation.date} {reservation.time}
-              </div>
-
-              <div className="text-gray-700 font-medium font-zen-kaku-gothic md:font-normal">
-                予約種別
-              </div>
-              <div className="col-span-1 md:col-span-2 text-gray-700 font-zen-kaku-gothic pl-4 md:pl-0">
-                {reservation.type}
-              </div>
-
-              <div className="text-gray-700 font-medium font-zen-kaku-gothic md:font-normal">
-                お部屋
-              </div>
-              <div className="col-span-1 md:col-span-2 text-gray-700 font-zen-kaku-gothic pl-4 md:pl-0">
-                {reservation.room}
-              </div>
-
-              <div className="text-gray-700 font-medium font-zen-kaku-gothic md:font-normal">
-                セットプラン
-              </div>
-              <div className="col-span-1 md:col-span-2 text-gray-700 font-zen-kaku-gothic pl-4 md:pl-0">
-                {reservation.plan}
-              </div>
-            </div>
-          </div>
-
-          {/* 价格显示部分，合并为单一区域 */}
-          <div className="mt-6 p-4 rounded-lg bg-[#F0EAE4]">
-            <h3 className="font-bold text-gray-700 mb-2 font-zen-kaku-gothic">利用料金</h3>
-            <div className="flex flex-col justify-between gap-2">
-              <div className="text-[#444444] font-zen-kaku-gothic">
-                {/* 纯sauna房间类型(TOTOTO,FUUU,ZABUUN,TORON) */}
-                {reservation.isPureSaunaRoom && (
-                  <p className="text-sm md:text-base">
-                    サウナ料金: <span className="font-bold">{reservation.roomPrice.toLocaleString()}円</span>
-                  </p>
+        {/* Reservation Details Section */}
+        <section className="bg-gray-50 rounded-lg p-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-700 mb-4 border-b pb-2 font-zen-kaku-gothic">ご予約内容</h2>
+          <dl className="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-8 text-sm md:text-base">
+            <dt className="font-medium text-gray-600">予約日時</dt>
+            <dd className="text-gray-900">{reservation.date} {reservation.time}</dd>
+            <dt className="font-medium text-gray-600">予約種別</dt>
+            <dd className="text-gray-900">{reservation.type}</dd>
+            <dt className="font-medium text-gray-600">お部屋</dt>
+            <dd className="text-gray-900">{reservation.room}</dd>
+            <dt className="font-medium text-gray-600">セットプラン</dt>
+            <dd className="text-gray-900">{reservation.plan}</dd>
+            <dt className="font-medium text-gray-600">利用料金</dt>
+            <dd className="text-gray-900">
+              {/* Sauna room type details */}
+              {reservation.isPureSaunaRoom && (
+                <>
+                  <div><span className="font-medium">サウナ料金: </span>{reservation.roomPrice.toLocaleString()}円</div>
+                  {reservation.hasSlowRoomPlan && reservation.slowRoomPrice > 0 && (
+                    <>
+                      <div><span className="font-medium">スロールーム料金: </span>{(reservation.slowRoomPrice + 1000).toLocaleString()}円</div>
+                      <div className="text-red-600"><span className="font-medium">セット割引: </span>-1,000円</div>
+                    </>
+                  )}
+                </>
+              )}
+              {reservation.roomType === "sauna_suite" && (
+                <div><span className="font-medium">サウナスイート料金: </span>{reservation.totalPrice.toLocaleString()}円</div>
+              )}
+              {reservation.roomType === "slow_room" && (
+                <div><span className="font-medium">スロールーム料金: </span>{reservation.totalPrice.toLocaleString()}円</div>
+              )}
+              <div className="font-bold text-red-600 text-lg md:text-xl mt-2">合計: {reservation.totalPrice.toLocaleString()}円</div>
+            </dd>
+            <dt className="font-medium text-gray-600">クーポンコード</dt>
+            <dd className="flex flex-col gap-1 items-start">
+              <div className="flex items-center gap-2">
+                {couponCode ? couponCode : <span className="text-gray-400">未入力</span>}
+                {/* Show discount info next to coupon code if valid */}
+                {couponStatus === "valid" && couponInfo && (
+                  <span className="text-green-600 text-xs font-zen-kaku-gothic">
+                    （
+                    {couponInfo.percent_off
+                      ? `${couponInfo.percent_off}% OFF`
+                      : couponInfo.amount_off
+                        ? `-${couponInfo.amount_off.toLocaleString()}${couponInfo.currency?.toUpperCase() || ''}`
+                        : "有効"}
+                    ）
+                  </span>
                 )}
-                
-                {/* サウナスイート房间类型 */}
-                {reservation.roomType === "sauna_suite" && (
-                  <p className="text-sm md:text-base">
-                    サウナスイート料金: <span className="font-bold">{reservation.roomPrice.toLocaleString()}円</span>
-                  </p>
+                {couponStatus === "invalid" && (
+                  <span className="text-red-600 text-xs">（無効）</span>
                 )}
+              </div>
+              {/* Show detailed discount info below if available */}
+              {couponInfo && (
+                <span className="text-green-700 text-xs font-zen-kaku-gothic">
+                </span>
+              )}
+              {/* Coupon discount note: Only show if coupon code is entered. */}
+              {/* クーポンコードが入力されている場合のみ表示。*/}
+              {/* 僅在有輸入優惠券代碼時顯示。*/}
+              {couponCode && (
+                <span className="text-gray-500 text-xs font-zen-kaku-gothic mt-1">
+                  クーポンコードによる割引額は、次の決済ページに反映されます。
+                </span>
+              )}
+            </dd>
+          </dl>
+        </section>
 
-                {/* スロールーム房间类型 */}
-                {reservation.roomType === "slow_room" && (
-                  <p className="text-sm md:text-base">
-                    スロールーム料金: <span className="font-bold">{reservation.roomPrice.toLocaleString()}円</span>
-                  </p>
-                )}
-                
-                {/* 如果有慢房间 */}
-                {reservation.hasSlowRoomPlan && (
-                  <p className="text-sm md:text-base">
-                    スロールーム: <span className="font-bold">{(reservation.slowRoomPrice + 1000).toLocaleString()}円</span>
-                  </p>
-                )}
-                
-                {/* 如果有套餐折扣 */}
-                {reservation.hasSlowRoomPlan && (
-                  <p className="text-sm md:text-base text-red-600">
-                    セット割引: <span className="font-bold">-1,000円</span>
-                  </p>
-                )}
-                
-                {/* 如果有优惠券折扣 */}
-                {discountAmount > 0 && (
-                  <p className="text-sm md:text-base text-red-600">
-                    クーポン割引: <span className="font-bold">-{discountAmount.toLocaleString()}円</span>
-                  </p>
-                )}
-                
-                <p className="text-base md:text-lg font-bold mt-2 border-t border-gray-300 pt-2">
-                  合計: <span className="text-red-600">{reservation.totalPrice.toLocaleString()}円</span>
-                </p>
-                
-                {/* 在价格区域内显示优惠券按钮 */}
-                {!appliedCoupon && (
-                  <div className="mt-3 text-right">
-                    <button
-                      onClick={() => setShowCouponSection(!showCouponSection)}
-                      className="text-blue-600 text-sm underline hover:text-blue-800 font-zen-kaku-gothic"
-                    >
-                      {showCouponSection ? "クーポン入力を隠す" : "クーポンを使用する"}
-                    </button>
+        {/* User Information Section */}
+        <section className="bg-gray-50 rounded-lg p-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-700 mb-4 border-b pb-2 font-zen-kaku-gothic">予約者情報</h2>
+          <dl className="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-8 text-sm md:text-base">
+            <dt className="font-medium text-gray-600">お名前</dt>
+            <dd className="text-gray-900">{isNewUser ? "未入力（以下で入力してください）" : userInfo.fullName}</dd>
+            <dt className="font-medium text-gray-600">メールアドレス</dt>
+            <dd className="text-gray-900">{user.email}</dd>
+          </dl>
+          {/* New user form remains unchanged */}
+          {isNewUser && (
+            <div className="mt-6 border-t border-gray-200 pt-4">
+              <div className="mb-2 md:mb-3">
+                <h3 className="font-bold text-gray-700 text-base md:text-lg font-zen-kaku-gothic">
+                  追加情報入力
+                  <span className="text-red-500 ml-2 text-xs md:text-sm">
+                    全ての項目が必須です
+                  </span>
+                </h3>
+              </div>
+              <div className="space-y-3 max-w-lg">
+                {/* 姓名 */}
+                <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-0">
+                  <label
+                    htmlFor="fullName"
+                    className="block text-gray-700 w-full md:w-24 text-sm md:text-base md:flex-shrink-0 font-zen-kaku-gothic font-medium"
+                  >
+                    お名前
+                    <span className="text-red-500 ml-1">*</span>
+                  </label>
+                  <div className="flex-grow max-w-full md:max-w-[200px]">
+                    <input
+                      id="fullName"
+                      type="text"
+                      name="fullName"
+                      value={userInfo.fullName}
+                      onChange={handleUserInfoChange}
+                      className={`w-full border ${
+                        formSubmitted && formErrors.fullName
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      } px-3 py-2 rounded-md text-gray-700 text-sm`}
+                      placeholder="例: 山田 太郎"
+                    />
+                    {formSubmitted && formErrors.fullName && (
+                      <p className="text-red-500 text-xs md:text-sm mt-0.5 font-zen-kaku-gothic">
+                        お名前を入力してください
+                      </p>
+                    )}
                   </div>
-                )}
-              </div>
-            </div>
-          </div>
+                </div>
 
-          {/* 优惠券部分 - 改善布局 */}
-          {showCouponSection && (
-            <div className="mt-3 md:mt-4">
-              <CouponSection 
-                onCouponApplied={handleCouponApplied}
-                onCouponRemoved={handleCouponRemoved}
-              />
+                {/* 電話番号 */}
+                <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-0">
+                  <label
+                    htmlFor="phone"
+                    className="block text-gray-700 w-full md:w-24 text-sm md:text-base md:flex-shrink-0 font-zen-kaku-gothic font-medium"
+                  >
+                    電話番号
+                    <span className="text-red-500 ml-1">*</span>
+                  </label>
+                  <div className="flex-grow max-w-full md:max-w-[200px]">
+                    <input
+                      id="phone"
+                      type="tel"
+                      name="phone"
+                      value={userInfo.phone}
+                      onChange={handleUserInfoChange}
+                      className={`w-full border ${
+                        formSubmitted && formErrors.phone
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      } px-3 py-2 rounded-md text-gray-700 text-sm`}
+                      placeholder="例: 080-1234-5678"
+                    />
+                    {formSubmitted && formErrors.phone && (
+                      <p className="text-red-500 text-xs md:text-sm mt-0.5 font-zen-kaku-gothic">
+                        電話番号を入力してください
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* 生年月日 */}
+                <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-0">
+                  <label
+                    htmlFor="birthdate"
+                    className="block text-gray-700 w-full md:w-24 text-sm md:text-base md:flex-shrink-0 font-zen-kaku-gothic font-medium"
+                  >
+                    生年月日
+                    <span className="text-red-500 ml-1">*</span>
+                  </label>
+                  <div className="flex-grow max-w-full md:max-w-[200px]">
+                    <input
+                      id="birthdate"
+                      type="date"
+                      name="birthdate"
+                      value={userInfo.birthdate}
+                      onChange={handleUserInfoChange}
+                      className={`w-full border ${
+                        formSubmitted && formErrors.birthdate
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      } px-3 py-2 rounded-md text-gray-700 text-sm`}
+                    />
+                    {formSubmitted && formErrors.birthdate && (
+                      <p className="text-red-500 text-xs md:text-sm mt-0.5 font-zen-kaku-gothic">
+                        生年月日を入力してください
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* 性別 */}
+                <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-0">
+                  <label className="block text-gray-700 w-full md:w-24 text-sm md:text-base md:flex-shrink-0 font-zen-kaku-gothic font-medium">
+                    性別
+                    <span className="text-red-500 ml-1">*</span>
+                  </label>
+                  <div className="flex-grow">
+                    <div className="flex gap-6">
+                      <label className="inline-flex items-center">
+                        <input
+                          type="radio"
+                          name="gender"
+                          value="male"
+                          checked={userInfo.gender === "male"}
+                          onChange={handleUserInfoChange}
+                          className="mr-1.5 h-4 w-4"
+                        />
+                        <span className="text-gray-700 text-sm md:text-base font-zen-kaku-gothic">
+                          男性
+                        </span>
+                      </label>
+                      <label className="inline-flex items-center">
+                        <input
+                          type="radio"
+                          name="gender"
+                          value="female"
+                          checked={userInfo.gender === "female"}
+                          onChange={handleUserInfoChange}
+                          className="mr-1.5 h-4 w-4"
+                        />
+                        <span className="text-gray-700 text-sm md:text-base font-zen-kaku-gothic">
+                          女性
+                        </span>
+                      </label>
+                    </div>
+                    {formSubmitted && formErrors.gender && (
+                      <p className="text-red-500 text-xs md:text-sm mt-0.5 font-zen-kaku-gothic">
+                        性別を選択してください
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           )}
+        </section>
 
-          {/* User Information */}
-          <div className="space-y-3 md:space-y-4 bg-gray-50 py-3 md:py-4 px-0 md:px-0 rounded-md">
-            <h2 className="font-bold text-gray-700 text-base md:text-lg font-zen-kaku-gothic">
-              予約者情報
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 text-sm md:text-base">
-              <div className="text-gray-700 font-medium font-zen-kaku-gothic md:font-normal">
-                お名前
-              </div>
-              <div className="col-span-1 md:col-span-2 text-gray-700 font-zen-kaku-gothic pl-4 md:pl-0">
-                {isNewUser
-                  ? "未入力（以下で入力してください）"
-                  : userInfo.fullName}
-              </div>
+        {/* Cancellation Policy Section */}
+        <section className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg text-yellow-800">
+          <h2 className="text-base font-semibold mb-2 font-zen-kaku-gothic">キャンセルポリシー</h2>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>予約キャンセルは、予約開始時間の48時間前まで無料で可能です。</li>
+            <li>以降はキャンセル料100%がかかりますのでお気を付けください。</li>
+            <li>（いかなる事情の場合も、キャンセル期限を過ぎますと所定のキャンセル料が発生いたします。あらかじめご了承ください。）</li>
+          </ul>
+        </section>
 
-              <div className="text-gray-700 font-medium font-zen-kaku-gothic md:font-normal">
-                メールアドレス
-              </div>
-              <div className="col-span-1 md:col-span-2 text-gray-700 font-zen-kaku-gothic pl-4 md:pl-0">
-                {user.email}
-              </div>
-            </div>
-
-            {/* 新用户信息填写表单 */}
-            {isNewUser && (
-              <div className="mt-4 md:mt-6 border-t border-gray-200 pt-3 md:pt-4">
-                <div className="mb-2 md:mb-3">
-                  <h3 className="font-bold text-gray-700 text-base md:text-lg font-zen-kaku-gothic">
-                    追加情報入力
-                    <span className="text-red-500 ml-2 text-xs md:text-sm">
-                      全ての項目が必須です
-                    </span>
-                  </h3>
-                </div>
-                <div className="space-y-3 max-w-lg">
-                  {/* 姓名 */}
-                  <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-0">
-                    <label
-                      htmlFor="fullName"
-                      className="block text-gray-700 w-full md:w-24 text-sm md:text-base md:flex-shrink-0 font-zen-kaku-gothic font-medium"
-                    >
-                      お名前
-                      <span className="text-red-500 ml-1">*</span>
-                    </label>
-                    <div className="flex-grow max-w-full md:max-w-[200px]">
-                      <input
-                        id="fullName"
-                        type="text"
-                        name="fullName"
-                        value={userInfo.fullName}
-                        onChange={handleUserInfoChange}
-                        className={`w-full border ${
-                          formSubmitted && formErrors.fullName
-                            ? "border-red-500"
-                            : "border-gray-300"
-                        } px-3 py-2 rounded-md text-gray-700 text-sm`}
-                        placeholder="例: 山田 太郎"
-                      />
-                      {formSubmitted && formErrors.fullName && (
-                        <p className="text-red-500 text-xs md:text-sm mt-0.5 font-zen-kaku-gothic">
-                          お名前を入力してください
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* 電話番号 */}
-                  <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-0">
-                    <label
-                      htmlFor="phone"
-                      className="block text-gray-700 w-full md:w-24 text-sm md:text-base md:flex-shrink-0 font-zen-kaku-gothic font-medium"
-                    >
-                      電話番号
-                      <span className="text-red-500 ml-1">*</span>
-                    </label>
-                    <div className="flex-grow max-w-full md:max-w-[200px]">
-                      <input
-                        id="phone"
-                        type="tel"
-                        name="phone"
-                        value={userInfo.phone}
-                        onChange={handleUserInfoChange}
-                        className={`w-full border ${
-                          formSubmitted && formErrors.phone
-                            ? "border-red-500"
-                            : "border-gray-300"
-                        } px-3 py-2 rounded-md text-gray-700 text-sm`}
-                        placeholder="例: 080-1234-5678"
-                      />
-                      {formSubmitted && formErrors.phone && (
-                        <p className="text-red-500 text-xs md:text-sm mt-0.5 font-zen-kaku-gothic">
-                          電話番号を入力してください
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* 生年月日 */}
-                  <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-0">
-                    <label
-                      htmlFor="birthdate"
-                      className="block text-gray-700 w-full md:w-24 text-sm md:text-base md:flex-shrink-0 font-zen-kaku-gothic font-medium"
-                    >
-                      生年月日
-                      <span className="text-red-500 ml-1">*</span>
-                    </label>
-                    <div className="flex-grow max-w-full md:max-w-[200px]">
-                      <input
-                        id="birthdate"
-                        type="date"
-                        name="birthdate"
-                        value={userInfo.birthdate}
-                        onChange={handleUserInfoChange}
-                        className={`w-full border ${
-                          formSubmitted && formErrors.birthdate
-                            ? "border-red-500"
-                            : "border-gray-300"
-                        } px-3 py-2 rounded-md text-gray-700 text-sm`}
-                      />
-                      {formSubmitted && formErrors.birthdate && (
-                        <p className="text-red-500 text-xs md:text-sm mt-0.5 font-zen-kaku-gothic">
-                          生年月日を入力してください
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* 性別 */}
-                  <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-0">
-                    <label className="block text-gray-700 w-full md:w-24 text-sm md:text-base md:flex-shrink-0 font-zen-kaku-gothic font-medium">
-                      性別
-                      <span className="text-red-500 ml-1">*</span>
-                    </label>
-                    <div className="flex-grow">
-                      <div className="flex gap-6">
-                        <label className="inline-flex items-center">
-                          <input
-                            type="radio"
-                            name="gender"
-                            value="male"
-                            checked={userInfo.gender === "male"}
-                            onChange={handleUserInfoChange}
-                            className="mr-1.5 h-4 w-4"
-                          />
-                          <span className="text-gray-700 text-sm md:text-base font-zen-kaku-gothic">
-                            男性
-                          </span>
-                        </label>
-                        <label className="inline-flex items-center">
-                          <input
-                            type="radio"
-                            name="gender"
-                            value="female"
-                            checked={userInfo.gender === "female"}
-                            onChange={handleUserInfoChange}
-                            className="mr-1.5 h-4 w-4"
-                          />
-                          <span className="text-gray-700 text-sm md:text-base font-zen-kaku-gothic">
-                            女性
-                          </span>
-                        </label>
-                      </div>
-                      {formSubmitted && formErrors.gender && (
-                        <p className="text-red-500 text-xs md:text-sm mt-0.5 font-zen-kaku-gothic">
-                          性別を選択してください
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Cancellation Policy */}
-          <div className="text-sm md:text-base text-gray-700 space-y-1 md:space-y-2 font-zen-kaku-gothic mt-2 md:mt-0">
-            <p>予約キャンセルは、予約開始時間の48時間前まで無料で可能です。</p>
-            <p>以降はキャンセル料100%がかかりますのでお気を付けください。</p>
-            <p>
-              （いかなる事情の場合も、キャンセル期限を過ぎますと所定のキャンセル料が発生いたします。
-              <br className="hidden md:block" />
-              あらかじめご了承ください。）
-            </p>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex justify-center space-x-4 pt-6 md:pt-8">
-            <button
-              onClick={() => router.push("/")}
-              className="px-6 md:px-12 py-2 md:py-3 text-sm md:text-base font-medium text-white bg-gray-600 rounded-full hover:bg-gray-700 font-zen-kaku-gothic"
-            >
-              戻る
-            </button>
-            <button
-              onClick={handleCompleteReservation}
-              className="px-6 md:px-12 py-2 md:py-3 text-sm md:text-base font-medium text-white bg-gray-700 rounded-full hover:bg-gray-800 font-zen-kaku-gothic"
-            >
-              次へ進む
-            </button>
-          </div>
+        {/* Action Buttons Section */}
+        <div className="flex justify-center gap-6 mt-8">
+          <button
+            onClick={() => router.push("/")}
+            className="px-8 py-3 text-base font-medium text-white bg-gray-500 rounded-full hover:bg-gray-600 font-zen-kaku-gothic shadow-md"
+          >
+            戻る
+          </button>
+          <button
+            onClick={handleCompleteReservation}
+            className="px-8 py-3 text-base font-medium text-white bg-gray-700 rounded-full hover:bg-gray-800 font-zen-kaku-gothic shadow-md"
+          >
+            次へ進む
+          </button>
         </div>
       </div>
     </Layout>
