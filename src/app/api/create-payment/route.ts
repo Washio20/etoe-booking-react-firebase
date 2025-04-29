@@ -204,6 +204,13 @@ export async function POST(req: Request) {
         },
       ],
       mode: "payment",
+      // Enable promo code input on the hosted Checkout page
+      allow_promotion_codes: true,
+      // discounts: [   //如果想要通過前端傳入promo code，則需要傳入Promotion Code ID。我先註釋掉了。
+      //   {        // 這需要在之前的階段將用戶輸入的promo code調用API查詢其ID，然後傳入。用戶體驗雖然好但麻煩一些。
+      //     promotion_code: "promo_ABC123xyz"  // replace with the actual Promotion Code ID
+      //   }
+      // ],
       success_url: `${baseUrl}/reservation-complete?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/reservation/confirm`,
       customer_email: userRecord.email,
@@ -213,14 +220,15 @@ export async function POST(req: Request) {
         reservationTime: reservation.time,
         roomType: reservation.roomType || reservation.room,
         plan: reservation.plan,
-        price: String(amount), // 添加价格到metadata
-        needSlowRoom: String(reservation.needSlowRoom), // 将布尔值转换为字符串
-        slowRoomTimeRange: slowRoomTimeRangeStr, // 添加slow room时间范围
+        price: String(amount),
+        needSlowRoom: String(reservation.needSlowRoom),
+        slowRoomTimeRange: slowRoomTimeRangeStr,
         isPureSaunaRoom: String(
           PURE_SAUNA_ROOM_TYPES.includes(reservation.roomType)
-        ), // 添加是否是纯sauna房间标记
+        ),
       },
     });
+    
 
     return NextResponse.json({ url: stripeSession.url });
   } catch (error) {
