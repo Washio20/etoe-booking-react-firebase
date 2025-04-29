@@ -4,6 +4,8 @@ import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { initAdmin } from "@/utils/firebase-admin";
 import { NextRequest } from "next/server";
+import admin from "firebase-admin";
+import { Coupon } from "@/types/coupon";
 
 import { cookies } from 'next/headers';
 
@@ -205,7 +207,6 @@ export async function POST(req: Request) {
       }
     }
 
-
     // --- CouponCode to PromotionCodeId logic start ---
     // Read couponCode from cookies
     // cookieからcouponCodeを取得
@@ -232,6 +233,7 @@ export async function POST(req: Request) {
     // Stripe Checkout用のセッションパラメータを準備
     // Stripe Checkout 參數準備
     const sessionParams: any = {
+
       payment_method_types: ["card"],
       line_items: [
         {
@@ -281,7 +283,6 @@ export async function POST(req: Request) {
     }
 
     const stripeSession = await stripe.checkout.sessions.create(sessionParams);
-    
 
     return NextResponse.json({ url: stripeSession.url });
   } catch (error) {
