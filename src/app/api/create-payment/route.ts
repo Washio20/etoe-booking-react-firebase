@@ -4,6 +4,8 @@ import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { initAdmin } from "@/utils/firebase-admin";
 import { NextRequest } from "next/server";
+import admin from "firebase-admin";
+import { Coupon } from "@/types/coupon";
 
 // 纯sauna房间类型列表
 const PURE_SAUNA_ROOM_TYPES = ["tototo", "fuuu", "zabuun", "toron"];
@@ -36,6 +38,9 @@ export async function POST(req: Request) {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
     apiVersion: "2025-03-31.basil",
   });
+
+  // 初始化Firestore
+  const db = getFirestore();
 
   try {
     // 获取授权头部
@@ -78,9 +83,22 @@ export async function POST(req: Request) {
 
     // 使用前端传递的金额，如果没有传递才使用默认计算方式
     let amount = reservation.amount;
+    let appliedCouponId = reservation.couponId || null;
+    let discountAmount = reservation.discountAmount || 0;
+    let skipCouponProcessing = false;
+
+    // 如果前端已经提供了金额和折扣信息，跳过重复处理
+    if (amount !== undefined && reservation.couponId && reservation.discountAmount) {
+      console.log("使用前端提供的金额和折扣信息: ", {
+        amount: amount,
+        couponId: reservation.couponId,
+        discountAmount: reservation.discountAmount
+      });
+      skipCouponProcessing = true;
+    }
 
     // 如果没有提供金额，则计算价格
-    if (!amount) {
+    if (amount === undefined) {
 
       // 获取房间类型和基础价格
       const roomType = reservation.roomType || "";
@@ -187,6 +205,90 @@ export async function POST(req: Request) {
       }
     }
 
+    // 添加优惠券处理
+    if (!skipCouponProcessing && reservation.couponId) {
+      try {
+        // 获取优惠券信息
+        const couponDoc = await db.collection("coupons").doc(reservation.couponId).get();
+        
+        if (couponDoc.exists) {
+          const coupon = couponDoc.data() as Coupon;
+          
+          // 验证优惠券是否有效
+          const now = admin.firestore.Timestamp.now();
+          const isValid = coupon.isActive && 
+                          coupon.validFrom <= now && 
+                          coupon.validTo >= now &&
+                          (coupon.usageLimit === -1 || coupon.usedCount < coupon.usageLimit);
+          
+          if (isValid) {
+            // 验证是否适用于当前房型
+            const isApplicable = coupon.applicableRoomTypes.length === 0 || 
+                                coupon.applicableRoomTypes.includes(reservation.roomType);
+            
+            if (isApplicable) {
+              // 计算折扣金额
+              if (coupon.discountType === 'fixed') {
+                discountAmount = Math.min(coupon.discountValue, amount);
+              } else {
+                // 百分比折扣
+                discountAmount = Math.floor(amount * (coupon.discountValue / 100));
+                if (coupon.maxDiscount && coupon.maxDiscount > 0) {
+                  discountAmount = Math.min(discountAmount, coupon.maxDiscount);
+                }
+              }
+              
+              // 应用折扣
+              amount -= discountAmount;
+              appliedCouponId = reservation.couponId;
+              
+              // 移除优惠券使用记录更新，将在后面统一处理
+            }
+          }
+        }
+      } catch (error) {
+        console.error("优惠券处理错误:", error);
+        // 优惠券处理失败时，不应用折扣，但继续处理预约
+        appliedCouponId = null;
+        discountAmount = 0;
+      }
+    }
+
+    // 确保金额不小于零
+    amount = Math.max(0, amount);
+    
+    // 记录最终金额，用于调试
+    console.log(`最终计算金额: ${amount}円，优惠券折扣: ${discountAmount}円`);
+
+    // 无论是否重新计算价格，只要有优惠券ID，都更新使用次数和创建记录
+    if (appliedCouponId) {
+      try {
+        const now = admin.firestore.Timestamp.now();
+        
+        // 更新优惠券使用次数
+        await db.collection("coupons").doc(appliedCouponId).update({
+          usedCount: admin.firestore.FieldValue.increment(1),
+          updatedAt: now
+        });
+        
+        // 创建优惠券使用记录
+        await db.collection("couponUsage").add({
+          couponId: appliedCouponId,
+          userId: userRecord.uid,
+          reservationId: null, // 此时还没有预约ID
+          discountAmount: discountAmount,
+          originalAmount: amount + discountAmount,
+          finalAmount: amount,
+          usedAt: now
+        });
+        
+        console.log(`已更新优惠券(${appliedCouponId})使用次数和创建使用记录`);
+      } catch (error) {
+        console.error("更新优惠券使用记录失败:", error);
+        // 更新记录失败不应影响支付流程，继续执行
+      }
+    }
+
     // 创建Stripe支付会话
     const stripeSession = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
@@ -204,13 +306,6 @@ export async function POST(req: Request) {
         },
       ],
       mode: "payment",
-      // Enable promo code input on the hosted Checkout page
-      allow_promotion_codes: true,
-      // discounts: [   //如果想要通過前端傳入promo code，則需要傳入Promotion Code ID。我先註釋掉了。
-      //   {        // 這需要在之前的階段將用戶輸入的promo code調用API查詢其ID，然後傳入。用戶體驗雖然好但麻煩一些。
-      //     promotion_code: "promo_ABC123xyz"  // replace with the actual Promotion Code ID
-      //   }
-      // ],
       success_url: `${baseUrl}/reservation-complete?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/reservation/confirm`,
       customer_email: userRecord.email,
@@ -220,15 +315,17 @@ export async function POST(req: Request) {
         reservationTime: reservation.time,
         roomType: reservation.roomType || reservation.room,
         plan: reservation.plan,
-        price: String(amount),
-        needSlowRoom: String(reservation.needSlowRoom),
-        slowRoomTimeRange: slowRoomTimeRangeStr,
+        price: String(amount), // 添加价格到metadata
+        needSlowRoom: String(reservation.needSlowRoom), // 将布尔值转换为字符串
+        slowRoomTimeRange: slowRoomTimeRangeStr, // 添加slow room时间范围
         isPureSaunaRoom: String(
           PURE_SAUNA_ROOM_TYPES.includes(reservation.roomType)
-        ),
+        ), // 添加是否是纯sauna房间标记
+        couponId: appliedCouponId || "", // 添加优惠券ID
+        discountAmount: String(discountAmount), // 添加折扣金额
+        originalAmount: String(amount + discountAmount), // 添加原始金额
       },
     });
-    
 
     return NextResponse.json({ url: stripeSession.url });
   } catch (error) {
