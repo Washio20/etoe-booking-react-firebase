@@ -9,6 +9,7 @@ import { TimeSlot } from "../types";
 import { auth } from "@/utils/firebase";
 import { onAuthStateChange } from "@/utils/auth";
 import { RoomType } from "@/types/room";
+import { validateCouponCode } from "@/utils/coupon";
 
 // 是否为纯sauna房间
 const isPureSaunaRoom = (roomType: string): boolean => {
@@ -87,6 +88,13 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
       timeRangeType: string;
     }>;
   } | null>(null);
+
+  // State for coupon input collapse
+  const [showCouponInput, setShowCouponInput] = useState(false);
+  // Coupon code state and message
+  const [couponCode, setCouponCode] = useState("");
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [couponSuccess, setCouponSuccess] = useState<string | null>(null);
 
   // 创建选定日期对象
   const selectedDate = useMemo(() => {
@@ -641,6 +649,14 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
 
   // 处理预约按钮点击
   const handleReservation = () => {
+    // Coupon code validation before submit
+    if (couponCode.trim() !== "" && !validateCouponCode(couponCode)) {
+      setCouponError("クーポンコードが正しくありません。");
+      setCouponSuccess(null);
+      return;
+    }
+    setCouponError(null);
+
     if (!agreeToTerms) {
       setShowTermsError(true);
       return;
@@ -701,6 +717,18 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
   const handleTermsChange = () => {
     setAgreeToTerms(!agreeToTerms);
     if (showTermsError) setShowTermsError(false);
+  };
+
+  // Handle coupon confirm
+  const handleCouponConfirm = () => {
+    if (!validateCouponCode(couponCode)) {
+      setCouponError("クーポンコードを入力してください。");
+      setCouponSuccess(null);
+      return;
+    }
+    setCouponError(null);
+    setCouponSuccess("クーポンコードが適用されました！");
+    // Here you can add API validation logic if needed
   };
 
   // 如果正在加载
@@ -786,6 +814,57 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
           )}
         </div>
       </div>
+
+      {/* クーポンコード折りたたみトリガー */}
+      <div className="flex justify-center mb-2">
+        <a
+          href="#"
+          className="text-sm text-blue-600 hover:underline font-zen-kaku-gothic"
+          onClick={e => {
+            e.preventDefault();
+            setShowCouponInput(v => !v);
+          }}
+        >
+          クーポンコードを追加
+        </a>
+      </div>
+      {/* クーポンコード入力（折りたたみ） */}
+      {showCouponInput && (
+        <div className="flex flex-col items-center mb-6 md:mb-6">
+          <div className="w-full max-w-md">
+            <label className="block text-sm text-gray-700 mb-2 font-zen-kaku-gothic">
+              クーポンコード：
+              <span className="text-xs text-gray-500 ml-1">
+                （クーポンコードをお持ちであれば入力してください）
+              </span>
+            </label>
+            <div className="flex">
+              <input
+                type="text"
+                value={couponCode}
+                onChange={e => setCouponCode(e.target.value)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-gray-500 text-base text-gray-900"
+                placeholder="クーポンコードを入力"
+                style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
+              />
+              <button
+                type="button"
+                onClick={handleCouponConfirm}
+                className="px-4 py-2 bg-gray-700 text-white rounded-r-md hover:bg-gray-800 transition-colors font-zen-kaku-gothic text-sm border border-gray-300 border-l-0"
+                style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}
+              >
+                確認
+              </button>
+            </div>
+            {couponError && (
+              <p className="text-red-600 text-xs mt-2 font-zen-kaku-gothic">{couponError}</p>
+            )}
+            {couponSuccess && (
+              <p className="text-green-600 text-xs mt-2 font-zen-kaku-gothic">{couponSuccess}</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 予約確認画面へ按钮 */}
       <div
