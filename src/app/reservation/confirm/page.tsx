@@ -441,6 +441,7 @@ export default function ReservationConfirm() {
         endDateTime: endDateTime ? endDateTime.toISOString() : null,
         displayDate: displayDate, // 用于UI显示的格式化日期
         displayTimeRange: displayTimeRange, // 用于UI显示的时间段（可能包含日期）
+
         // Add couponId for checkout API (if available)
         // Checkout API用のcouponIdを追加（あれば）
         // 結帳API用的couponId（如果有）
