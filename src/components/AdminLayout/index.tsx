@@ -19,6 +19,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { name: "テスト用カード発行", path: "/admin/cards" },
     { name: "お客様カード発行", path: "/admin/card-issue" },
     { name: "ユーザー管理", path: "/admin/users" },
+    { name: "クーポン管理", path: "/admin/coupons" },
   ];
 
   return (

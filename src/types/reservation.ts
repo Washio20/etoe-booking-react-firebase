@@ -41,6 +41,9 @@ export interface Reservation {
   paymentId?: string;
   createdAt: FirestoreTimestamp | Date | string;
   updatedAt?: FirestoreTimestamp | Date | string;
+  // 优惠券相关信息
+  couponId?: string;
+  discountAmount?: number;
   // 取消相关信息
   cancelledAt?: FirestoreTimestamp | Date | string;
   cancelledBy?: {

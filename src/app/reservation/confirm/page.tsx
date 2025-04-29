@@ -6,6 +6,8 @@ import Layout from "@/components/Layout";
 import { auth } from "@/utils/firebase";
 import { onAuthStateChange, getUserData } from "@/utils/auth";
 import { User } from "firebase/auth";
+import { Coupon } from "@/types/coupon";
+import CouponSection from "@/components/CouponSection";
 
 export default function ReservationConfirm() {
   const router = useRouter();
@@ -52,6 +54,55 @@ export default function ReservationConfirm() {
 
   // 添加一个状态用于强制刷新
   const [metadataRefreshTrigger, setMetadataRefreshTrigger] = useState(0);
+
+  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+  const [discountAmount, setDiscountAmount] = useState(0);
+  const [showCouponSection, setShowCouponSection] = useState(false);
+
+  // 计算折扣金额
+  const calculateDiscount = useCallback((coupon: any, originalPrice: number) => {
+    if (!coupon) return 0;
+    
+    if (coupon.discountType === 'fixed') {
+      // 固定金额折扣
+      return Math.min(coupon.discountValue, originalPrice);
+    } else {
+      // 百分比折扣
+      const discount = Math.floor(originalPrice * (coupon.discountValue / 100));
+      // 如果有最大折扣限制
+      if (coupon.maxDiscount) {
+        return Math.min(discount, coupon.maxDiscount);
+      }
+      return discount;
+    }
+  }, []);
+
+  // 处理应用优惠券
+  const handleCouponApplied = useCallback((coupon: any) => {
+    setAppliedCoupon(coupon);
+    
+    const originalPrice = reservation.totalPrice;
+    const discount = calculateDiscount(coupon, originalPrice);
+    setDiscountAmount(discount);
+    
+    // 更新价格显示
+    setReservation(prev => ({
+      ...prev,
+      totalPrice: prev.totalPrice - discount,
+    }));
+  }, [reservation.totalPrice, calculateDiscount]);
+
+  // 处理移除优惠券
+  const handleCouponRemoved = useCallback(() => {
+    // 恢复原始价格
+    setReservation(prev => ({
+      ...prev,
+      totalPrice: prev.totalPrice + discountAmount,
+    }));
+    
+    setAppliedCoupon(null);
+    setDiscountAmount(0);
+  }, [discountAmount]);
 
   // 监听Firebase认证状态
   useEffect(() => {
@@ -424,7 +475,6 @@ export default function ReservationConfirm() {
         room: reservation.room,
         roomType: reservation.roomType,
         plan: reservation.plan,
-        amount: reservation.totalPrice,
         needSlowRoom: needSlowRoom,
         slowRoomTimeRange: slowRoomTimeRange
           ? JSON.stringify(slowRoomTimeRange)
@@ -435,7 +485,23 @@ export default function ReservationConfirm() {
         endDateTime: endDateTime ? endDateTime.toISOString() : null,
         displayDate: displayDate, // 用于UI显示的格式化日期
         displayTimeRange: displayTimeRange, // 用于UI显示的时间段（可能包含日期）
+
+        // 添加优惠券信息
+        couponId: appliedCoupon ? appliedCoupon.id : null,
+        couponCode: appliedCoupon ? appliedCoupon.code : null,
+        discountAmount: discountAmount,
+        
+        // 优惠后的总价
+        amount: reservation.totalPrice,
       };
+
+      // 在控制台记录价格信息，用于调试
+      console.log("预约价格信息:", {
+        原始总价: (reservation.totalPrice + discountAmount),
+        优惠券折扣: discountAmount,
+        最终价格: reservation.totalPrice,
+        优惠券ID: appliedCoupon ? appliedCoupon.id : "未使用优惠券"
+      });
 
       // 如果是新用户，先保存用户信息
       if (isNewUser) {
@@ -719,67 +785,84 @@ export default function ReservationConfirm() {
               <div className="col-span-1 md:col-span-2 text-gray-700 font-zen-kaku-gothic pl-4 md:pl-0">
                 {reservation.plan}
               </div>
+            </div>
+          </div>
 
-              <div className="text-gray-700 font-medium font-zen-kaku-gothic md:font-normal">
-                利用料金
-              </div>
-              <div className="col-span-1 md:col-span-2 pl-4 md:pl-0">
+          {/* 价格显示部分，合并为单一区域 */}
+          <div className="mt-6 p-4 rounded-lg bg-[#F0EAE4]">
+            <h3 className="font-bold text-gray-700 mb-2 font-zen-kaku-gothic">利用料金</h3>
+            <div className="flex flex-col justify-between gap-2">
+              <div className="text-[#444444] font-zen-kaku-gothic">
                 {/* 纯sauna房间类型(TOTOTO,FUUU,ZABUUN,TORON) */}
                 {reservation.isPureSaunaRoom && (
-                  <>
-                    <div className="mb-1 font-zen-kaku-gothic text-sm md:text-base">
-                      <span className="font-medium">サウナ料金: </span>
-                      <span>{reservation.roomPrice.toLocaleString()}円</span>
-                    </div>
-
-                    {/* 如果选了slow room套餐 */}
-                    {reservation.hasSlowRoomPlan &&
-                      reservation.slowRoomPrice > 0 && (
-                        <>
-                          <div className="mb-1 font-zen-kaku-gothic text-sm md:text-base">
-                            <span className="font-medium">
-                              スロールーム料金:{" "}
-                            </span>
-                            <span>
-                              {(
-                                reservation.slowRoomPrice + 1000
-                              ).toLocaleString()}
-                              円
-                            </span>
-                          </div>
-
-                          {/* 套餐折扣，只有纯sauna + slow room套餐才显示 */}
-                          <div className="mb-1 font-zen-kaku-gothic text-sm md:text-base text-red-600">
-                            <span className="font-medium">セット割引: </span>
-                            <span>-1,000円</span>
-                          </div>
-                        </>
-                      )}
-                  </>
+                  <p className="text-sm md:text-base">
+                    サウナ料金: <span className="font-bold">{reservation.roomPrice.toLocaleString()}円</span>
+                  </p>
                 )}
-
+                
                 {/* サウナスイート房间类型 */}
                 {reservation.roomType === "sauna_suite" && (
-                  <div className="mb-1 font-zen-kaku-gothic text-sm md:text-base">
-                    <span className="font-medium">サウナスイート料金: </span>
-                    <span>{reservation.totalPrice.toLocaleString()}円</span>
-                  </div>
+                  <p className="text-sm md:text-base">
+                    サウナスイート料金: <span className="font-bold">{reservation.roomPrice.toLocaleString()}円</span>
+                  </p>
                 )}
 
                 {/* スロールーム房间类型 */}
                 {reservation.roomType === "slow_room" && (
-                  <div className="mb-1 font-zen-kaku-gothic text-sm md:text-base">
-                    <span className="font-medium">スロールーム料金: </span>
-                    <span>{reservation.totalPrice.toLocaleString()}円</span>
+                  <p className="text-sm md:text-base">
+                    スロールーム料金: <span className="font-bold">{reservation.roomPrice.toLocaleString()}円</span>
+                  </p>
+                )}
+                
+                {/* 如果有慢房间 */}
+                {reservation.hasSlowRoomPlan && (
+                  <p className="text-sm md:text-base">
+                    スロールーム: <span className="font-bold">{(reservation.slowRoomPrice + 1000).toLocaleString()}円</span>
+                  </p>
+                )}
+                
+                {/* 如果有套餐折扣 */}
+                {reservation.hasSlowRoomPlan && (
+                  <p className="text-sm md:text-base text-red-600">
+                    セット割引: <span className="font-bold">-1,000円</span>
+                  </p>
+                )}
+                
+                {/* 如果有优惠券折扣 */}
+                {discountAmount > 0 && (
+                  <p className="text-sm md:text-base text-red-600">
+                    クーポン割引: <span className="font-bold">-{discountAmount.toLocaleString()}円</span>
+                  </p>
+                )}
+                
+                <p className="text-base md:text-lg font-bold mt-2 border-t border-gray-300 pt-2">
+                  合計: <span className="text-red-600">{reservation.totalPrice.toLocaleString()}円</span>
+                </p>
+                
+                {/* 在价格区域内显示优惠券按钮 */}
+                {!appliedCoupon && (
+                  <div className="mt-3 text-right">
+                    <button
+                      onClick={() => setShowCouponSection(!showCouponSection)}
+                      className="text-blue-600 text-sm underline hover:text-blue-800 font-zen-kaku-gothic"
+                    >
+                      {showCouponSection ? "クーポン入力を隠す" : "クーポンを使用する"}
+                    </button>
                   </div>
                 )}
-
-                <span className="font-bold text-red-600 text-lg md:text-xl font-zen-kaku-gothic">
-                  合計: {reservation.totalPrice.toLocaleString()}円
-                </span>
               </div>
             </div>
           </div>
+
+          {/* 优惠券部分 - 改善布局 */}
+          {showCouponSection && (
+            <div className="mt-3 md:mt-4">
+              <CouponSection 
+                onCouponApplied={handleCouponApplied}
+                onCouponRemoved={handleCouponRemoved}
+              />
+            </div>
+          )}
 
           {/* User Information */}
           <div className="space-y-3 md:space-y-4 bg-gray-50 py-3 md:py-4 px-0 md:px-0 rounded-md">
