@@ -148,9 +148,22 @@ export default function AdminCoupons() {
             <h1 className="text-xl md:text-2xl font-bold text-gray-700 tracking-wider font-zen-kaku-gothic">
               クーポン管理
             </h1>
+            <p className="mt-2 text-base md:text-lg">
+              <span className=" text-red-600">
+                請登錄Stripe添加和管理優惠卷：
+              </span>
+              <a 
+                href="https://dashboard.stripe.com/coupons" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="underline text-blue-600 hover:text-blue-800"
+              >
+                Stripe Coupons
+              </a>
+            </p>
           </div>
           
-          {errorMessage && (
+          {/* {errorMessage && (
             <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4">
               <p className="text-red-700 text-sm font-zen-kaku-gothic">{errorMessage}</p>
             </div>
@@ -346,7 +359,7 @@ export default function AdminCoupons() {
                 )}
               </div>
             )}
-          </div>
+          </div> */}
         </div>
       </AdminLayout>
     </Layout>

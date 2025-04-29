@@ -31,9 +31,10 @@ interface TimeSlotAvailability {
 
 interface Props {
   selectedRoomType: RoomType;
+  initialCouponCode?: string | null;
 }
 
-export default function DateTimeSelection({ selectedRoomType }: Props) {
+export default function DateTimeSelection({ selectedRoomType, initialCouponCode }: Props) {
   const router = useRouter();
   const [user, setUser] = useState(auth.currentUser);
   const [isLoading, setIsLoading] = useState(true);
@@ -102,8 +103,13 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
     if (saved && saved.trim() !== "") {
       setCouponCode(saved);
       setShowCouponInput(true);
+    } else if (initialCouponCode && initialCouponCode.trim() !== "") {
+      setCouponCode(initialCouponCode);
+      setShowCouponInput(true);
+      // Save to localStorage
+      localStorage.setItem("couponCode", initialCouponCode);
     }
-  }, []);
+  }, [initialCouponCode]);
 
   // 创建选定日期对象
   const selectedDate = useMemo(() => {
