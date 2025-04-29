@@ -9,7 +9,6 @@ import { TimeSlot } from "../types";
 import { auth } from "@/utils/firebase";
 import { onAuthStateChange } from "@/utils/auth";
 import { RoomType } from "@/types/room";
-import { validateCouponCode } from "@/utils/coupon";
 
 // 是否为纯sauna房间
 const isPureSaunaRoom = (roomType: string): boolean => {
@@ -95,6 +94,16 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
   const [couponCode, setCouponCode] = useState("");
   const [couponError, setCouponError] = useState<string | null>(null);
   const [couponSuccess, setCouponSuccess] = useState<string | null>(null);
+  const [couponInfo, setCouponInfo] = useState<any>(null); // Store coupon details
+
+  // Load coupon code from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("couponCode");
+    if (saved && saved.trim() !== "") {
+      setCouponCode(saved);
+      setShowCouponInput(true);
+    }
+  }, []);
 
   // 创建选定日期对象
   const selectedDate = useMemo(() => {
@@ -650,12 +659,15 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
   // 处理预约按钮点击
   const handleReservation = () => {
     // Coupon code validation before submit
-    if (couponCode.trim() !== "" && !validateCouponCode(couponCode)) {
+    // 只做格式檢查（其餘已由 API 驗證）
+    if (couponCode.trim() !== "" && !couponCode.trim()) {
       setCouponError("クーポンコードが正しくありません。");
       setCouponSuccess(null);
       return;
     }
     setCouponError(null);
+    // Save coupon code to localStorage only when reservation is confirmed
+    localStorage.setItem("couponCode", couponCode);
 
     if (!agreeToTerms) {
       setShowTermsError(true);
@@ -720,15 +732,28 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
   };
 
   // Handle coupon confirm
-  const handleCouponConfirm = () => {
-    if (!validateCouponCode(couponCode)) {
+  const handleCouponConfirm = async () => {
+    setCouponError(null);
+    setCouponSuccess(null);
+    setCouponInfo(null);
+    if (!couponCode.trim()) {
       setCouponError("クーポンコードを入力してください。");
-      setCouponSuccess(null);
       return;
     }
-    setCouponError(null);
-    setCouponSuccess("クーポンコードが適用されました！");
-    // Here you can add API validation logic if needed
+    try {
+      const res = await fetch(`/api/validate-coupon?code=${encodeURIComponent(couponCode)}`);
+      const data = await res.json();
+      if (!data.valid) {
+        setCouponError("クーポンコードが正しくありません。");
+        return;
+      }
+      setCouponSuccess("クーポンコードが適用されました！");
+      setCouponInfo(data.coupon);
+      // Save coupon info to localStorage for confirm page
+      localStorage.setItem("couponInfo", JSON.stringify(data.coupon));
+    } catch (e) {
+      setCouponError("サーバーエラーが発生しました。後でもう一度お試しください。");
+    }
   };
 
   // 如果正在加载
@@ -861,6 +886,16 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
             )}
             {couponSuccess && (
               <p className="text-green-600 text-xs mt-2 font-zen-kaku-gothic">{couponSuccess}</p>
+            )}
+            {couponInfo && (
+              <div className="text-green-700 text-xs mt-1 font-zen-kaku-gothic">
+                割引：
+                {couponInfo.percent_off
+                  ? `${couponInfo.percent_off}% OFF`
+                  : couponInfo.amount_off
+                    ? `-${couponInfo.amount_off.toLocaleString()}${couponInfo.currency?.toUpperCase() || ''}`
+                    : ""}
+              </div>
             )}
           </div>
         </div>
