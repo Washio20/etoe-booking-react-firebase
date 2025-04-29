@@ -104,6 +104,7 @@ const CouponSection = ({ onCouponApplied, onCouponRemoved }: CouponSectionProps)
                 value={couponCode}
                 onChange={(e) => setCouponCode(e.target.value)}
                 className="w-full sm:w-[250px] border border-gray-300 rounded-l-md px-3 py-2 text-sm font-zen-kaku-gothic"
+                style={{ fontSize: '16px' }}
               />
               <button
                 onClick={handleValidateCoupon}

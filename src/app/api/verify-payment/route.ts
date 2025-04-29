@@ -449,8 +449,17 @@ export async function GET(req: Request) {
         if (!couponUsageQuery.empty) {
           await couponUsageQuery.docs[0].ref.update({
             reservationId: reservationId,
+            status: "completed", // 更新状态为已完成
             updatedAt: admin.firestore.Timestamp.now()
           });
+          
+          // 增加优惠券使用次数
+          await db.collection("coupons").doc(session.metadata.couponId).update({
+            usedCount: admin.firestore.FieldValue.increment(1),
+            updatedAt: admin.firestore.Timestamp.now()
+          });
+          
+          console.log(`优惠券(${session.metadata.couponId})使用记录已更新为completed状态，使用次数已增加`);
         }
       }
 

@@ -34,9 +34,10 @@ export interface CouponUsage {
   id: string;               // 使用记录 ID
   couponId: string;         // 优惠券 ID
   userId: string;           // 用户 ID
-  reservationId: string;    // 预约 ID
+  reservationId: string | null; // 预约 ID（可能为null）
   discountAmount: number;   // 实际折扣金额
   usedAt: FirestoreTimestamp; // 使用时间
   originalAmount: number;   // 原始金额
   finalAmount: number;      // 折扣后金额
+  status: 'pending' | 'completed'; // 使用状态
 }
