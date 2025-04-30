@@ -161,7 +161,7 @@ export default function MemberInfo() {
       {/* 会員情報 */}
       <div className="space-y-4 md:space-y-6">
         <div className="border-b border-[rgba(68,68,68,0.2)] pb-2 md:pb-4">
-          <h1 className="text-[15px] md:text-[24px] font-bold text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+          <h1 className="text-base md:text-2xl font-bold text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
             会員情報
           </h1>
         </div>
@@ -183,7 +183,7 @@ export default function MemberInfo() {
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  className="w-full border border-[#BBBBBB] px-3 md:px-4 py-2 rounded-md text-[#444444] font-zen-kaku-gothic bg-gray-100 text-[12px] md:text-base"
+                  className="w-full border border-[#BBBBBB] px-3 md:px-4 py-2 rounded-md font-zen-kaku-gothic bg-gray-100 text-[12px] md:text-base text-black"
                   disabled={true}
                 />
               </div>
@@ -206,7 +206,7 @@ export default function MemberInfo() {
                   onChange={handleChange}
                   className={`w-full border border-[#BBBBBB] px-3 md:px-4 py-2 rounded-md text-[#444444] font-zen-kaku-gothic text-[12px] md:text-base ${
                     isEditing ? "bg-white" : "bg-gray-100"
-                  }`}
+                  } text-black`}
                   disabled={!isEditing}
                 />
               </div>
@@ -229,7 +229,7 @@ export default function MemberInfo() {
                   onChange={handleChange}
                   className={`w-full border border-[#BBBBBB] px-3 md:px-4 py-2 rounded-md text-[#444444] font-zen-kaku-gothic text-[12px] md:text-base ${
                     isEditing ? "bg-white" : "bg-gray-100"
-                  }`}
+                  } text-black`}
                   disabled={!isEditing}
                 />
               </div>
@@ -252,7 +252,7 @@ export default function MemberInfo() {
                   onChange={handleChange}
                   className={`w-full border border-[#BBBBBB] px-3 md:px-4 py-2 rounded-md text-[#444444] font-zen-kaku-gothic text-[12px] md:text-base ${
                     isEditing ? "bg-white" : "bg-gray-100"
-                  }`}
+                  } text-black`}
                   disabled={!isEditing}
                 />
               </div>
@@ -302,14 +302,14 @@ export default function MemberInfo() {
                   <button
                     type="button"
                     onClick={() => setIsEditing(false)}
-                    className="px-4 py-1 border border-[#444444] text-[#444444] rounded-full text-[12px] md:text-[14px] font-zen-kaku-gothic"
+                    className="px-4 py-1 border border-[#444444] text-[#444444] rounded-full text-sm font-zen-kaku-gothic"
                     disabled={isSaving}
                   >
                     キャンセル
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-1 bg-[#444444] text-white rounded-full text-[12px] md:text-[14px] font-zen-kaku-gothic"
+                    className="px-6 py-1 bg-[#444444] text-white rounded-full text-sm font-zen-kaku-gothic"
                     disabled={isSaving}
                   >
                     {isSaving ? "保存中..." : "保存する"}
@@ -319,7 +319,7 @@ export default function MemberInfo() {
                 <button
                   type="button"
                   onClick={handleEditClick}
-                  className="px-6 py-1 bg-[#444444] text-white rounded-full text-[12px] md:text-[14px] font-zen-kaku-gothic"
+                  className="px-6 py-1 bg-[#444444] text-white rounded-full text-sm font-zen-kaku-gothic"
                 >
                   編集する
                 </button>
@@ -329,7 +329,7 @@ export default function MemberInfo() {
             {/* 成功メッセージ */}
             {saveSuccess && (
               <div className="pt-2 text-center">
-                <p className="text-green-600 text-[12px] md:text-[14px] font-zen-kaku-gothic">
+                <p className="text-green-600 text-sm font-zen-kaku-gothic">
                   ユーザー情報が正常に更新されました。
                 </p>
               </div>
@@ -338,7 +338,7 @@ export default function MemberInfo() {
             {/* エラーメッセージ */}
             {saveError && (
               <div className="pt-2 text-center">
-                <p className="text-red-600 text-[12px] md:text-[14px] font-zen-kaku-gothic">
+                <p className="text-red-600 text-sm font-zen-kaku-gothic">
                   {saveError}
                 </p>
               </div>

@@ -132,13 +132,13 @@ export default function ContactForm() {
   return (
     <div className="max-w-7xl mx-auto space-y-8 md:space-y-12 px-4 md:px-0">
       <div className="border-b border-[rgba(68,68,68,0.2)] pb-4">
-        <h1 className="text-[15px] md:text-[24px] font-bold text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+        <h1 className="text-base md:text-2xl font-bold text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
           お問い合わせ
         </h1>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded font-zen-kaku-gothic text-[12px] md:text-[14px]">
+        <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded font-zen-kaku-gothic text-sm">
           {error}
         </div>
       )}
@@ -147,7 +147,7 @@ export default function ContactForm() {
         <div className="space-y-4 md:space-y-4">
           {/* 名前 */}
           <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6">
-            <label className="text-[12px] md:text-[16px] font-medium md:w-40 text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+            <label className="text-sm font-medium md:w-40 text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
               名前
             </label>
             <input
@@ -156,14 +156,14 @@ export default function ContactForm() {
               value={formData.name}
               onChange={handleChange}
               placeholder="名前"
-              className="w-full md:w-[460px] px-3 py-2 border border-[#BBBBBB] rounded text-[12px] md:text-[16px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic placeholder:opacity-50"
+              className="w-full md:w-[460px] px-3 py-2 border border-[#BBBBBB] rounded-md focus:outline-none focus:ring-2 focus:ring-[#444444] font-zen-kaku-gothic text-black"
               required
             />
           </div>
 
           {/* メールアドレス */}
           <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6">
-            <label className="text-[12px] md:text-[16px] font-medium md:w-40 text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+            <label className="text-sm font-medium md:w-40 text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
               メールアドレス
             </label>
             <input
@@ -172,14 +172,14 @@ export default function ContactForm() {
               value={formData.email}
               onChange={handleChange}
               placeholder="sample@example.com"
-              className="w-full md:w-[460px] px-3 py-2 border border-[#BBBBBB] rounded text-[12px] md:text-[16px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic placeholder:opacity-50"
+              className="w-full md:w-[460px] px-3 py-2 border border-[#BBBBBB] rounded-md focus:outline-none focus:ring-2 focus:ring-[#444444] font-zen-kaku-gothic text-black"
               required
             />
           </div>
 
           {/* 電話番号 */}
           <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6">
-            <label className="text-[12px] md:text-[16px] font-medium md:w-40 text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+            <label className="text-sm font-medium md:w-40 text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
               電話番号
             </label>
             <input
@@ -188,14 +188,14 @@ export default function ContactForm() {
               value={formData.phone}
               onChange={handleChange}
               placeholder="000-0000-0000"
-              className="w-full md:w-[460px] px-3 py-2 border border-[#BBBBBB] rounded text-[12px] md:text-[16px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic placeholder:opacity-50"
+              className="w-full md:w-[460px] px-3 py-2 border border-[#BBBBBB] rounded-md focus:outline-none focus:ring-2 focus:ring-[#444444] font-zen-kaku-gothic text-black"
               required
             />
           </div>
 
           {/* タイトル */}
           <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6">
-            <label className="text-[12px] md:text-[16px] font-medium md:w-40 text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+            <label className="text-sm font-medium md:w-40 text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
               タイトル
             </label>
             <input
@@ -203,14 +203,14 @@ export default function ContactForm() {
               name="title"
               value={formData.title}
               onChange={handleChange}
-              className="w-full md:w-[460px] px-3 py-2 border border-[#BBBBBB] rounded text-[12px] md:text-[16px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic"
+              className="w-full md:w-[460px] px-3 py-2 border border-[#BBBBBB] rounded-md focus:outline-none focus:ring-2 focus:ring-[#444444] font-zen-kaku-gothic text-black"
               required
             />
           </div>
 
           {/* お問い合わせ内容 */}
           <div className="flex flex-col md:flex-row md:items-start gap-2 md:gap-6">
-            <label className="text-[12px] md:text-[16px] font-medium md:w-40 text-[#444444] tracking-[0.06em] font-zen-kaku-gothic whitespace-nowrap">
+            <label className="text-sm font-medium md:w-40 text-[#444444] tracking-[0.06em] font-zen-kaku-gothic whitespace-nowrap">
               お問い合わせ内容
             </label>
             <textarea
@@ -219,7 +219,7 @@ export default function ContactForm() {
               onChange={handleChange}
               placeholder="お問い合わせ内容を入力してください"
               rows={6}
-              className="w-full md:w-[460px] px-3 py-2 border border-[#BBBBBB] rounded text-[12px] md:text-[16px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic placeholder:opacity-50 resize-none"
+              className="w-full md:w-[460px] px-3 py-2 border border-[#BBBBBB] rounded-md focus:outline-none focus:ring-2 focus:ring-[#444444] font-zen-kaku-gothic placeholder:opacity-50 resize-none text-black"
               required
             />
           </div>
@@ -229,7 +229,7 @@ export default function ContactForm() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className={`px-8 py-2 md:px-12 md:py-3 bg-[#444444] text-white rounded-full text-[13px] md:text-[16px] tracking-[0.06em] font-zen-kaku-gothic font-bold ${
+            className={`px-8 py-2 md:px-12 md:py-3 bg-[#444444] text-white rounded-full text-sm md:text-base tracking-[0.06em] font-zen-kaku-gothic font-bold ${
               isSubmitting
                 ? "opacity-70 cursor-not-allowed"
                 : "hover:bg-[#333333]"

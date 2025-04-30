@@ -16,10 +16,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { name: "客室管理", path: "/admin/rooms" },
     { name: "お問い合わせ管理", path: "/admin/contacts" },
     { name: "予約管理", path: "/admin/reservations" },
-    { name: "テスト用カード発行", path: "/admin/cards" },
     { name: "お客様カード発行", path: "/admin/card-issue" },
+    { name: "外部予約カード発行", path: "/admin/external-card-issue" },
     { name: "ユーザー管理", path: "/admin/users" },
     { name: "クーポン管理", path: "/admin/coupons" },
+    { name: "テスト用カード発行", path: "/admin/cards" },
   ];
 
   return (

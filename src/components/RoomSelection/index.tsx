@@ -431,7 +431,7 @@ export default function RoomSelection() {
       <div className="space-y-4 md:space-y-12">
         <div className="border-b border-[rgba(68,68,68,0.2)] pb-0 md:pb-4">
           <div className="pb-[8px] md:pb-0">
-            <h1 className="text-[15px] md:text-[24px] font-bold text-[#444444] tracking-[0.06em] font-zen-kaku-gothic leading-[1.5em] md:leading-normal">
+            <h1 className="text-base md:text-2xl font-bold text-[#444444] tracking-[0.06em] font-zen-kaku-gothic leading-[1.5em] md:leading-normal">
               部屋を選んでください
             </h1>
           </div>
@@ -450,7 +450,7 @@ export default function RoomSelection() {
       <div className="space-y-4 md:space-y-12">
         <div className="border-b border-[rgba(68,68,68,0.2)] pb-0 md:pb-4">
           <div className="pb-[8px] md:pb-0">
-            <h1 className="text-[15px] md:text-[24px] font-bold text-[#444444] tracking-[0.06em] font-zen-kaku-gothic leading-[1.5em] md:leading-normal">
+            <h1 className="text-base md:text-2xl font-bold text-[#444444] tracking-[0.06em] font-zen-kaku-gothic leading-[1.5em] md:leading-normal">
               部屋を選んでください
             </h1>
           </div>
@@ -472,7 +472,7 @@ export default function RoomSelection() {
     <div className="space-y-4 md:space-y-12">
       <div className="border-b border-[rgba(68,68,68,0.2)] pb-0 md:pb-4">
         <div className="pb-[8px] md:pb-0">
-          <h1 className="text-[15px] md:text-[24px] font-bold text-[#444444] tracking-[0.06em] font-zen-kaku-gothic leading-[1.5em] md:leading-normal">
+          <h1 className="text-base md:text-2xl font-bold text-[#444444] tracking-[0.06em] font-zen-kaku-gothic leading-[1.5em] md:leading-normal">
             部屋を選んでください
           </h1>
         </div>
@@ -489,7 +489,7 @@ export default function RoomSelection() {
               key={category}
               data-tab-id={category}
               onClick={() => handleTabChange(category)}
-              className={`w-full py-1.5 md:py-3 px-4 md:px-6 rounded-full border border-[#444444] font-zen-kaku-gothic text-[12px] md:text-base font-bold md:font-normal tracking-[0.06em] transition-colors text-center ${
+              className={`w-full py-1.5 md:py-3 px-4 md:px-6 rounded-full border border-[#444444] font-zen-kaku-gothic text-sm md:text-base font-bold md:font-normal tracking-[0.06em] transition-colors text-center ${
                 selectedTab === category
                   ? "bg-[#F0EAE4] text-[#444444]"
                   : "bg-white text-[#444444] hover:bg-gray-50"
@@ -527,7 +527,7 @@ export default function RoomSelection() {
                 />
               </div>
               <div className="flex-grow px-2 md:px-3 text-left truncate">
-                <span className="font-zen-kaku-gothic text-[13px] md:text-base font-bold tracking-[0.06em] text-[#444444]">
+                <span className="font-zen-kaku-gothic text-sm md:text-base font-bold tracking-[0.06em] text-[#444444]">
                   {room.roomType.replace(/_/g, ' ')}
                 </span>
               </div>

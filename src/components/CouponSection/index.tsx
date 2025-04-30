@@ -103,7 +103,7 @@ const CouponSection = ({ onCouponApplied, onCouponRemoved }: CouponSectionProps)
                 placeholder="クーポンコード"
                 value={couponCode}
                 onChange={(e) => setCouponCode(e.target.value)}
-                className="w-full sm:w-[250px] border border-gray-300 rounded-l-md px-3 py-2 text-sm font-zen-kaku-gothic appearance-none focus:outline-none focus:ring-0 focus:border-gray-300"
+                className="w-full sm:w-[250px] border border-gray-300 rounded-l-md px-3 py-2 text-sm font-zen-kaku-gothic appearance-none focus:outline-none focus:ring-0 focus:border-gray-300 text-black"
                 style={{ fontSize: '16px', WebkitAppearance: 'none' }}
               />
               <button
