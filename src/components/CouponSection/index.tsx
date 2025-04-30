@@ -76,11 +76,11 @@ const CouponSection = ({ onCouponApplied, onCouponRemoved }: CouponSectionProps)
       <h3 className="font-bold text-gray-700 font-zen-kaku-gothic mb-2">クーポン</h3>
       
       {appliedCoupon ? (
-        <div className="flex items-center justify-between bg-gray-100 p-3 rounded border border-gray-200">
-          <div>
+        <div className="flex items-center justify-between bg-white p-3 rounded">
+          <div className="space-y-1.5">
             <p className="font-medium text-sm text-gray-800 font-zen-kaku-gothic">{appliedCoupon.name}</p>
             <p className="text-xs text-gray-600 font-zen-kaku-gothic">{appliedCoupon.description}</p>
-            <p className="text-sm font-bold text-gray-900 font-zen-kaku-gothic">
+            <p className="text-sm font-bold text-red-600 font-zen-kaku-gothic">
               {appliedCoupon.discountType === CouponDiscountType.FIXED 
                 ? `${appliedCoupon.discountValue.toLocaleString()}円割引` 
                 : `${appliedCoupon.discountValue}%割引`}
@@ -95,7 +95,7 @@ const CouponSection = ({ onCouponApplied, onCouponRemoved }: CouponSectionProps)
         </div>
       ) : (
         <div className="space-y-2">
-          <p className="text-sm sm:text-sm md:text-base text-gray-600 font-zen-kaku-gothic">お持ちのクーポンコードを入力してください</p>
+          <p className="text-sm sm:text-sm md:text-base text-gray-700 font-zen-kaku-gothic">お持ちのクーポンコードを入力してください</p>
           <div className="flex items-center">
             <div className="flex w-full sm:w-auto">
               <input
@@ -103,8 +103,8 @@ const CouponSection = ({ onCouponApplied, onCouponRemoved }: CouponSectionProps)
                 placeholder="クーポンコード"
                 value={couponCode}
                 onChange={(e) => setCouponCode(e.target.value)}
-                className="w-full sm:w-[250px] border border-gray-300 rounded-l-md px-3 py-2 text-sm font-zen-kaku-gothic"
-                style={{ fontSize: '16px' }}
+                className="w-full sm:w-[250px] border border-gray-300 rounded-l-md px-3 py-2 text-sm font-zen-kaku-gothic appearance-none focus:outline-none focus:ring-0 focus:border-gray-300"
+                style={{ fontSize: '16px', WebkitAppearance: 'none' }}
               />
               <button
                 onClick={handleValidateCoupon}
