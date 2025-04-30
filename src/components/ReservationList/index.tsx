@@ -566,7 +566,7 @@ export default function ReservationList() {
         <div className="bg-white rounded-lg p-6 md:p-12 w-[95%] md:w-[90%] max-w-[920px] relative mx-auto my-4 max-h-[90vh] overflow-y-auto">
           <button
             onClick={handleCloseReceiptModal}
-            className="absolute top-4 right-4 border border-white rounded-full px-3 py-1 text-[12px] tracking-[0.06em] font-zen-kaku-gothic flex items-center gap-2"
+            className="absolute top-4 right-4 border border-white rounded-full px-3 py-1 text-sm tracking-[0.06em] font-zen-kaku-gothic flex items-center gap-2"
           >
             <span className="w-3 h-0.5 bg-[#444444] transform rotate-45 absolute"></span>
             <span className="w-3 h-0.5 bg-[#444444] transform -rotate-45 absolute"></span>
@@ -574,7 +574,7 @@ export default function ReservationList() {
           </button>
 
           <div className="space-y-6 md:space-y-8">
-            <h2 className="text-[20px] md:text-[24px] font-bold text-center text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+            <h2 className="text-lg md:text-2xl font-bold text-center text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
               領収書の発行
             </h2>
 
@@ -584,14 +584,14 @@ export default function ReservationList() {
                 value={receiptName}
                 onChange={(e) => setReceiptName(e.target.value)}
                 placeholder="領収書の宛名を入力してください。"
-                className="w-full text-[14px] md:text-[16px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic placeholder-[#444444] placeholder-opacity-50 outline-none"
+                className="w-full text-sm md:text-base text-[#444444] tracking-[0.06em] font-zen-kaku-gothic placeholder-[#444444] placeholder-opacity-50 outline-none"
               />
             </div>
 
             <div className="flex justify-center">
               <button
                 onClick={handleIssueReceipt}
-                className="px-4 py-2 bg-[#444444] text-white rounded-full text-[14px] tracking-[0.06em] font-zen-kaku-gothic"
+                className="px-4 py-2 bg-[#444444] text-white rounded-full text-sm md:text-base tracking-[0.06em] font-zen-kaku-gothic"
               >
                 領収書を発行する
               </button>
@@ -626,81 +626,81 @@ export default function ReservationList() {
         className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]"
         style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0 }}
       >
-        <div className="bg-white rounded-lg p-6 md:p-8 md:p-12 w-[95%] md:w-[90%] max-w-[920px] mx-auto my-4 max-h-[90vh] overflow-y-auto">
+        <div className="bg-white rounded-lg p-6 md:p-8 w-[95%] md:w-[90%] max-w-[920px] mx-auto my-4 max-h-[90vh] overflow-y-auto">
           <div className="space-y-4 md:space-y-6">
             <div className="border-b border-[rgba(68,68,68,0.2)] pb-4">
-              <h2 className="text-[20px] md:text-[24px] font-bold text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+              <h2 className="text-lg md:text-2xl font-bold text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
                 予約キャンセル
               </h2>
             </div>
 
-            <p className="text-[14px] md:text-[15px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+            <p className="text-sm md:text-base text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
               以下の予約をキャンセルします。
             </p>
 
             <div className="bg-white rounded-lg p-4 md:p-8 space-y-6 md:space-y-8">
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="w-28 md:w-32 text-[13px] md:text-[15px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+                  <span className="w-28 md:w-32 text-sm md:text-sm text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
                     予約日時
                   </span>
-                  <span className="flex-1 text-[13px] md:text-[15px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+                  <span className="flex-1 text-sm md:text-sm text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
                     {displayDate} {displayTime}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="w-28 md:w-32 text-[13px] md:text-[15px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+                  <span className="w-28 md:w-32 text-sm md:text-sm text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
                     予約種別
                   </span>
-                  <span className="flex-1 text-[13px] md:text-[15px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+                  <span className="flex-1 text-sm md:text-sm text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
                     サウナ
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="w-28 md:w-32 text-[13px] md:text-[15px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+                  <span className="w-28 md:w-32 text-sm md:text-sm text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
                     お部屋
                   </span>
-                  <span className="flex-1 text-[13px] md:text-[15px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+                  <span className="flex-1 text-sm md:text-sm text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
                     {selectedReservation.roomTypeName}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="w-28 md:w-32 text-[13px] md:text-[15px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+                  <span className="w-28 md:w-32 text-sm md:text-sm text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
                     セットプラン
                   </span>
-                  <span className="flex-1 text-[13px] md:text-[15px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+                  <span className="flex-1 text-sm md:text-sm text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
                     {displayPlan}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="w-28 md:w-32 text-[13px] md:text-[15px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+                  <span className="w-28 md:w-32 text-sm md:text-sm text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
                     利用料金
                   </span>
-                  <span className="flex-1 text-[13px] md:text-[15px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+                  <span className="flex-1 text-sm md:text-sm text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
                     {price.toLocaleString()}円
                   </span>
                 </div>
               </div>
 
               <div className="flex justify-center items-end gap-4 border-t border-[#BBBBBB] pt-4">
-                <span className="text-[13px] md:text-[15px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+                <span className="text-sm md:text-base text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
                   キャンセル料
                 </span>
                 <div className="flex items-baseline">
-                  <span className="text-[20px] md:text-[24px] font-bold text-[#E51D1D] tracking-[0.06em] font-zen-kaku-gothic">
+                  <span className="text-lg md:text-2xl font-bold text-[#E51D1D] tracking-[0.06em] font-zen-kaku-gothic">
                     {calculateCancellationFee(
                       price,
                       selectedReservation
                     ).toLocaleString()}
                   </span>
-                  <span className="text-[13px] md:text-[15px] font-bold text-[#E51D1D] tracking-[0.06em] font-zen-kaku-gothic ml-1">
+                  <span className="text-sm md:text-base font-bold text-[#E51D1D] tracking-[0.06em] font-zen-kaku-gothic ml-1">
                     円
                   </span>
                 </div>
               </div>
             </div>
 
-            <p className="text-[12px] md:text-[13px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+            <p className="text-sm md:text-sm text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
               {isFreeCancel
                 ? "予約開始時間の48時間前なので、キャンセル料はかかりません。"
                 : "予約開始時間の48時間を過ぎているため、100%のキャンセル料がかかります。"}
@@ -711,14 +711,14 @@ export default function ReservationList() {
             <div className="flex justify-center gap-3 md:gap-4 mt-6 md:mt-8">
               <button
                 onClick={handleCloseCancelModal}
-                className="px-6 md:px-8 py-2 bg-[#999999] text-white rounded-full text-[14px] md:text-[16px] tracking-[0.06em] font-zen-kaku-gothic"
+                className="px-6 md:px-8 py-2 bg-[#999999] text-white rounded-full text-sm md:text-base tracking-[0.06em] font-zen-kaku-gothic"
                 disabled={isSubmitting}
               >
                 戻る
               </button>
               <button
                 onClick={handleCancelReservation}
-                className="px-6 md:px-8 py-2 bg-[#444444] text-white rounded-full text-[14px] md:text-[16px] tracking-[0.06em] font-zen-kaku-gothic"
+                className="px-6 md:px-8 py-2 bg-[#444444] text-white rounded-full text-sm md:text-base tracking-[0.06em] font-zen-kaku-gothic"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? "処理中..." : "キャンセルする"}
@@ -737,18 +737,18 @@ export default function ReservationList() {
       <div className="max-w-7xl mx-auto space-y-8 md:space-y-12">
         <div className="border-b border-[rgba(68,68,68,0.2)] pb-0">
           <div className="pb-[16px] md:pb-4">
-            <h1 className="text-[15px] md:text-[24px] font-bold text-[#444444] tracking-[0.06em] font-zen-kaku-gothic leading-[1.5em] md:leading-normal">
+            <h1 className="text-base md:text-2xl font-bold text-[#444444] tracking-[0.06em] font-zen-kaku-gothic leading-[1.5em] md:leading-normal">
               予約一覧
             </h1>
           </div>
         </div>
         <div className="text-center py-12">
-          <p className="text-[14px] md:text-[16px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic mb-4">
+          <p className="text-sm md:text-base text-[#444444] tracking-[0.06em] font-zen-kaku-gothic mb-4">
             予約情報を表示するにはログインしてください。
           </p>
           <button
             onClick={() => router.push("/login?returnTo=/reservations")}
-            className="px-6 py-2 bg-[#444444] text-white rounded-full text-[14px] tracking-[0.06em] font-zen-kaku-gothic"
+            className="px-6 py-2 bg-[#444444] text-white rounded-full text-sm tracking-[0.06em] font-zen-kaku-gothic"
           >
             ログイン
           </button>
@@ -761,7 +761,7 @@ export default function ReservationList() {
     <div className="max-w-7xl mx-auto space-y-8 md:space-y-12">
       <div className="border-b border-[rgba(68,68,68,0.2)] pb-0">
         <div className="pb-[16px] md:pb-4">
-          <h1 className="text-[15px] md:text-[24px] font-bold text-[#444444] tracking-[0.06em] font-zen-kaku-gothic leading-[1.5em] md:leading-normal">
+          <h1 className="text-base md:text-2xl font-bold text-[#444444] tracking-[0.06em] font-zen-kaku-gothic leading-[1.5em] md:leading-normal">
             予約一覧
           </h1>
         </div>
@@ -769,7 +769,7 @@ export default function ReservationList() {
 
       <div className="flex flex-row flex-wrap w-full gap-2 md:gap-4">
         <button
-          className={`flex-1 min-w-[100px] md:min-w-0 md:flex-none px-4 md:px-6 py-1.5 md:py-2 rounded-full text-[13px] md:text-[16px] font-bold md:font-normal tracking-[0.06em] font-zen-kaku-gothic text-center ${
+          className={`flex-1 min-w-[100px] md:min-w-0 md:flex-none px-4 md:px-6 py-1.5 md:py-2 rounded-full text-sm md:text-base font-bold md:font-normal tracking-[0.06em] font-zen-kaku-gothic text-center text-[#444444] ${
             activeTab === "current"
               ? "bg-[#F0EAE4] border border-[#444444]"
               : "bg-white border border-[#444444]"
@@ -779,7 +779,7 @@ export default function ReservationList() {
           現在の予約
         </button>
         <button
-          className={`flex-1 min-w-[100px] md:min-w-0 md:flex-none px-4 md:px-6 py-1.5 md:py-2 rounded-full text-[13px] md:text-[16px] font-bold md:font-normal tracking-[0.06em] font-zen-kaku-gothic text-center ${
+          className={`flex-1 min-w-[100px] md:min-w-0 md:flex-none px-4 md:px-6 py-1.5 md:py-2 rounded-full text-sm md:text-base font-bold md:font-normal tracking-[0.06em] font-zen-kaku-gothic text-center text-[#444444] ${
             activeTab === "past"
               ? "bg-[#F0EAE4] border border-[#444444]"
               : "bg-white border border-[#444444]"
@@ -793,19 +793,19 @@ export default function ReservationList() {
       {/* 加载状态 */}
       {isLoading ? (
         <div className="text-center py-12">
-          <p className="text-[14px] md:text-[16px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+          <p className="text-sm md:text-base text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
             予約データを読み込み中...
           </p>
         </div>
       ) : error ? (
         <div className="text-center py-12">
-          <p className="text-[14px] md:text-[16px] text-[#E51D1D] tracking-[0.06em] font-zen-kaku-gothic">
+          <p className="text-sm md:text-base text-[#E51D1D] tracking-[0.06em] font-zen-kaku-gothic">
             {error}
           </p>
         </div>
       ) : filteredReservations.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
-          <p className="text-[14px] md:text-[16px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+          <p className="text-sm md:text-base text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
             {activeTab === "current"
               ? "現在予約されているデータはありません"
               : "過去の予約はありません"}
@@ -829,43 +829,43 @@ export default function ReservationList() {
               <div className="flex-1 space-y-4 md:space-y-6 mt-4 md:mt-0">
                 <div className="bg-white rounded-lg p-4 md:p-8 space-y-2">
                   <div className="flex justify-between">
-                    <span className="w-28 md:w-32 text-[12px] md:text-[13px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+                    <span className="w-28 md:w-32 text-sm md:text-sm text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
                       予約日時
                     </span>
-                    <span className="flex-1 text-[12px] md:text-[13px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+                    <span className="flex-1 text-sm md:text-sm text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
                       {getDisplayDate(reservation)}{" "}
                       {getDisplayTime(reservation)}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="w-28 md:w-32 text-[12px] md:text-[13px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+                    <span className="w-28 md:w-32 text-sm md:text-sm text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
                       予約種別
                     </span>
-                    <span className="flex-1 text-[12px] md:text-[13px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+                    <span className="flex-1 text-sm md:text-sm text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
                       サウナ
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="w-28 md:w-32 text-[12px] md:text-[13px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+                    <span className="w-28 md:w-32 text-sm md:text-sm text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
                       お部屋
                     </span>
-                    <span className="flex-1 text-[12px] md:text-[13px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+                    <span className="flex-1 text-sm md:text-sm text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
                       {reservation.roomTypeName}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="w-28 md:w-32 text-[12px] md:text-[13px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+                    <span className="w-28 md:w-32 text-sm md:text-sm text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
                       セットプラン
                     </span>
-                    <span className="flex-1 text-[12px] md:text-[13px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+                    <span className="flex-1 text-sm md:text-sm text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
                       {getDisplayPlan(reservation)}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="w-28 md:w-32 text-[12px] md:text-[13px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+                    <span className="w-28 md:w-32 text-sm md:text-sm text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
                       利用料金
                     </span>
-                    <span className="flex-1 text-[12px] md:text-[13px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
+                    <span className="flex-1 text-sm md:text-sm text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
                       {(typeof reservation.price === "number"
                         ? reservation.price
                         : parseInt(String(reservation.price))
@@ -876,17 +876,11 @@ export default function ReservationList() {
                 </div>
                 {reservation.paymentStatus === "paid" ? (
                   <div className="flex justify-end gap-2 md:gap-4">
-                    {/* <button
-                      onClick={() => handleOpenReceiptModal(reservation)}
-                      className="px-3 md:px-4 py-1.5 md:py-2 bg-[#444444] text-white rounded-full text-[10px] md:text-[12px] tracking-[0.06em] font-zen-kaku-gothic"
-                    >
-                      領収書の発行
-                    </button> */}
                     {/* 只有未结束的预约才显示取消按钮 */}
                     {!isPastReservation(reservation) && (
                       <button
                         onClick={() => handleOpenCancelModal(reservation)}
-                        className="px-3 md:px-4 py-1.5 md:py-2 bg-[#444444] text-white rounded-full text-[10px] md:text-[12px] tracking-[0.06em] font-zen-kaku-gothic"
+                        className="px-3 md:px-4 py-1.5 md:py-2 bg-[#444444] text-white rounded-full text-sm md:text-sm tracking-[0.06em] font-zen-kaku-gothic"
                       >
                         予約キャンセル
                       </button>
@@ -894,7 +888,7 @@ export default function ReservationList() {
                   </div>
                 ) : (
                   <div className="flex justify-end">
-                    <span className="px-3 md:px-4 py-1.5 md:py-2 bg-[#BBBBBB] text-white rounded-full text-[10px] md:text-[12px] tracking-[0.06em] font-zen-kaku-gothic">
+                    <span className="px-3 md:px-4 py-1.5 md:py-2 bg-[#BBBBBB] text-white rounded-full text-sm md:text-sm tracking-[0.06em] font-zen-kaku-gothic">
                       キャンセル済み
                     </span>
                   </div>
