@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Info, Clock, AlertCircle } from "lucide-react";
+import { Info, Clock, AlertCircle, Square } from "lucide-react";
 
 interface TimelineSlotProps {
   hour: number;
@@ -357,7 +357,7 @@ const TimeRangeSelector = ({
 
 const SlowRoomAvailabilityLegend = () => {
   return (
-    <div className="flex flex-wrap gap-3 mb-4 text-xs text-[#444444] font-zen-kaku-gothic">
+    <div className="flex flex-wrap gap-3 mb-4 text-sm md:text-base text-[#444444] font-zen-kaku-gothic">
       <div className="flex items-center gap-1">
         <div className="w-3 h-3 bg-green-50 border border-gray-200"></div>
         <span>空き</span>
@@ -423,41 +423,45 @@ export default function ImprovedSlowRoomSelection({
   return (
     <div className="mt-8 md:mt-16 space-y-6">
       <div className="pb-4 flex flex-col md:flex-row md:justify-between md:items-start">
-        <div>
-          <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
+        <div className="w-full">
+          <div className="flex flex-row items-center flex-wrap gap-2 md:gap-3">
             <h2 className="text-[16px] md:text-[20px] font-bold text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
               セットプランを選択
             </h2>
-            <span className="inline-block text-xs md:text-sm font-bold text-[#D77777] border-2 border-[#D77777] rounded px-2 py-0.5 whitespace-nowrap font-zen-kaku-gothic w-max">
+            <span className="inline-block text-xs md:text-sm font-bold text-[#D77777] border-2 border-[#D77777] rounded px-2 py-0.5 whitespace-nowrap font-zen-kaku-gothic">
               お得なセット割 ¥1,000円
             </span>
           </div>
-          <p className="text-xs md:text-sm text-[#444444] mt-2 font-zen-kaku-gothic">
+          <p className="text-sm md:text-base text-[#444444] mt-2 font-zen-kaku-gothic">
             SLOW
             ROOM（デイユース）をセットでご予約いただくと、通常よりお得に、サウナの前後をゆったりとお過ごしいただけます。
             レコードプレーヤーとプロジェクターをご用意しており、音と映像に包まれながら、静かな時間をお楽しみください。
           </p>
-        </div>
-        <div className="flex items-start gap-2 mt-4 md:mt-0">
-          <input
-            type="checkbox"
-            id="skip-slow-room"
-            className="w-4 h-4 md:w-5 md:h-5 accent-[#444444] mt-0.5"
-            checked={skipSlowRoom}
-            onChange={() => setSkipSlowRoom(!skipSlowRoom)}
-          />
-          <label
-            htmlFor="skip-slow-room"
-            className="text-sm md:text-base text-[#444444] font-zen-kaku-gothic cursor-pointer whitespace-nowrap"
-          >
-            slow roomを利用しない
-          </label>
+          
+          <p className="text-sm font-bold md:text-base text-[#444444] mt-4 font-zen-kaku-gothic">
+            利用しない場合は、<Square className="inline w-3 h-3 align-middle -mt-0.5 mx-0.5 text-[#444444]" />にチェックをしてください。
+          </p>
+          <div className="flex items-start gap-2 mt-2">
+            <input
+              type="checkbox"
+              id="skip-slow-room"
+              className="w-4 h-4 md:w-5 md:h-5 accent-[#444444] mt-0.5"
+              checked={skipSlowRoom}
+              onChange={() => setSkipSlowRoom(!skipSlowRoom)}
+            />
+            <label
+              htmlFor="skip-slow-room"
+              className="text-sm md:text-base text-[#444444] font-zen-kaku-gothic cursor-pointer whitespace-nowrap"
+            >
+              slow roomを利用しない
+            </label>
+          </div>
         </div>
       </div>
 
       {!skipSlowRoom && (
         <div className="border border-[#BBBBBB] rounded-lg p-4 md:p-6 bg-white">
-          <div className="mb-4 text-[13px] md:text-base text-[#444444] font-zen-kaku-gothic font-bold">
+          <div className="mb-4 text-sm md:text-base text-[#444444] font-zen-kaku-gothic font-bold">
             {formattedDateDisplay}
           </div>
 
@@ -474,7 +478,7 @@ export default function ImprovedSlowRoomSelection({
           {/* Time selection explanation and legend */}
           {!isLoadingTimeSlots && (
             <>
-              <div className="text-xs md:text-sm text-gray-600 mb-4 font-zen-kaku-gothic">
+              <div className="text-sm md:text-base mb-4 font-zen-kaku-gothic">
                 <p>※ 時間は20分単位でご予約いただけます</p>
                 <p>※ 2時間からご利用可能です（2時間6900円～/ 3時間8400円～）</p>
               </div>

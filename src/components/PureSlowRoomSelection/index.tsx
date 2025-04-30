@@ -376,7 +376,7 @@ const TimeRangeSelector: React.FC<TimeRangeSelectorProps> = ({
 // 可用性图例
 const SlowRoomAvailabilityLegend = () => {
   return (
-    <div className="flex flex-wrap gap-3 mb-4 text-xs text-[#444444] font-zen-kaku-gothic">
+    <div className="flex flex-wrap gap-3 mb-4 text-sm md:text-base text-[#444444] font-zen-kaku-gothic">
       <div className="flex items-center gap-1">
         <div className="w-3 h-3 bg-green-50 border border-gray-200 mr-1"></div>
         <span>空き</span>
@@ -1124,18 +1124,18 @@ export default function ImprovedPureSlowRoomSelection({
           />
           
           {/* 添加滚动提示信息（仅在移动端显示） */}
-          <div className="mt-1 text-left text-[11px] text-gray-500 md:hidden font-zen-kaku-gothic">
+          <div className="mt-1 text-left text-sm md:text-base text-gray-500 md:hidden font-zen-kaku-gothic">
             ※ 左右にスワイプして、他の日付を確認できます
           </div>
 
-          <div className="mt-2 text-[11px] md:text-xs text-gray-500 font-zen-kaku-gothic">
+          <div className="mt-2 text-sm md:text-base text-gray-500 font-zen-kaku-gothic">
             ※ 本日から3週間以内の日付のみ予約可能です
           </div>
         </div>
 
         {/* 時間選択 */}
         <div className="border border-[#BBBBBB] rounded-lg p-4 md:p-6 bg-white">
-          <div className="flex items-center mb-4 text-[13px] md:text-base text-[#444444] font-zen-kaku-gothic font-bold">
+          <div className="flex items-center mb-4 text-sm md:text-base text-[#444444] font-zen-kaku-gothic font-bold">
             <Clock className="h-4 w-4 mr-2" />
             時間を選択してください
           </div>
@@ -1151,7 +1151,7 @@ export default function ImprovedPureSlowRoomSelection({
                 </div>
               ) : (
                 <>
-                  <div className="text-xs md:text-sm text-gray-600 mb-4 font-zen-kaku-gothic">
+                  <div className="text-sm md:text-base text-[#444444] mb-4 font-zen-kaku-gothic">
                     <p>※ 時間は20分単位でご予約いただけます</p>
                     <p>
                       ※ 2時間からご利用可能です（2時間6900円～/ 3時間8400円～）
@@ -1269,7 +1269,7 @@ export default function ImprovedPureSlowRoomSelection({
           style={{ marginTop: "20px", marginBottom: "40px" }}
         >
           <button
-            className={`w-full md:w-auto px-10 md:px-24 py-3.5 md:py-3 h-12 md:h-auto rounded-full font-zen-kaku-gothic text-white text-xs md:text-sm font-medium transition-colors ${
+            className={`w-full md:w-auto px-10 md:px-24 py-3 md:py-3 h-12 md:h-auto rounded-full font-zen-kaku-gothic text-white text-sm md:text-base font-medium transition-colors ${
               selectedDate &&
               isRoomAvailable &&
               startHour !== null &&
