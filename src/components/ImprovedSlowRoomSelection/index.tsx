@@ -478,7 +478,7 @@ export default function ImprovedSlowRoomSelection({
           {/* Time selection explanation and legend */}
           {!isLoadingTimeSlots && (
             <>
-              <div className="text-sm md:text-base mb-4 font-zen-kaku-gothic">
+              <div className="text-sm md:text-base text-[#444444] mb-4 font-zen-kaku-gothic">
                 <p>※ 時間は20分単位でご予約いただけます</p>
                 <p>※ 2時間からご利用可能です（2時間6900円～/ 3時間8400円～）</p>
               </div>
