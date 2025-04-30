@@ -205,7 +205,7 @@ export default function Register() {
             required
             value={formData.fullName}
             onChange={handleChange}
-            className="w-full border border-[#BBBBBB] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#444444]"
+            className="w-full border border-[#BBBBBB] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#444444] text-black"
             placeholder="山田 太郎"
           />
         </div>
@@ -225,7 +225,7 @@ export default function Register() {
             required
             value={formData.phone}
             onChange={handleChange}
-            className="w-full border border-[#BBBBBB] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#444444]"
+            className="w-full border border-[#BBBBBB] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#444444] text-black"
             placeholder="080-1234-5678"
           />
         </div>
@@ -245,7 +245,7 @@ export default function Register() {
             required
             value={formData.birthdate}
             onChange={handleChange}
-            className="w-full border border-[#BBBBBB] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#444444]"
+            className="w-full border border-[#BBBBBB] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#444444] text-black"
           />
         </div>
 
@@ -300,7 +300,7 @@ export default function Register() {
             required
             value={formData.email}
             onChange={handleChange}
-            className="w-full border border-[#BBBBBB] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#444444]"
+            className="w-full border border-[#BBBBBB] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#444444] text-black"
             placeholder="example@mail.com"
           />
         </div>
@@ -320,7 +320,7 @@ export default function Register() {
             required
             value={formData.password}
             onChange={handleChange}
-            className="w-full border border-[#BBBBBB] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#444444]"
+            className="w-full border border-[#BBBBBB] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#444444] text-black"
             placeholder="6文字以上"
           />
         </div>
@@ -340,7 +340,7 @@ export default function Register() {
             required
             value={formData.confirmPassword}
             onChange={handleChange}
-            className="w-full border border-[#BBBBBB] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#444444]"
+            className="w-full border border-[#BBBBBB] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#444444] text-black"
             placeholder="パスワードを再入力"
           />
         </div>
