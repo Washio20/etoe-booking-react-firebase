@@ -793,7 +793,7 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
         style={{ marginTop: "20px", marginBottom: "40px" }}
       >
         <button
-          className={`w-full md:w-auto px-10 md:px-24 py-3.5 md:py-3 h-12 md:h-auto rounded-full font-zen-kaku-gothic text-white text-xs md:text-sm font-medium transition-colors ${
+          className={`w-full md:w-auto px-10 md:px-24 py-3 md:py-3 h-12 md:h-auto rounded-full font-zen-kaku-gothic text-white text-sm md:text-base font-medium transition-colors ${
             selectedDateIndex !== null &&
             selectedTimeIndex !== null &&
             // 非纯sauna房间，只要选择了日期和时间就可以点击
