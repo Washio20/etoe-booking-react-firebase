@@ -225,9 +225,6 @@ const createRoomCard = async (
         }
       } catch (error) {
         console.error("外部API错误:", error);
-        // 在API调用失败的情况下，继续使用本地生成的卡号和条形码
-        console.log("使用本地生成的卡号作为备选方案");
-        barcode = await generateBarcode(cardNumber);
       }
 
     // 生成二维码

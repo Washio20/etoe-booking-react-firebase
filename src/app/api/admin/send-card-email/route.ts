@@ -51,7 +51,7 @@ async function sendEmailWithGmailApi(
     )}?=`;
 
     // 网站基础URL - 使用环境变量或固定值
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://etoehotel.com";
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
 
     // 为URL生成安全令牌 - 使用预约ID和卡ID的组合
     const mainCardToken = `${reservationId.slice(0, 8)}${cardId.slice(0, 8)}`;
@@ -456,7 +456,7 @@ export async function POST(req: Request) {
 
       // 网站基础URL - 使用环境变量或固定值
       const baseUrl =
-        process.env.NEXT_PUBLIC_BASE_URL || "https://etoehotel.com";
+        process.env.NEXT_PUBLIC_BASE_URL;
 
       // 为URL生成安全令牌
       const mainCardToken = `${reservationId.slice(0, 8)}${cardId.slice(0, 8)}`;

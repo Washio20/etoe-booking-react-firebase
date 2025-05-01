@@ -1,9 +1,19 @@
 import { NextResponse } from "next/server";
 import { initAdmin } from "@/utils/firebase-admin";
 import { getFirestore } from "firebase-admin/firestore";
+import crypto from "crypto";
 
 // 确保Firebase Admin已初始化
 initAdmin();
+
+// 生成和验证安全令牌的函数
+const generateSecureToken = (reservationId: string, secretKey = process.env.TOKEN_SECRET || "etoe_hotel_token_secret"): string => {
+  // 使用HMAC-SHA256生成令牌，这样令牌与预约ID和密钥相关联
+  const hmac = crypto.createHmac('sha256', secretKey);
+  hmac.update(reservationId);
+  // 返回前16个字符作为令牌，足够安全又不会太长
+  return hmac.digest('hex').substring(0, 16);
+};
 
 export async function GET(req: Request) {
   try {
@@ -14,7 +24,7 @@ export async function GET(req: Request) {
     const token = url.searchParams.get("token");
 
     // 验证必要参数
-    if (!reservationId || !cardId) {
+    if (!reservationId) {
       return NextResponse.json(
         { error: "必要なパラメータが不足しています" },
         { status: 400 }
@@ -30,7 +40,7 @@ export async function GET(req: Request) {
     }
 
     // 验证安全令牌
-    const expectedToken = `${reservationId.slice(0, 8)}${cardId.slice(0, 8)}`;
+    const expectedToken = generateSecureToken(reservationId);
     if (token !== expectedToken) {
       return NextResponse.json(
         { error: "無効なアクセストークンです" },
@@ -41,24 +51,7 @@ export async function GET(req: Request) {
     // 获取数据库实例
     const db = getFirestore();
 
-    // 获取房卡信息
-    const cardDoc = await db.collection("roomCards").doc(cardId).get();
-    if (!cardDoc.exists) {
-      return NextResponse.json(
-        { error: "カード情報が見つかりません" },
-        { status: 404 }
-      );
-    }
-
-    const cardData = cardDoc.data();
-    if (!cardData) {
-      return NextResponse.json(
-        { error: "カードデータが無効です" },
-        { status: 500 }
-      );
-    }
-
-    // 获取外部预约信息
+    // 获取外部预约信息（已包含卡片数据）
     const reservationDoc = await db
       .collection("externalReservations")
       .doc(reservationId)
@@ -79,13 +72,23 @@ export async function GET(req: Request) {
       );
     }
 
-    // 验证卡片所属于正确的预订
-    if (cardData.reservationId && cardData.reservationId !== reservationId) {
-      return NextResponse.json(
-        { error: "カードと予約の情報が一致しません" },
-        { status: 403 }
-      );
-    }
+    // 从外部预约数据中提取卡片信息
+    const cardData = {
+      id: reservationId, // 使用预约ID作为卡片ID
+      cardNumber: reservationData.cardNumber,
+      cardKey: reservationData.cardKey,
+      barcode: reservationData.barcode,
+      qrcode: reservationData.qrcode,
+      physicalRoomId: reservationData.physicalRoomId,
+      deviceId: reservationData.deviceId,
+      startAt: reservationData.startAt,
+      endAt: reservationData.endAt,
+      status: reservationData.cardStatus,
+      createdAt: reservationData.createdAt,
+      updatedAt: reservationData.updatedAt,
+      reservationId: reservationId,
+      isExternalReservation: true,
+    };
 
     // 准备用户数据
     const userData = {

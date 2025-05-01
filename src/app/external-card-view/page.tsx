@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import { convertToDate, formatTimestamp } from "@/utils/date";
 
 interface RoomCard {
   barcode: string;
@@ -23,7 +24,6 @@ interface Reservation {
 function ExternalCardViewContent() {
   const searchParams = useSearchParams();
   const reservationId = searchParams.get("reservationId");
-  const cardId = searchParams.get("cardId");
   const secureToken = searchParams.get("token");
 
   const [loading, setLoading] = useState(true);
@@ -37,37 +37,16 @@ function ExternalCardViewContent() {
   const checkCardValidity = useCallback((cardData: RoomCard | null) => {
     if (!cardData || !cardData.endAt) return false;
 
-    let endTime;
-    if (cardData.endAt && typeof cardData.endAt === "object") {
-      // 处理Firestore时间戳格式
-      if (cardData.endAt._seconds || cardData.endAt.seconds) {
-        const seconds = cardData.endAt._seconds || cardData.endAt.seconds;
-        endTime = new Date(seconds * 1000);
-      } else if (
-        cardData.endAt.toDate &&
-        typeof cardData.endAt.toDate === "function"
-      ) {
-        // 处理Firestore的Timestamp对象
-        endTime = cardData.endAt.toDate();
-      } else {
-        // 如果是普通对象但不是时间戳格式
-        endTime = new Date(); // 默认值防止出错
-      }
-    } else {
-      // 尝试作为日期字符串处理
-      endTime = new Date(cardData.endAt);
-    }
-
-    const now = new Date();
-
-    // 检查日期是否有效
-    if (isNaN(endTime.getTime())) {
+    // 使用共通函数转换日期
+    const endTime = convertToDate(cardData.endAt);
+    if (!endTime) {
       console.error("无效的结束日期");
       setExpired(true);
       setCountdown(0);
       return false;
     }
 
+    const now = new Date();
     const isExpired = now > endTime;
     setExpired(isExpired);
 
@@ -88,7 +67,7 @@ function ExternalCardViewContent() {
   // 获取数据
   useEffect(() => {
     async function fetchData() {
-      if (!reservationId || !cardId) {
+      if (!reservationId || !secureToken) {
         setError("必要なパラメータが不足しています");
         setLoading(false);
         return;
@@ -96,9 +75,7 @@ function ExternalCardViewContent() {
 
       try {
         // 使用专门的外部预约API
-        const apiUrl = `/api/external-card-access?reservationId=${reservationId}&cardId=${cardId}${
-          secureToken ? `&token=${secureToken}` : ""
-        }`;
+        const apiUrl = `/api/external-card-access?reservationId=${reservationId}&token=${secureToken}`;
 
         const response = await fetch(apiUrl);
         const data = await response.json();
@@ -141,51 +118,7 @@ function ExternalCardViewContent() {
     }
 
     fetchData();
-  }, [reservationId, cardId, secureToken, checkCardValidity]);
-
-  // 时间格式化
-  const formatDate = (timestamp: any): string => {
-    try {
-      if (!timestamp) return "日付不明";
-
-      let date;
-      if (typeof timestamp === "object") {
-        // 处理Firestore时间戳格式
-        if (timestamp._seconds || timestamp.seconds) {
-          const seconds = timestamp._seconds || timestamp.seconds;
-          date = new Date(seconds * 1000);
-        } else if (timestamp.toDate && typeof timestamp.toDate === "function") {
-          // 处理Firestore的Timestamp对象
-          date = timestamp.toDate();
-        } else {
-          // 如果是普通对象但不是时间戳格式
-          console.error("不支持的日期对象格式:", timestamp);
-          return "日付不明";
-        }
-      } else {
-        // 尝试作为日期字符串处理
-        date = new Date(timestamp);
-      }
-
-      // 检查日期是否有效
-      if (isNaN(date.getTime())) {
-        console.error("无效的日期格式:", timestamp);
-        return "日付不明";
-      }
-
-      // 格式化为日本本地时间
-      return date.toLocaleString("ja-JP", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    } catch (error) {
-      console.error("日付フォーマットエラー:", error);
-      return "日付不明";
-    }
-  };
+  }, [reservationId, secureToken, checkCardValidity]);
 
   // 房间号格式化
   const formatRoomNumber = (physicalRoomId: string) => {
@@ -388,7 +321,7 @@ function ExternalCardViewContent() {
                   利用開始
                 </h3>
                 <p className="text-gray-800 text-sm font-zen-kaku-gothic">
-                  {formatDate(card.startAt)}
+                  {formatTimestamp(card.startAt, "yyyy/MM/dd HH:mm", "日付不明")}
                 </p>
               </div>
             </div>
@@ -398,7 +331,7 @@ function ExternalCardViewContent() {
                   利用終了
                 </h3>
                 <p className="text-gray-800 text-sm font-zen-kaku-gothic">
-                  {formatDate(card.endAt)}
+                  {formatTimestamp(card.endAt, "yyyy/MM/dd HH:mm", "日付不明")}
                 </p>
               </div>
             </div>

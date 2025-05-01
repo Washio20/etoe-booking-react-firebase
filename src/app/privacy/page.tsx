@@ -157,10 +157,10 @@ export default function PrivacyPolicyPage() {
                 <p>
                   お問い合わせ：
                   <a
-                    href="https://etoehotel.com/contact/"
+                    href="https://book.etoehotel.com/contact/"
                     className="text-[#444444] underline"
                   >
-                    https://etoehotel.com/contact/
+                    https://book.etoehotel.com/contact/
                   </a>
                 </p>
               </div>
