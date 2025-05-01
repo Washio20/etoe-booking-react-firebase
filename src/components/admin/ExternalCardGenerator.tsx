@@ -162,8 +162,8 @@ export default function ExternalCardGenerator() {
       setGeneratedCard(data.card);
       
       // 如果卡片生成成功，立即发送邮件
-      if (data.card && data.card.id) {
-        await sendCardEmail(data.card.id, reservationId);
+      if (data.card) {
+        await sendCardEmail(reservationId);
       }
     } catch (error) {
       console.error("Error generating card:", error);
@@ -178,7 +178,7 @@ export default function ExternalCardGenerator() {
   };
 
   // 发送卡片邮件
-  const sendCardEmail = async (cardId: string, reservationId: string) => {
+  const sendCardEmail = async (reservationId: string) => {
     setIsSendingEmail(true);
     try {
       // 获取当前用户的ID令牌
@@ -196,7 +196,6 @@ export default function ExternalCardGenerator() {
         },
         body: JSON.stringify({
           reservationId,
-          cardId,
           userEmail,
           userName,
         }),
@@ -380,13 +379,13 @@ export default function ExternalCardGenerator() {
                 {new Date(generatedCard.endAt).toLocaleString()}
               </p>
               <p className="text-sm text-gray-700 mt-3 font-zen-kaku-gothic">
-                <span className="font-medium">メール送信状態:</span>{" "}
+                <span className="font-medium text-base">メール送信状態:</span>{" "}
                 {emailSent ? (
-                  <span className="text-green-600">送信完了</span>
+                  <span className="text-white bg-green-600 px-2 py-0.5 rounded text-base font-medium">送信完了</span>
                 ) : isSendingEmail ? (
-                  <span className="text-blue-600">送信中...</span>
+                  <span className="text-white bg-blue-600 px-2 py-0.5 rounded text-base font-medium">送信中...</span>
                 ) : (
-                  <span className="text-yellow-600">未送信</span>
+                  <span className="text-white bg-yellow-600 px-2 py-0.5 rounded text-base font-medium">未送信</span>
                 )}
               </p>
             </div>

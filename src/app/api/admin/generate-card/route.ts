@@ -240,15 +240,6 @@ export async function POST(req: Request) {
       }
     } catch (error) {
       console.error("外部APIエラー:", error);
-
-      // 在API调用失败的情况下，继续使用本地生成的卡号
-      console.log("使用本地生成的卡号作为备选方案");
-      // 生成本地条形码
-      try {
-        barcode = await generateBarcode(cardNumber);
-      } catch (barcodeError) {
-        console.error("本地条形码生成失败:", barcodeError);
-      }
     }
 
     // 生成二维码

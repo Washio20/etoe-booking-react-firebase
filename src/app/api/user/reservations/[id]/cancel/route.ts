@@ -44,7 +44,7 @@ async function sendCancellationConfirmationEmail(
     const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString("base64")}?=`;
 
     // 网站基础URL - 使用环境变量或固定值
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://etoehotel.com";
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
 
     // 预约详情链接
     const reservationDetailsUrl = `${baseUrl}/reservations`;

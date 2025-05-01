@@ -72,7 +72,7 @@ export const registerUser = async (
     const user = userCredential.user;
 
     // 3. メール認証メール送信 - パラメータ追加
-    const productionDomain = process.env.NEXT_PUBLIC_BASE_URL || 'https://book.etoehotel.com';
+    const productionDomain = process.env.NEXT_PUBLIC_BASE_URL;
     const isProduction = process.env.NODE_ENV === 'production';
     
     const verificationUrl = isProduction
@@ -136,7 +136,7 @@ export const resendVerificationEmail = async (): Promise<{
     }
 
     // 現在の環境設定を取得
-    const productionDomain = process.env.NEXT_PUBLIC_BASE_URL || 'https://book.etoehotel.com';
+    const productionDomain = process.env.NEXT_PUBLIC_BASE_URL;
     const isProduction = process.env.NODE_ENV === 'production';
     
     // 本番環境では常に本番ドメインを使用

@@ -38,9 +38,9 @@ const generateUniqueCardNumber = async (
 
     console.log(`尝试生成卡号 (${attempt + 1}/${maxAttempts}): ${cardNumber}`);
 
-    // 检查数据库中是否已存在该卡号
+    // 检查外部预约表中是否已存在该卡号
     const existingCards = await db
-      .collection("roomCards")
+      .collection("externalReservations")
       .where("cardNumber", "==", cardNumber)
       .limit(1)
       .get();
@@ -190,17 +190,42 @@ export async function POST(req: Request) {
     try {
       console.log("准备调用外部API创建卡片...");
 
-      // 请求卡API创建卡 - 直接使用原始日期字符串，它已经是正确格式的日本时间
+      // 为开始和结束时间添加缓冲
+      const startDateObj = new Date(startDateTime);
+      const endDateObj = new Date(endDateTime);
+      
+      // 开始时间提前5分钟，结束时间延后5分钟
+      const bufferStartDateTime = new Date(startDateObj.getTime() - 5 * 60 * 1000);
+      const bufferEndDateTime = new Date(endDateObj.getTime() + 5 * 60 * 1000);
+      
+      // 转换为日本时区的ISO字符串
+      const formatDateTimeJP = (date: Date): string => {
+        // 设置为日本时区 (UTC+9)
+        const offset = 9 * 60; // 日本是UTC+9，偏移量为9小时（分钟计算）
+        const jpTime = new Date(date.getTime() + offset * 60000);
+        // 格式化为ISO8601格式，但使用JST时区
+        return jpTime.toISOString().replace('Z', '+09:00');
+      };
+      
+      const startDateJST = formatDateTimeJP(bufferStartDateTime);
+      const endDateJST = formatDateTimeJP(bufferEndDateTime);
+      
+      console.log("转换后的日本时区时间参数(包含5分钟缓冲):", {
+        startDateTime: startDateJST,
+        endDateTime: endDateJST
+      });
+
+      // 请求卡API创建卡 - 使用带缓冲的日本时区时间
       const cardData = {
         number: cardNumber,
-        name: `ETOE-EXTERNAL-${userName}-${reservationId}`,
+        name: `ETOE-EXTERNAL-${reservationId}`,
         devices: [deviceId],
-        start_at: startDateTime, // 直接使用，已经是正确格式的日本时间
-        end_at: endDateTime, // 直接使用，已经是正确格式的日本时间
+        start_at: startDateJST, // 使用带缓冲的日本时区时间
+        end_at: endDateJST, // 使用带缓冲的日本时区时间
         owner_client_id: CLIENT_ID,
         symbol_type: "pdf417",
       };
-      console.log("测试用-准备调用外部API创建卡片...",cardData);
+      console.log("外部预约用-准备调用外部API创建卡片...",cardData);
 
       // 调用API
       const response = await fetch(CARD_API_URL, {
@@ -242,89 +267,95 @@ export async function POST(req: Request) {
       }
     } catch (error) {
       console.error("外部APIエラー:", error);
-
-      // 在API调用失败的情况下，继续使用本地生成的卡号
-      console.log("使用本地生成的卡号作为备选方案");
-      // 生成本地条形码
-      try {
-        barcode = await generateBarcode(cardNumber);
-      } catch (barcodeError) {
-        console.error("本地条形码生成失败:", barcodeError);
-      }
     }
 
     // 生成二维码
     const qrcode = await generateQRCode(cardNumber);
 
-    // 创建卡片数据
-    const cardData = {
-      cardNumber,
-      cardKey,
-      barcode,
-      qrcode,
-      physicalRoomId,
-      deviceId,
-      startAt: startDateTime,
-      endAt: endDateTime,
-      status: RoomCardStatus.ACTIVE,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      reservationId,
-      isExternalReservation: true,
-      userEmail,
-      userName,
-      isManuallyCreated: true,
-      createdBy: decodedToken.uid,
-    };
-
-    // 创建外部预约记录
+    // 创建并保存外部预约记录（包含卡片数据）
     try {
-      // 创建外部预约记录
       const externalReservationRef = db.collection("externalReservations").doc(reservationId);
       
-      await externalReservationRef.set({
+      const now = new Date();
+      const reservationData = {
+        // 基本预约数据
         id: reservationId,
         userName,
         userEmail,
         physicalRoomId,
-        startAt: Timestamp.fromDate(new Date(startDateTime)),
-        endAt: Timestamp.fromDate(new Date(endDateTime)),
+        startAt: Timestamp.fromDate(new Date(startDateTime)), // 使用原始时间，不包含缓冲
+        endAt: Timestamp.fromDate(new Date(endDateTime)), // 使用原始时间，不包含缓冲
         source: "external", // 标记为外部预约
         status: "confirmed",
-        createdAt: Timestamp.fromDate(new Date()),
-        updatedAt: Timestamp.fromDate(new Date()),
+        
+        // 卡片数据
+        cardNumber,
+        cardKey,
+        barcode,
+        qrcode,
+        deviceId,
+        cardStatus: RoomCardStatus.ACTIVE,
+        
+        // 元数据
+        createdAt: Timestamp.fromDate(now),
+        updatedAt: Timestamp.fromDate(now),
         createdBy: decodedToken.uid,
-      });
+        isManuallyCreated: true
+      };
       
-      // 创建并保存卡片记录
-      const roomCardRef = db.collection("roomCards").doc();
-      const cardId = roomCardRef.id;
+      await externalReservationRef.set(reservationData);
       
-      await roomCardRef.set({
-        ...cardData,
-        id: cardId,
-      });
-      
-      // 返回完整的卡片数据（包括ID）
+      // 返回完整的预约和卡片数据
       return NextResponse.json({
         success: true,
         message: "カードが正常に発行されました",
         card: {
-          id: cardId,
-          ...cardData,
+          id: reservationId, // 使用预约ID作为卡片ID
+          cardNumber,
+          cardKey,
+          barcode,
+          qrcode,
+          physicalRoomId,
+          deviceId,
+          startAt: startDateTime, // 返回原始时间，不包含缓冲
+          endAt: endDateTime, // 返回原始时间，不包含缓冲
+          status: RoomCardStatus.ACTIVE,
+          createdAt: now.toISOString(),
+          updatedAt: now.toISOString(),
+          reservationId,
+          isExternalReservation: true,
+          userEmail,
+          userName,
+          isManuallyCreated: true,
+          createdBy: decodedToken.uid,
         },
       });
     } catch (dbError) {
       console.error("数据库保存错误:", dbError);
       
       // 在数据库保存失败的情况下仍然返回卡片数据，但带有警告
-      const tempId = `temp_${Date.now()}`;
       return NextResponse.json({
         success: true,
         warning: "カードは生成されましたが、データベースへの保存に失敗しました",
         card: {
-          id: tempId,
-          ...cardData,
+          id: reservationId,
+          cardNumber,
+          cardKey,
+          barcode,
+          qrcode,
+          physicalRoomId,
+          deviceId,
+          startAt: startDateTime, // 使用原始时间，不包含缓冲
+          endAt: endDateTime, // 使用原始时间，不包含缓冲
+          status: RoomCardStatus.ACTIVE,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          reservationId,
+          isExternalReservation: true,
+          userEmail,
+          userName,
+          isManuallyCreated: true,
+          createdBy: decodedToken.uid,
         },
       });
     }
