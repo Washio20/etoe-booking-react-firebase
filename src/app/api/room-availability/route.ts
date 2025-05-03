@@ -601,7 +601,7 @@ function getDefaultTimeSlots(roomType: string): TimeSlotDefinition[] {
     case "sauna_suite":
       return [
         { time: "14:00〜17:00", maxReservations: 1 },
-        { time: "18:30〜21:00", maxReservations: 1 },
+        { time: "18:00〜21:00", maxReservations: 1 },
       ];
     default:
       return [

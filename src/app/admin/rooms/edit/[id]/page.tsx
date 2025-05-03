@@ -114,7 +114,7 @@ export default function EditRoomPage({ params }: EditRoomPageProps) {
           // "23:05〜00:35",
         ];
       case "sauna_suite":
-        return ["14:00〜17:00", "18:30〜21:00"];
+        return ["14:00〜17:00", "18:00〜21:00"];
       case "slow_room":
         return [
           "9:00〜11:00",
