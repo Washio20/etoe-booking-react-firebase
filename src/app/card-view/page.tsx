@@ -355,24 +355,24 @@ function CardViewContent() {
             </h3>
             <p className="font-zen-kaku-gothic">
               <span className="text-gray-600">部屋番号:</span>{" "}
-              <span className="font-bold">
+              <span className="font-zen-kaku-gothic text-[#444444]">
                 {card ? formatRoomNumber(card.physicalRoomId) : "---"}
               </span>
             </p>
             <p className="font-zen-kaku-gothic">
               <span className="text-gray-600">部屋タイプ:</span>{" "}
-              <span className="font-bold">
+              <span className="font-zen-kaku-gothic text-[#444444]">
                 {card
                   ? getRoomTypeName(card.physicalRoomId, reservation)
                   : "---"}
               </span>
             </p>
-            <p className="font-zen-kaku-gothic">
+            <p className="font-zen-kaku-gothic text-[#444444]">
               <span className="text-gray-600">有効期間:</span>{" "}
               {card ? formatDate(card.startAt) : "日付不明"} ~{" "}
               {card ? formatDate(card.endAt) : "日付不明"}
             </p>
-            <p className="text-xs text-gray-500 mt-1 font-zen-kaku-gothic">
+            <p className="text-sm text-gray-500 mt-1 font-zen-kaku-gothic">
               ※ 予約時間内のみ有効です
             </p>
           </div>
