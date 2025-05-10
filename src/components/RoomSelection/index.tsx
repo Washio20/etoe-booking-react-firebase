@@ -295,6 +295,16 @@ export default function RoomSelection() {
             );
 
           setRooms(activeRooms);
+          
+          // 获取所有可用的房间分类并自动选择第一个分类
+          const categories = Array.from(
+            new Set(activeRooms.map((room: Room) => room.category))
+          ).filter(Boolean) as RoomCategory[];
+          
+          // 如果存在房间分类，自动选择第一个
+          if (categories.length > 0) {
+            setSelectedTab(categories[0]);
+          }
         } else {
           throw new Error("無効な客室データを受信しました");
         }
@@ -482,7 +492,7 @@ export default function RoomSelection() {
         </div>
       </div>
 
-      {/* Tab切换 */}
+      {/* 房间分类Tab切换 */}
       <div className="relative w-full">
         <div
           ref={tabScrollRef}
@@ -505,7 +515,7 @@ export default function RoomSelection() {
         </div>
       </div>
 
-      {/* 房间选择按钮 */}
+      {/* 房间类型选择卡片 */}
       {selectedTab && (
         <div className={`grid ${getGridColsClass()} gap-3 md:gap-4 md:gap-y-6`}>
           {filteredRooms.map((room) => {
@@ -515,8 +525,8 @@ export default function RoomSelection() {
                 key={room.id}
                 role="button"
                 tabIndex={0}
-                className={`relative flex flex-col rounded-[4px] border bg-[#FFF] cursor-pointer overflow-hidden transition-all outline-none
-                  ${isSelected ? "border-[#444444] border-2 bg-[#F9F6F2] shadow-md" : "border-[#BBB]"}
+                className={`relative flex flex-col rounded-[4px] border cursor-pointer overflow-hidden transition-all outline-none
+                  ${isSelected ? "border-[#444444] border-2 bg-[#F9F6F2] shadow-md" : "bg-[#FFF] border-[#BBB]"}
                 `}
               >
                 {/* 选中状态勾选图标 */}
@@ -542,7 +552,7 @@ export default function RoomSelection() {
                   </span>
                   
                   {/* 面积和容量 */}
-                  <div className="w-full flex justify-center items-center text-sm md:text-base text-[#444444]">
+                  <div className="w-full flex justify-center items-center text-xs md:text-base text-[#444444]">
                     <span className="font-zen-kaku-gothic">
                       {room.area ? `${room.area}㎡` : ""}
                       {room.capacity ? `　${room.capacity}名まで` : ""}
@@ -565,7 +575,7 @@ export default function RoomSelection() {
                   {/* MORE链接 */}
                   <div className="w-full flex justify-center mt-1">
                     <button
-                      className="text-[#C78C51] underline text-sm md:text-base font-bold font-zen-kaku-gothic"
+                      className="text-[#AA9A8A] underline text-sm md:text-base font-bold font-zen-kaku-gothic"
                       onClick={e => { e.stopPropagation(); handleInfoClick(room.id, e); }}
                     >
                       MORE
@@ -574,7 +584,7 @@ export default function RoomSelection() {
                 </div>
                 {/* 选择按钮 */}
                 <button
-                  className="mt-2 mb-3 mx-3 w-auto rounded-[32px] bg-[#F0EAE4] font-zen-kaku-gothic transition-colors flex justify-center items-center px-4 py-2 self-stretch"
+                  className="mt-2 mb-3 mx-4 md:mx-5 w-auto rounded-[32px] bg-[#F0EAE4] font-zen-kaku-gothic transition-colors flex justify-center items-center px-4 py-1 md:py-2 self-stretch"
                   onClick={e => { e.stopPropagation(); handleRoomSelection(room.id); }}
                   tabIndex={0}
                 >

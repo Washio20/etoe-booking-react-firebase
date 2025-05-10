@@ -1103,13 +1103,12 @@ export default function ImprovedPureSlowRoomSelection({
     <div className="space-y-4 md:space-y-12">
       <div className="border-b border-[rgba(68,68,68,0.2)] pb-0 md:pb-4">
         <div className="pb-[8px] md:pb-0">
-          <h1 className="text-[15px] md:text-[24px] font-bold text-[#444444] tracking-[0.06em] font-zen-kaku-gothic leading-[1.5em] md:leading-normal">
+          <h1 className="text-base md:text-2xl font-bold text-[#444444] tracking-[0.06em] font-zen-kaku-gothic leading-[1.5em] md:leading-normal">
             日時を選んでください
           </h1>
         </div>
       </div>
 
-      {/* 布局调整：改为上下结构而非左右结构 */}
       <div className="space-y-6">
         {/* 日付選択 */}
         <div className="border border-[#BBBBBB] rounded-lg p-4 md:p-6 bg-white">
@@ -1177,8 +1176,8 @@ export default function ImprovedPureSlowRoomSelection({
                     <div className="flex flex-col md:flex-row justify-between gap-4">
                       <div className="text-[#444444] font-zen-kaku-gothic">
                         <p className="text-sm md:text-base">
-                          料金:{" "}
-                          <span className="font-bold">
+                        slow room 部屋料金：
+                          <span className="font-bold text-red-600">
                             {selectedPrice.price > 0
                               ? selectedPrice.price.toLocaleString() + "円"
                               : "時間を選択してください"}
