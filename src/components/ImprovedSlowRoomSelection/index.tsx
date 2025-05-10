@@ -223,7 +223,7 @@ const TimeRangeSelector = ({
             開始時間
           </h3>
           {startHour === null && (
-            <span className="text-xs text-amber-600">
+            <span className="text-xs text-red-600">
               ※開始時間を選択してください
             </span>
           )}
@@ -438,7 +438,7 @@ export default function ImprovedSlowRoomSelection({
             レコードプレーヤーとプロジェクターをご用意しており、音と映像に包まれながら、静かな時間をお楽しみください。
           </p>
           
-          <p className="text-sm font-bold md:text-base text-[#444444] mt-4 font-zen-kaku-gothic">
+          <p className="font-bold text-base text-[#444444] mt-4 font-zen-kaku-gothic">
             利用しない場合は、<Square className="inline w-3 h-3 align-middle -mt-0.5 mx-0.5 text-[#444444]" />にチェックをしてください。
           </p>
           <div className="flex items-start gap-2 mt-2">
@@ -451,7 +451,7 @@ export default function ImprovedSlowRoomSelection({
             />
             <label
               htmlFor="skip-slow-room"
-              className="text-sm md:text-base text-[#444444] font-zen-kaku-gothic cursor-pointer whitespace-nowrap"
+              className="text-base text-[#444444] font-zen-kaku-gothic cursor-pointer whitespace-nowrap"
             >
               slow roomを利用しない
             </label>
@@ -526,11 +526,11 @@ export default function ImprovedSlowRoomSelection({
           {/* Price display */}
           {selectedPrice && !isLoadingTimeSlots && !isCheckingAvailability && (
             <div className="mt-4 p-3 bg-[#F0EAE4] rounded-md">
-              <div className="text-left text-[13px] md:text-base text-[#444444] font-zen-kaku-gothic">
-                <div className="font-bold">
-                  料金: ¥{selectedPrice.price.toLocaleString()}
-                </div>
-                {startHour !== null &&
+              <div className="text-left text-base md:text-lg text-[#444444] font-zen-kaku-gothic">
+                <span className="font-bold">slow room 部屋料金：</span>
+                <span className="font-bold text-red-600">¥{selectedPrice.price.toLocaleString()}</span>
+                <span className="text-sm ml-1">(税込)</span>
+                {/* {startHour !== null &&
                   startMinute !== null &&
                   endHour !== null &&
                   endMinute !== null && (
@@ -539,7 +539,7 @@ export default function ImprovedSlowRoomSelection({
                       {String(startHour).padStart(2, "0")}:{startMinute} 〜{" "}
                       {String(endHour).padStart(2, "0")}:{endMinute})
                     </div>
-                  )}
+                  )} */}
               </div>
             </div>
           )}
