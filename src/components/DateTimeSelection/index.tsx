@@ -709,7 +709,7 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
       <div className="space-y-4 md:space-y-12">
         <div className="border-b border-[rgba(68,68,68,0.2)] pb-0 md:pb-4">
           <div className="pb-[8px] md:pb-0">
-            <h1 className="text-[15px] md:text-[24px] font-bold text-[#444444] tracking-[0.06em] font-zen-kaku-gothic leading-[1.5em] md:leading-normal">
+            <h1 className="text-base md:text-2xl font-bold text-[#444444] tracking-[0.06em] font-zen-kaku-gothic leading-[1.5em] md:leading-normal">
               日時を選んでください
             </h1>
           </div>
@@ -725,7 +725,7 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
     <div className="space-y-4 md:space-y-12">
       <div className="border-b border-[rgba(68,68,68,0.2)] pb-0 md:pb-4">
         <div className="pb-[8px] md:pb-0">
-          <h1 className="text-[15px] md:text-[24px] font-bold text-[#444444] tracking-[0.06em] font-zen-kaku-gothic leading-[1.5em] md:leading-normal">
+          <h1 className="text-base md:text-2xl font-bold text-[#444444] tracking-[0.06em] font-zen-kaku-gothic leading-[1.5em] md:leading-normal">
             日時を選んでください
           </h1>
         </div>

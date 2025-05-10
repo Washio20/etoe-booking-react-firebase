@@ -165,97 +165,99 @@ const Navbar = () => {
       </div>
 
       {/* 移动端菜单 - 修改为全屏样式 */}
-      {mobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 bg-white z-50 flex flex-col pt-20 pb-10 px-6 overflow-y-auto">
-          {/* 菜单关闭按钮 - 位于右上角 */}
-          <button
-            onClick={toggleMobileMenu}
-            className="absolute top-6 right-6 inline-flex items-center justify-center p-2 rounded-full border border-[#444444] text-[#444444]"
-          >
-            <span className="sr-only">メニューを閉じる</span>
-            <div className="w-6 h-6 flex items-center justify-center">
-              <span className="block w-5 h-0.5 bg-[#444444] rotate-45 absolute"></span>
-              <span className="block w-5 h-0.5 bg-[#444444] -rotate-45 absolute"></span>
-            </div>
-          </button>
-
-          {/* Logo显示在菜单顶部 */}
-          <div className="mb-10">
-            <Link href="/" onClick={() => setMobileMenuOpen(false)}>
-              <Image
-                src="/images/logo.svg"
-                alt="etoe hotel"
-                width={120}
-                height={40}
-                priority
-              />
-            </Link>
+      <div 
+        className={`md:hidden fixed inset-0 bg-white z-50 flex flex-col pt-20 pb-10 px-6 overflow-y-auto transition-transform duration-300 ease-in-out ${
+          mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
+        {/* 菜单关闭按钮 - 位于右上角 */}
+        <button
+          onClick={toggleMobileMenu}
+          className="absolute top-6 right-6 inline-flex items-center justify-center p-2 rounded-full border border-[#444444] text-[#444444]"
+        >
+          <span className="sr-only">メニューを閉じる</span>
+          <div className="w-6 h-6 flex items-center justify-center">
+            <span className="block w-5 h-0.5 bg-[#444444] rotate-45 absolute"></span>
+            <span className="block w-5 h-0.5 bg-[#444444] -rotate-45 absolute"></span>
           </div>
+        </button>
 
-          {/* 导航项目 */}
-          <div className="flex flex-col">
-            {navItems
-              .filter((item) => !item.requireLogin || !!user)
-              .map((item, index) => (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="py-3 border-b border-[rgba(68,68,68,0.2)] text-sm font-bold text-[#444444] font-zen-kaku-gothic"
-                >
-                  {item.name}
-                </Link>
-              ))}
-          </div>
-
-          {/* 身份验证按钮区域 */}
-          <div className="mt-auto flex flex-col space-y-3">
-            {isLoading ? (
-              <span className="text-gray-500 text-sm">読み込み中...</span>
-            ) : user ? (
-              <>
-                <Link
-                  href="/passcode"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-[#444444] rounded-full hover:bg-[#333333]"
-                >
-                  入室パスコード
-                </Link>
-                <button
-                  onClick={async () => {
-                    setMobileMenuOpen(false);
-                    await handleLogout();
-                  }}
-                  className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-[#444444] rounded-full hover:bg-[#333333]"
-                >
-                  ログアウト
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    handleLogin();
-                  }}
-                  className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-[#444444] rounded-full hover:bg-[#333333]"
-                >
-                  ログイン
-                </button>
-                <button
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    handleRegister();
-                  }}
-                  className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-[#444444] rounded-full hover:bg-[#333333]"
-                >
-                  会員登録
-                </button>
-              </>
-            )}
-          </div>
+        {/* Logo显示在菜单顶部 */}
+        <div className="mb-10">
+          <Link href="/" onClick={() => setMobileMenuOpen(false)}>
+            <Image
+              src="/images/logo.svg"
+              alt="etoe hotel"
+              width={120}
+              height={40}
+              priority
+            />
+          </Link>
         </div>
-      )}
+
+        {/* 导航项目 */}
+        <div className="flex flex-col">
+          {navItems
+            .filter((item) => !item.requireLogin || !!user)
+            .map((item, index) => (
+              <Link
+                key={item.name}
+                href={item.href}
+                onClick={() => setMobileMenuOpen(false)}
+                className="py-3 border-b border-[rgba(68,68,68,0.2)] text-sm font-bold text-[#444444] font-zen-kaku-gothic"
+              >
+                {item.name}
+              </Link>
+            ))}
+        </div>
+
+        {/* 身份验证按钮区域 */}
+        <div className="mt-auto flex flex-col space-y-3">
+          {isLoading ? (
+            <span className="text-gray-500 text-sm">読み込み中...</span>
+          ) : user ? (
+            <>
+              <Link
+                href="/passcode"
+                onClick={() => setMobileMenuOpen(false)}
+                className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-[#444444] rounded-full hover:bg-[#333333]"
+              >
+                入室パスコード
+              </Link>
+              <button
+                onClick={async () => {
+                  setMobileMenuOpen(false);
+                  await handleLogout();
+                }}
+                className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-[#444444] rounded-full hover:bg-[#333333]"
+              >
+                ログアウト
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  handleLogin();
+                }}
+                className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-[#444444] rounded-full hover:bg-[#333333]"
+              >
+                ログイン
+              </button>
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  handleRegister();
+                }}
+                className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-[#444444] rounded-full hover:bg-[#333333]"
+              >
+                会員登録
+              </button>
+            </>
+          )}
+        </div>
+      </div>
     </nav>
   );
 };
