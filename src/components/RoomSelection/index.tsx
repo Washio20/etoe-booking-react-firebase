@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, TouchEvent } from "react";
 import Image from "next/image";
-import { InfoIcon, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { InfoIcon, X, ChevronLeft, ChevronRight, Check } from "lucide-react";
 import { createPortal } from "react-dom";
 import DateTimeSelection from "../DateTimeSelection";
 import PureSlowRoomSelection from "../PureSlowRoomSelection";
@@ -266,6 +266,7 @@ export default function RoomSelection() {
   const [error, setError] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const tabScrollRef = useRef<HTMLDivElement>(null);
+  const dateTimeTitleRef = useRef<HTMLHeadingElement>(null);
 
   // 在组件挂载时获取所有房间信息
   useEffect(() => {
@@ -376,11 +377,20 @@ export default function RoomSelection() {
         // 设置选中房间ID
         setSelectedRoomId(roomId);
 
-        // 不再使用空字符串和setTimeout的方式重置组件
         // 只在房间类型发生变化时才设置新的房间类型
         if (selectedRoomType !== room.roomType) {
           setSelectedRoomType(room.roomType);
         }
+        
+        // 添加滚动逻辑 - 200ms延迟确保组件已渲染
+        setTimeout(() => {
+          if (dateTimeTitleRef.current) {
+            dateTimeTitleRef.current.scrollIntoView({ 
+              behavior: 'smooth',
+              block: 'start'
+            });
+          }
+        }, 200);
       }
     },
     [rooms, selectedRoomType]
@@ -399,14 +409,8 @@ export default function RoomSelection() {
 
     const roomCount = filteredRooms.length;
 
-    // 根据房间数量和屏幕尺寸调整网格布局
-    if (roomCount <= 2) {
-      return "grid-cols-1 md:grid-cols-2 lg:grid-cols-2";
-    } else if (roomCount <= 4) {
-      return "grid-cols-2 md:grid-cols-2 lg:grid-cols-4";
-    } else {
-      return "grid-cols-2 md:grid-cols-3 lg:grid-cols-4";
-    }
+    // 修改：所有屏幕尺寸都使用2列布局
+    return "grid-cols-2"; // 所有屏幕尺寸都是2列
   };
 
   // 获取所有可用的房间分类
@@ -503,42 +507,84 @@ export default function RoomSelection() {
 
       {/* 房间选择按钮 */}
       {selectedTab && (
-        <div className={`grid ${getGridColsClass()} gap-3 md:gap-4`}>
-          {filteredRooms.map((room) => (
-            <button
-              key={room.id}
-              className={`flex items-center border rounded-md overflow-hidden transition-colors py-2 ${
-                selectedRoomId === room.id
-                  ? "border-[#444444] bg-[#F0EAE4]"
-                  : "border-[#BBBBBB] bg-white hover:bg-gray-50"
-              }`}
-              onClick={() => handleRoomSelection(room.id)}
-            >
-              <div className="relative h-10 w-12 md:w-16 flex-shrink-0 ml-2 md:ml-3">
-                <Image
-                  src={
-                    room.thumbnailUrl ||
-                    "/images/room-thumbnail-placeholder.jpg"
-                  }
-                  alt={room.roomType}
-                  fill
-                  className="object-cover rounded"
-                  sizes="(max-width: 768px) 48px, 64px"
-                />
-              </div>
-              <div className="flex-grow px-2 md:px-3 text-left truncate">
-                <span className="font-zen-kaku-gothic text-sm md:text-base font-bold tracking-[0.06em] text-[#444444]">
-                  {room.roomType.replace(/_/g, ' ')}
-                </span>
-              </div>
+        <div className={`grid ${getGridColsClass()} gap-3 md:gap-4 md:gap-y-6`}>
+          {filteredRooms.map((room) => {
+            const isSelected = selectedRoomId === room.id;
+            return (
               <div
-                className="p-1.5 mr-2 rounded-full hover:bg-gray-100"
-                onClick={(e) => handleInfoClick(room.id, e)}
+                key={room.id}
+                role="button"
+                tabIndex={0}
+                className={`relative flex flex-col rounded-[4px] border bg-[#FFF] cursor-pointer overflow-hidden transition-all outline-none
+                  ${isSelected ? "border-[#444444] border-2 bg-[#F9F6F2] shadow-md" : "border-[#BBB]"}
+                `}
               >
-                <InfoIcon className="h-4 w-4 text-[#444444]" />
+                {/* 选中状态勾选图标 */}
+                {isSelected && (
+                  <div className="absolute top-3 right-3 z-10 bg-white rounded-full p-1.5 shadow-md border-2 border-[#444444]">
+                    <Check className="h-4 w-4 text-[#444444]" strokeWidth={2.5} />
+                  </div>
+                )}
+                {/* 图片区域 */}
+                <div
+                  className="w-full h-28 md:h-40 rounded-t-[4px]"
+                  style={{
+                    background: `url(${room.thumbnailUrl || "/images/room-thumbnail-placeholder.jpg"}) lightgray 50% / cover no-repeat`
+                  }}
+                  aria-label={room.roomType}
+                  role="img"
+                />
+                {/* 内容区域 */}
+                <div className="flex flex-col p-0 items-center text-center mt-2">
+                  {/* 房间类型 */}
+                  <span className="font-zen-kaku-gothic text-base md:text-lg font-bold tracking-[0.06em] text-[#444444] truncate w-full">
+                    {room.roomType.replace(/_/g, ' ')}
+                  </span>
+                  
+                  {/* 面积和容量 */}
+                  <div className="w-full flex justify-center items-center text-sm md:text-base text-[#444444]">
+                    <span className="font-zen-kaku-gothic">
+                      {room.area ? `${room.area}㎡` : ""}
+                      {room.capacity ? `　${room.capacity}名まで` : ""}
+                    </span>
+                  </div>
+                  
+                  {/* 使用时间和价格范围 */}
+                  <div className="w-full flex flex-wrap justify-center items-center text-xs md:text-base text-[#444444] px-1">
+                    <span className="font-zen-kaku-gothic whitespace-nowrap">
+                      {room.duration ? `${room.duration}` : ""}
+                    </span>
+                    {room.prices && room.prices.length > 0 && (
+                      <span className="font-zen-kaku-gothic font-semibold whitespace-nowrap">
+                        　{room.prices[0].displayPrice}
+                        {room.prices.length > 1 ? `～${room.prices[room.prices.length-1].displayPrice}` : ""}
+                      </span>
+                    )}
+                  </div>
+                  
+                  {/* MORE链接 */}
+                  <div className="w-full flex justify-center mt-1">
+                    <button
+                      className="text-[#C78C51] underline text-sm md:text-base font-bold font-zen-kaku-gothic"
+                      onClick={e => { e.stopPropagation(); handleInfoClick(room.id, e); }}
+                    >
+                      MORE
+                    </button>
+                  </div>
+                </div>
+                {/* 选择按钮 */}
+                <button
+                  className="mt-2 mb-3 mx-3 w-auto rounded-[32px] bg-[#F0EAE4] font-zen-kaku-gothic transition-colors flex justify-center items-center px-4 py-2 self-stretch"
+                  onClick={e => { e.stopPropagation(); handleRoomSelection(room.id); }}
+                  tabIndex={0}
+                >
+                  <span className="font-zen-kaku-gothic text-sm md:text-base text-[#444444]">
+                    この部屋を選択
+                  </span>
+                </button>
               </div>
-            </button>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -547,7 +593,9 @@ export default function RoomSelection() {
         (selectedTab === "slow_room" && isSlowRoom(selectedRoomType) ? (
           <PureSlowRoomSelection selectedRoomType={selectedRoomType} />
         ) : (
-          <DateTimeSelection selectedRoomType={selectedRoomType} />
+          <div ref={dateTimeTitleRef}>
+            <DateTimeSelection selectedRoomType={selectedRoomType} />
+          </div>
         ))}
 
       {isMounted && showInfoModal && (

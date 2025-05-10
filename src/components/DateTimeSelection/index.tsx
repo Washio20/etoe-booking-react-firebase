@@ -740,6 +740,20 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
         onTimeSlotSelect={handleTimeSlotSelection}
       />
 
+      {/* 当前选择信息展示区域 */}
+      {selectedDateStr && selectedTimeSlot && (
+        <div className="mt-4 md:mt-6 p-4 rounded-md bg-[#F0EAE4]">
+          <div className="flex flex-col space-y-2">
+            <div className="text-base md:text-lg text-[#444444] font-zen-kaku-gothic">
+              <span className="font-bold">{selectedRoomType.replace(/_/g, ' ')}部屋料金：</span><span className="font-bold text-red-600">{selectedTimeSlotPrice.toLocaleString()}円</span><span className="text-sm ml-1">(税込)</span>
+            </div>
+            <div className="text-base md:text-base text-[#444444] font-zen-kaku-gothic">
+            <span className="font-bold">選択日時：</span>{selectedDateStr.replace(/-/g, '/')} {selectedDate && `(${weekDays[selectedDate.getDay()]})`} {selectedTimeSlot}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 使用改进的SlowRoomSelection组件 */}
       {showSlowRoomSelection && selectedDateIndex !== null && (
         <ImprovedSlowRoomSelection
@@ -774,13 +788,13 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
             />
             <label
               htmlFor="agree-to-terms"
-              className="text-sm md:text-base text-[#444444] font-zen-kaku-gothic cursor-pointer"
+              className="text-base text-[#444444] font-zen-kaku-gothic cursor-pointer"
             >
               利用規約に同意する
             </label>
           </div>
           {showTermsError && (
-            <p className="text-red-600 text-xs md:text-sm mt-2 font-zen-kaku-gothic">
+            <p className="text-red-600 text-base mt-2 font-zen-kaku-gothic">
               利用規約に同意してください。
             </p>
           )}
