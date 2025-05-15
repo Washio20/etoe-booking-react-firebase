@@ -374,19 +374,45 @@ export default function AdminUsersPage() {
                             <span className="sr-only">前へ</span>
                             &laquo;
                           </button>
-                          {[...Array(totalPages)].map((_, i) => (
-                            <button
-                              key={i}
-                              onClick={() => paginate(i + 1)}
-                              className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                                currentPage === i + 1
-                                  ? "z-10 bg-blue-50 border-blue-500 text-blue-600"
-                                  : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
-                              }`}
-                            >
-                              {i + 1}
-                            </button>
-                          ))}
+                          {/* 页码按钮 - 优化显示逻辑，与其他页面保持一致 */}
+                          {Array.from({ length: Math.min(5, Math.max(currentPage, totalPages)) }).map((_, index) => {
+                            let pageNum;
+                            const maxPage = Math.max(currentPage, totalPages);
+                            
+                            // 如果总页数少于5，显示所有页码
+                            if (maxPage <= 5) {
+                              pageNum = index + 1;
+                            }
+                            // 如果当前页在开头，显示1-5
+                            else if (currentPage <= 3) {
+                              pageNum = index + 1;
+                            }
+                            // 如果当前页在末尾，显示末尾5页
+                            else if (currentPage >= maxPage - 2) {
+                              pageNum = maxPage - 4 + index;
+                            }
+                            // 其他情况，显示当前页及其前后2页
+                            else {
+                              pageNum = currentPage - 2 + index;
+                            }
+                            
+                            // 不显示超过实际可用页数的页码
+                            if (pageNum > maxPage) return null;
+                            
+                            return (
+                              <button
+                                key={pageNum}
+                                onClick={() => paginate(pageNum)}
+                                className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                  currentPage === pageNum
+                                    ? "z-10 bg-blue-50 border-blue-500 text-blue-600"
+                                    : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
+                                }`}
+                              >
+                                {pageNum}
+                              </button>
+                            );
+                          })}
                           <button
                             onClick={() => paginate(currentPage + 1)}
                             disabled={currentPage === totalPages}

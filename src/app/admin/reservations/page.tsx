@@ -1,15 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/utils/firebase";
 import Layout from "@/components/Layout";
 import AdminLayout from "@/components/AdminLayout";
-import { format } from "date-fns";
-import { ja } from "date-fns/locale";
 import { Reservation } from "@/types/reservation";
-import { toDate, formatTimestamp, getTimestampMillis } from "@/utils/date";
+import { 
+  formatTimestamp, 
+  getTimestampMillis, 
+  htmlToJapaneseDate,
+  japaneseToHtmlDate,
+  isReservationDateMatch
+} from "@/utils/date";
 
 export default function ReservationsPage() {
   const router = useRouter();
@@ -34,7 +38,50 @@ export default function ReservationsPage() {
   
   // 分页相关状态
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(10); // 恢复默认每页显示10条
+  
+  // 新增搜索相关状态
+  const [isSearching, setIsSearching] = useState(false);
+  
+  // 表单状态
+  const [formValues, setFormValues] = useState({
+    searchTerm: "",
+    statusFilter: "all",
+    dateFilter: "",
+    roomTypeFilter: "all"
+  });
+  
+  // 日期格式转换状态
+  const [dateInputValue, setDateInputValue] = useState("");
+  
+  // 处理日期变更
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const dateValue = e.target.value; // yyyy-mm-dd 格式
+    setDateInputValue(dateValue);
+    
+    // 更新表单值为日语格式
+    if (dateValue) {
+      // 使用新的直接转换函数
+      const formattedDate = htmlToJapaneseDate(dateValue);
+      setFormValues({...formValues, dateFilter: formattedDate});
+    } else {
+      setFormValues({...formValues, dateFilter: ''});
+    }
+  };
+  
+  // 组件初始化和表单重置时同步日期控件
+  useEffect(() => {
+    // 当表单被重置或初始化，将日期输入控件的值设为空
+    if (!formValues.dateFilter) {
+      setDateInputValue("");
+    } 
+    // 当dateFilter有值，但dateInputValue为空时，尝试转换
+    else if (formValues.dateFilter && !dateInputValue) {
+      // 使用新的直接转换函数
+      const htmlDateValue = japaneseToHtmlDate(formValues.dateFilter);
+      setDateInputValue(htmlDateValue);
+    }
+  }, [formValues.dateFilter, dateInputValue]);
 
   // 部屋タイプのマッピング
   const roomTypeNames: Record<string, string> = {
@@ -44,6 +91,122 @@ export default function ReservationsPage() {
     toron: "TORON",
     sauna_suite: "サウナスイート",
     slow_room: "スロールーム",
+  };
+  
+  // 处理表单搜索
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // 更新过滤器状态
+    setSearchTerm(formValues.searchTerm);
+    setStatusFilter(formValues.statusFilter);
+    setDateFilter(formValues.dateFilter);
+    setRoomTypeFilter(formValues.roomTypeFilter);
+    
+    // 执行搜索 - 重置所有分页状态
+    setCurrentPage(1);
+    executeSearch(true);
+  };
+  
+  // 执行搜索
+  const executeSearch = useCallback(async (resetSearch = false) => {
+    if (!user || !adminState.isAdmin) return;
+    
+    // 根据是否重置搜索设置状态
+    if (resetSearch) {
+      setIsSearching(true);
+      setIsLoading(true);
+    }
+    
+    try {
+      const token = await user.getIdToken();
+      let apiUrl = "/api/admin/reservations";
+      
+      // 添加查询参数
+      const params = new URLSearchParams();
+      
+      // 基本limit参数 - 一次获取较多数据，在前端进行分页
+      params.append("limit", "1000");
+
+      apiUrl += "?" + params.toString();
+      
+      console.log("搜索API URL:", apiUrl);
+      
+      const response = await fetch(apiUrl, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        cache: 'no-store'
+      });
+      
+      if (!response.ok) {
+        throw new Error("検索中にエラーが発生しました");
+      }
+      
+      const data = await response.json();
+      console.log(`搜索结果: 共${data.reservations.length}条预约数据`);
+      
+      setReservations(data.reservations);
+      setErrorMessage(null);
+    } catch (error) {
+      console.error("搜索错误:", error);
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "データの検索中にエラーが発生しました"
+      );
+    } finally {
+      setIsLoading(false);
+      setIsSearching(false);
+    }
+  }, [
+    user, 
+    adminState.isAdmin
+  ]);
+  
+  // 处理表单输入变化
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormValues(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+  
+  // 重置表单
+  const resetForm = () => {
+    // 重置表单值
+    setFormValues({
+      searchTerm: "",
+      statusFilter: "all",
+      dateFilter: "",
+      roomTypeFilter: "all"
+    });
+    
+    // 重置日期输入控件
+    setDateInputValue("");
+    
+    // 重置状态并执行搜索
+    setSearchTerm("");
+    setStatusFilter("all");
+    setDateFilter("");
+    setRoomTypeFilter("all");
+    
+    // 延迟执行搜索，确保状态已更新
+    setTimeout(() => {
+      executeSearch(true);
+    }, 0);
+  };
+
+  // 刷新按钮
+  const handleRefresh = () => {
+    // 保持当前过滤器设置，但重新获取数据
+    setSearchTerm(formValues.searchTerm);
+    setStatusFilter(formValues.statusFilter);
+    setDateFilter(formValues.dateFilter);
+    setRoomTypeFilter(formValues.roomTypeFilter);
+    
+    executeSearch();
   };
 
   // 管理者権限をチェック
@@ -70,94 +233,78 @@ export default function ReservationsPage() {
     checkAdminStatus();
   }, [user, loading]);
 
-  // 予約データを取得
+  // 予約データを取得 - 初次加载
   useEffect(() => {
-    const fetchReservations = async () => {
-      if (!user || !adminState.isAdmin || !adminState.checkComplete) return;
+    if (!user || !adminState.isAdmin || !adminState.checkComplete) return;
+    
+    // 初次加载数据
+    executeSearch(true);
+  }, [user, adminState, executeSearch]);
 
-      setIsLoading(true);
-      setErrorMessage(null);
-
-      try {
-        const token = await user.getIdToken();
-
-        const response = await fetch("/api/admin/reservations", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error("予約データの取得に失敗しました");
+  // フィルター処理済みの予約リスト - 在前端进行更精细的筛选
+  const filteredReservations = useMemo(() => {
+    return reservations.filter((reservation) => {
+      // 1. 搜索词过滤（ID或邮箱）
+      if (searchTerm) {
+        if (searchTerm.includes("@")) {
+          // 邮箱搜索
+          if (!reservation.userEmail || !reservation.userEmail.toLowerCase().includes(searchTerm.toLowerCase())) {
+            return false;
+          }
+        } else {
+          // ID搜索
+          if (!reservation.id.toLowerCase().includes(searchTerm.toLowerCase())) {
+            return false;
+          }
         }
-
-        const data = await response.json();
-        setReservations(data.reservations);
-      } catch (error) {
-        console.error("予約取得エラー:", error);
-        setErrorMessage(
-          error instanceof Error
-            ? error.message
-            : "予約データの取得中にエラーが発生しました"
-        );
-      } finally {
-        setIsLoading(false);
       }
-    };
-
-    fetchReservations();
-  }, [user, adminState]);
-
-  // フィルター処理済みの予約リスト
-  const filteredReservations = reservations.filter((reservation) => {
-    // 検索語句でフィルタリング（メールアドレスなど）
-    const searchMatches =
-      reservation.userEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      reservation.id.toLowerCase().includes(searchTerm.toLowerCase());
-
-    // ステータスでフィルタリング
-    const statusMatches =
-      statusFilter === "all" || reservation.paymentStatus === statusFilter;
-
-    // 日付でフィルタリング（displayDateまたはreservationDateを使用）
-    const dateToCheck =
-      reservation.displayDate || reservation.reservationDate || "";
-    const dateMatches = !dateFilter || dateToCheck.includes(dateFilter);
-
-    // 部屋タイプでフィルタリング
-    const roomTypeMatches =
-      roomTypeFilter === "all" || reservation.roomType === roomTypeFilter;
-
-    return searchMatches && statusMatches && dateMatches && roomTypeMatches;
-  });
+      
+      // 2. 状态过滤
+      if (statusFilter !== "all" && reservation.paymentStatus !== statusFilter) {
+        return false;
+      }
+      
+      // 3. 房间类型过滤
+      if (roomTypeFilter !== "all" && reservation.roomType !== roomTypeFilter) {
+        return false;
+      }
+      
+      // 4. 日期过滤
+      if (dateFilter) {
+        // 尝试使用isReservationDateMatch工具函数检查日期是否匹配
+        const searchDate = dateInputValue ? new Date(dateInputValue) : null;
+        if (searchDate && !isReservationDateMatch(reservation, searchDate)) {
+          return false;
+        }
+      }
+      
+      // 通过所有过滤条件
+      return true;
+    });
+  }, [reservations, searchTerm, statusFilter, roomTypeFilter, dateFilter, dateInputValue]);
 
   // 日付でソート（新しい順）
-  const sortedReservations = [...filteredReservations].sort((a, b) => {
-    // 共通関数を使用して日時のタイムスタンプを取得
-    const timestampA = getTimestampMillis(a.createdAt);
-    const timestampB = getTimestampMillis(b.createdAt);
-    
-    return timestampB - timestampA;
-  });
+  const sortedReservations = useMemo(() => {
+    return [...filteredReservations].sort((a, b) => {
+      // 共通関数を使用して日時のタイムスタンプを取得
+      const timestampA = getTimestampMillis(a.createdAt);
+      const timestampB = getTimestampMillis(b.createdAt);
+      
+      return timestampB - timestampA;
+    });
+  }, [filteredReservations]);
   
-  // 分页计算
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentReservations = sortedReservations.slice(indexOfFirstItem, indexOfLastItem);
+  // 显示记录总数
+  const totalLoaded = sortedReservations.length;
+
+  // 计算总页数
   const totalPages = Math.ceil(sortedReservations.length / itemsPerPage);
   
-  // 切换页面的函数
-  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
-  
-  // 搜索或筛选条件变化时重置页码
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, statusFilter, dateFilter, roomTypeFilter]);
-  
-  // 改变每页显示数量
-  const handleItemsPerPageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setItemsPerPage(Number(e.target.value));
-    setCurrentPage(1); // 重置到第一页
+  // 计算当前页应显示的数据
+  const getCurrentPageData = () => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return sortedReservations.slice(startIndex, endIndex);
   };
 
   // ローディング表示
@@ -241,83 +388,109 @@ export default function ReservationsPage() {
 
           {/* 検索・フィルター */}
           <div className="bg-white p-4 border border-gray-200 rounded-lg">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <label
-                  htmlFor="search"
-                  className="block text-sm font-medium text-gray-700 mb-1 font-zen-kaku-gothic"
+            <form onSubmit={handleSearchSubmit}>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                <div>
+                  <label
+                    htmlFor="searchTerm"
+                    className="block text-sm font-medium text-gray-700 mb-1 font-zen-kaku-gothic"
+                  >
+                    検索
+                  </label>
+                  <input
+                    type="text"
+                    id="searchTerm"
+                    name="searchTerm"
+                    value={formValues.searchTerm}
+                    onChange={handleFormChange}
+                    placeholder="メールアドレス・予約ID"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="statusFilter"
+                    className="block text-sm font-medium text-gray-700 mb-1 font-zen-kaku-gothic"
+                  >
+                    ステータス
+                  </label>
+                  <select
+                    id="statusFilter"
+                    name="statusFilter"
+                    value={formValues.statusFilter}
+                    onChange={handleFormChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm"
+                  >
+                    <option value="all">すべて</option>
+                    <option value="paid">支払い済み</option>
+                    <option value="cancelled">キャンセル済み</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="dateFilter"
+                    className="block text-sm font-medium text-gray-700 mb-1 font-zen-kaku-gothic"
+                  >
+                    予約日
+                  </label>
+                  <div className="flex space-x-2">
+                    <input
+                      type="date"
+                      id="dateFilter"
+                      name="dateFilter"
+                      value={dateInputValue}
+                      onChange={handleDateChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="roomTypeFilter"
+                    className="block text-sm font-medium text-gray-700 mb-1 font-zen-kaku-gothic"
+                  >
+                    部屋タイプ
+                  </label>
+                  <select
+                    id="roomTypeFilter"
+                    name="roomTypeFilter"
+                    value={formValues.roomTypeFilter}
+                    onChange={handleFormChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm"
+                  >
+                    <option value="all">すべて</option>
+                    <option value="tototo">TOTOTO</option>
+                    <option value="fuuu">FUUU</option>
+                    <option value="zabuun">ZABUUN</option>
+                    <option value="toron">TORON</option>
+                    <option value="sauna_suite">サウナスイート</option>
+                    <option value="slow_room">スロールーム</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-start space-x-2">
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-gray-800 text-white hover:bg-gray-700 rounded-md text-sm font-zen-kaku-gothic flex items-center"
                 >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
                   検索
-                </label>
-                <input
-                  type="text"
-                  id="search"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="メールアドレスなど"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm"
-                />
+                </button>
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="px-4 py-2 bg-gray-200 text-gray-800 hover:bg-gray-300 rounded-md text-sm font-zen-kaku-gothic"
+                >
+                  リセット
+                </button>
               </div>
-
-              <div>
-                <label
-                  htmlFor="statusFilter"
-                  className="block text-sm font-medium text-gray-700 mb-1 font-zen-kaku-gothic"
-                >
-                  ステータス
-                </label>
-                <select
-                  id="statusFilter"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm"
-                >
-                  <option value="all">すべて</option>
-                  <option value="paid">支払い済み</option>
-                  <option value="cancelled">キャンセル済み</option>
-                </select>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="dateFilter"
-                  className="block text-sm font-medium text-gray-700 mb-1 font-zen-kaku-gothic"
-                >
-                  予約日
-                </label>
-                <input
-                  type="text"
-                  id="dateFilter"
-                  value={dateFilter}
-                  onChange={(e) => setDateFilter(e.target.value)}
-                  placeholder="例: 2025年4月13日"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="roomTypeFilter"
-                  className="block text-sm font-medium text-gray-700 mb-1 font-zen-kaku-gothic"
-                >
-                  部屋タイプ
-                </label>
-                <select
-                  id="roomTypeFilter"
-                  value={roomTypeFilter}
-                  onChange={(e) => setRoomTypeFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm"
-                >
-                  <option value="all">すべて</option>
-                  <option value="tototo">TOTOTO</option>
-                  <option value="fuuu">FUUU</option>
-                  <option value="zabuun">ZABUUN</option>
-                  <option value="toron">TORON</option>
-                  <option value="sauna_suite">サウナスイート</option>
-                  <option value="slow_room">スロールーム</option>
-                </select>
-              </div>
-            </div>
+            </form>
           </div>
 
           {/* 予約リスト */}
@@ -337,10 +510,12 @@ export default function ReservationsPage() {
             <div className="overflow-x-auto">
               <div className="flex justify-between items-center mb-4">
                 <div className="text-sm text-gray-700 font-zen-kaku-gothic">
-                  全 <span className="font-medium">{sortedReservations.length}</span> 件中{" "}
-                  <span className="font-medium">{indexOfFirstItem + 1}</span> から{" "}
+                  全 <span className="font-medium">{totalLoaded}</span> 件中 
                   <span className="font-medium">
-                    {Math.min(indexOfLastItem, sortedReservations.length)}
+                    {totalLoaded === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}
+                  </span> - 
+                  <span className="font-medium">
+                    {Math.min(currentPage * itemsPerPage, totalLoaded)}
                   </span> 件を表示
                 </div>
                 <div className="flex items-center">
@@ -350,12 +525,16 @@ export default function ReservationsPage() {
                   <select
                     id="itemsPerPage"
                     value={itemsPerPage}
-                    onChange={handleItemsPerPageChange}
+                    onChange={(e) => {
+                      setItemsPerPage(Number(e.target.value));
+                      setCurrentPage(1); // 重置到第一页
+                    }}
                     className="border border-gray-300 rounded-md text-sm px-2 py-1"
                   >
                     <option value={10}>10</option>
                     <option value={20}>20</option>
                     <option value={50}>50</option>
+                    <option value={100}>100</option>
                   </select>
                 </div>
               </div>
@@ -408,7 +587,7 @@ export default function ReservationsPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {currentReservations.map((reservation) => {
+                  {getCurrentPageData().map((reservation) => {
                     // 予約作成日時フォーマット - 共通関数を使用
                     const formattedCreatedDate = formatTimestamp(
                       reservation.createdAt, 
@@ -505,14 +684,14 @@ export default function ReservationsPage() {
               </table>
               
               {/* 分页控件 */}
-              {totalPages > 1 && (
+              {(reservations.length > 0) && (
                 <div className="px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6 mt-4">
                   <div className="flex-1 flex justify-between sm:hidden">
                     <button
-                      onClick={() => paginate(Math.max(1, currentPage - 1))}
-                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage(Math.max(currentPage - 1, 1))}
+                      disabled={currentPage === 1 || isLoading}
                       className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
-                        currentPage === 1
+                        currentPage === 1 || isLoading
                           ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                           : "bg-white text-gray-700 hover:bg-gray-50"
                       }`}
@@ -520,10 +699,10 @@ export default function ReservationsPage() {
                       前へ
                     </button>
                     <button
-                      onClick={() => paginate(Math.min(totalPages, currentPage + 1))}
-                      disabled={currentPage === totalPages}
+                      onClick={() => setCurrentPage(Math.min(currentPage + 1, totalPages))}
+                      disabled={currentPage === totalPages || isLoading}
                       className={`ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
-                        currentPage === totalPages
+                        currentPage === totalPages || isLoading
                           ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                           : "bg-white text-gray-700 hover:bg-gray-50"
                       }`}
@@ -534,16 +713,16 @@ export default function ReservationsPage() {
                   <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                     <div>
                       <p className="text-sm text-gray-700 font-zen-kaku-gothic">
-                        <span className="font-medium">{currentPage}</span> / <span className="font-medium">{totalPages}</span> ページ
+                        <span className="font-medium">{currentPage}</span> / <span className="font-medium">{Math.max(currentPage, totalPages)}</span> ページ
                       </p>
                     </div>
                     <div>
                       <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="ページネーション">
                         <button
-                          onClick={() => paginate(Math.max(1, currentPage - 1))}
-                          disabled={currentPage === 1}
+                          onClick={() => setCurrentPage(Math.max(currentPage - 1, 1))}
+                          disabled={currentPage === 1 || isLoading}
                           className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium ${
-                            currentPage === 1
+                            currentPage === 1 || isLoading
                               ? "text-gray-300 cursor-not-allowed"
                               : "text-gray-500 hover:bg-gray-50"
                           }`}
@@ -553,10 +732,12 @@ export default function ReservationsPage() {
                         </button>
                         
                         {/* 页码按钮 - 显示逻辑优化 */}
-                        {Array.from({ length: Math.min(5, totalPages) }).map((_, index) => {
+                        {Array.from({ length: Math.min(5, Math.max(currentPage, totalPages)) }).map((_, index) => {
                           let pageNum;
+                          const maxPage = Math.max(currentPage, totalPages);
+                          
                           // 如果总页数少于5，显示所有页码
-                          if (totalPages <= 5) {
+                          if (maxPage <= 5) {
                             pageNum = index + 1;
                           }
                           // 如果当前页在开头，显示1-5
@@ -564,23 +745,27 @@ export default function ReservationsPage() {
                             pageNum = index + 1;
                           }
                           // 如果当前页在末尾，显示末尾5页
-                          else if (currentPage >= totalPages - 2) {
-                            pageNum = totalPages - 4 + index;
+                          else if (currentPage >= maxPage - 2) {
+                            pageNum = maxPage - 4 + index;
                           }
                           // 其他情况，显示当前页及其前后2页
                           else {
                             pageNum = currentPage - 2 + index;
                           }
                           
+                          // 不显示超过实际可用页数的页码
+                          if (pageNum > maxPage) return null;
+                          
                           return (
                             <button
                               key={pageNum}
-                              onClick={() => paginate(pageNum)}
+                              onClick={() => setCurrentPage(pageNum)}
+                              disabled={isLoading}
                               className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
                                 currentPage === pageNum
                                   ? "z-10 bg-indigo-50 border-indigo-500 text-indigo-600"
                                   : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
-                              }`}
+                              } ${isLoading ? "cursor-not-allowed" : ""}`}
                             >
                               {pageNum}
                             </button>
@@ -588,10 +773,10 @@ export default function ReservationsPage() {
                         })}
                         
                         <button
-                          onClick={() => paginate(Math.min(totalPages, currentPage + 1))}
-                          disabled={currentPage === totalPages}
+                          onClick={() => setCurrentPage(Math.min(currentPage + 1, totalPages))}
+                          disabled={currentPage === totalPages || isLoading}
                           className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium ${
-                            currentPage === totalPages
+                            currentPage === totalPages || isLoading
                               ? "text-gray-300 cursor-not-allowed"
                               : "text-gray-500 hover:bg-gray-50"
                           }`}
@@ -602,6 +787,12 @@ export default function ReservationsPage() {
                       </nav>
                     </div>
                   </div>
+                </div>
+              )}
+              
+              {reservations.length === 0 && !isLoading && (
+                <div className="mt-6 text-center text-sm text-gray-500 font-zen-kaku-gothic">
+                  予約データがありません
                 </div>
               )}
             </div>
