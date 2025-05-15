@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/utils/firebase";
@@ -152,16 +152,11 @@ export default function CardIssueManagementPage() {
       setError1(null);
 
       const idToken = await user.getIdToken();
-      let url = "/api/admin/reservations?status=paid";
-
-      if (searchEmail) {
-        url += `&email=${encodeURIComponent(searchEmail)}`;
-      }
-
-      if (searchDate) {
-        url += `&date=${encodeURIComponent(searchDate)}`;
-      }
-
+      // 改为一次性获取更多数据 - 设置更大的limit值
+      let url = "/api/admin/reservations?status=paid&limit=1000";
+      
+      // 不在API层添加过滤参数，改为在前端过滤
+      
       const response = await fetch(url, {
         headers: {
           Authorization: `Bearer ${idToken}`,
@@ -173,6 +168,7 @@ export default function CardIssueManagementPage() {
       }
 
       const data = await response.json();
+      console.log(`获取到 ${data.reservations?.length || 0} 条预约数据`);
 
       // 保存原始预约数据，初始化房间分配状态为未知
       const reservationsData = (data.reservations || []).map((reservation: ExtendedReservation) => ({
@@ -192,7 +188,7 @@ export default function CardIssueManagementPage() {
     } finally {
       setLoadingReservations(false);
     }
-  }, [user, searchEmail, searchDate]);
+  }, [user]);
 
   // 为当前显示页面的预约加载房间分配状态 - 如果尚未加载过
   const loadRoomAssignmentsForCurrentPage = useCallback(async () => {
@@ -848,15 +844,134 @@ export default function CardIssueManagementPage() {
     return roomType === reservationType;
   };
 
+  // 前端过滤预约数据 - 支持多条件组合查询
+  const filterReservations = useCallback((reservationsData: ExtendedReservation[]) => {
+    if (!reservationsData.length) return [];
+    
+    return reservationsData.filter(reservation => {
+      // 1. 邮箱过滤
+      if (searchEmail && !reservation.userEmail?.toLowerCase().includes(searchEmail.toLowerCase())) {
+        return false;
+      }
+      
+      // 2. 日期过滤
+      if (searchDate) {
+        // 创建搜索日期对象，设置为当天开始时间
+        const searchDateObj = new Date(searchDate);
+        searchDateObj.setHours(0, 0, 0, 0);
+        
+        // 尝试从预约的bookingDate字段获取日期
+        if (reservation.bookingDate) {
+          // 处理Firestore Timestamp
+          const getDateFromTimestamp = (timestamp: any): Date | null => {
+            try {
+              // 处理有_seconds的Firestore Timestamp
+              if (timestamp._seconds !== undefined) {
+                return new Date(timestamp._seconds * 1000);
+              }
+              
+              // 处理有seconds的Firestore Timestamp
+              if (timestamp.seconds !== undefined) {
+                return new Date(timestamp.seconds * 1000);
+              }
+              
+              // 处理有toDate方法的Firestore Timestamp
+              if (typeof timestamp.toDate === 'function') {
+                return timestamp.toDate();
+              }
+              
+              // 尝试直接转换
+              const date = new Date(timestamp);
+              if (!isNaN(date.getTime())) {
+                return date;
+              }
+              
+              return null;
+            } catch (e) {
+              console.error("日期转换错误:", e);
+              return null;
+            }
+          };
+          
+          const bookingDate = getDateFromTimestamp(reservation.bookingDate);
+          if (bookingDate) {
+            // 设置为当天开始
+            bookingDate.setHours(0, 0, 0, 0);
+            
+            // 比较年月日是否相同
+            if (
+              bookingDate.getFullYear() === searchDateObj.getFullYear() &&
+              bookingDate.getMonth() === searchDateObj.getMonth() &&
+              bookingDate.getDate() === searchDateObj.getDate()
+            ) {
+              return true; // 日期匹配，保留此预约
+            }
+          }
+        }
+        
+        // 尝试从displayDate字段获取日期
+        if (reservation.displayDate) {
+          // 日期格式: YYYY年MM月DD日
+          const dateMatch = reservation.displayDate.match(/(\d+)年(\d+)月(\d+)日/);
+          if (dateMatch) {
+            const [_, year, month, day] = dateMatch;
+            const displayDate = new Date(
+              parseInt(year),
+              parseInt(month) - 1, // 月份从0开始
+              parseInt(day),
+              0, 0, 0, 0
+            );
+            
+            // 比较年月日是否相同
+            if (
+              displayDate.getFullYear() === searchDateObj.getFullYear() &&
+              displayDate.getMonth() === searchDateObj.getMonth() &&
+              displayDate.getDate() === searchDateObj.getDate()
+            ) {
+              return true; // 日期匹配，保留此预约
+            }
+          }
+        }
+        
+        // 若未找到匹配的日期，则排除此预约
+        if (searchDate) return false;
+      }
+      
+      // 通过所有过滤条件
+      return true;
+    });
+  }, [searchEmail, searchDate]);
+  
+  // 获取过滤后的预约
+  const filteredReservations = useMemo(() => {
+    return filterReservations(reservations);
+  }, [reservations, filterReservations]);
+
   // 搜索条件更改时的处理
   const handleSearch = () => {
-    loadReservations();
+    // 修改为只在明确需要重新加载时调用API
+    if (reservations.length === 0) {
+      // 如果没有任何数据，则从API获取
+      loadReservations();
+    } else {
+      // 如果已有数据，只修改当前页
+      setCurrentPage(1);
+    }
   };
 
   // 处理日期格式转换
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const dateValue = e.target.value;
     setSearchDate(dateValue);
+    // 将当前页重置回第一页
+    setCurrentPage(1);
+  };
+  
+  // 处理邮箱搜索
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchEmail(e.target.value);
+    // 将当前页重置回第一页
+    setCurrentPage(1);
   };
 
   // 组件挂载后如果是管理员则加载预约
@@ -866,11 +981,11 @@ export default function CardIssueManagementPage() {
     }
   }, [adminState.isAdmin, adminState.checkComplete, loadReservations]);
 
-  // 计算分页数据
+  // 计算分页数据 - 修改为使用过滤后的数据
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentReservations = reservations.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(reservations.length / itemsPerPage);
+  const currentReservations = filteredReservations.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredReservations.length / itemsPerPage);
 
   // 切换页面
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
@@ -948,7 +1063,7 @@ export default function CardIssueManagementPage() {
                   <input
                     type="email"
                     value={searchEmail}
-                    onChange={(e) => setSearchEmail(e.target.value)}
+                    onChange={handleEmailChange}
                     placeholder="example@email.com"
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
                   />
@@ -968,9 +1083,22 @@ export default function CardIssueManagementPage() {
                   <button
                     onClick={handleSearch}
                     disabled={loadingReservations}
-                    className="px-4 py-2 bg-gray-800 text-white rounded-md text-sm font-zen-kaku-gothic hover:bg-gray-700"
+                    className="px-4 py-2 bg-gray-800 text-white rounded-md text-sm font-zen-kaku-gothic hover:bg-gray-700 flex items-center"
                   >
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
                     {loadingReservations ? "検索中..." : "検索"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSearchEmail("");
+                      setSearchDate("");
+                      setCurrentPage(1);
+                    }}
+                    className="ml-2 px-4 py-2 bg-gray-200 text-gray-800 rounded-md text-sm font-zen-kaku-gothic hover:bg-gray-300"
+                  >
+                    リセット
                   </button>
                 </div>
               </div>
@@ -983,6 +1111,19 @@ export default function CardIssueManagementPage() {
               <p className="text-red-700 text-sm font-zen-kaku-gothic">
                 {error1}
               </p>
+            </div>
+          )}
+
+          {/* 数据统计显示 */}
+          {showReservationList && filteredReservations.length > 0 && (
+            <div className="text-sm text-gray-600 mb-2 font-zen-kaku-gothic">
+              全 <span className="font-medium">{filteredReservations.length}</span> 件中 
+              <span className="font-medium">
+                {filteredReservations.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}
+              </span> - 
+              <span className="font-medium">
+                {Math.min(currentPage * itemsPerPage, filteredReservations.length)}
+              </span> 件を表示
             </div>
           )}
 
@@ -999,7 +1140,7 @@ export default function CardIssueManagementPage() {
                     データを読み込み中...
                   </p>
                 </div>
-              ) : reservations.length === 0 ? (
+              ) : filteredReservations.length === 0 ? (
                 <div className="p-6 text-center">
                   <p className="text-gray-500 font-zen-kaku-gothic">
                     検索条件に一致する予約はありません
@@ -1140,10 +1281,10 @@ export default function CardIssueManagementPage() {
                       <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                         <div>
                           <p className="text-sm text-gray-700">
-                            全 <span className="font-medium">{reservations.length}</span> 件中{" "}
+                            全 <span className="font-medium">{filteredReservations.length}</span> 件中{" "}
                             <span className="font-medium">{indexOfFirstItem + 1}</span> から{" "}
                             <span className="font-medium">
-                              {Math.min(indexOfLastItem, reservations.length)}
+                              {Math.min(indexOfLastItem, filteredReservations.length)}
                             </span> 件を表示
                           </p>
                         </div>
@@ -1161,19 +1302,47 @@ export default function CardIssueManagementPage() {
                               <span className="sr-only">前へ</span>
                               &laquo;
                             </button>
-                            {[...Array(totalPages)].map((_, i) => (
-                              <button
-                                key={i}
-                                onClick={() => paginate(i + 1)}
-                                className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                                  currentPage === i + 1
-                                    ? "z-10 bg-blue-50 border-blue-500 text-blue-600"
-                                    : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
-                                }`}
-                              >
-                                {i + 1}
-                              </button>
-                            ))}
+                            
+                            {/* 页码按钮 - 优化显示逻辑，与预约管理页面保持一致 */}
+                            {Array.from({ length: Math.min(5, Math.max(currentPage, totalPages)) }).map((_, index) => {
+                              let pageNum;
+                              const maxPage = Math.max(currentPage, totalPages);
+                              
+                              // 如果总页数少于5，显示所有页码
+                              if (maxPage <= 5) {
+                                pageNum = index + 1;
+                              }
+                              // 如果当前页在开头，显示1-5
+                              else if (currentPage <= 3) {
+                                pageNum = index + 1;
+                              }
+                              // 如果当前页在末尾，显示末尾5页
+                              else if (currentPage >= maxPage - 2) {
+                                pageNum = maxPage - 4 + index;
+                              }
+                              // 其他情况，显示当前页及其前后2页
+                              else {
+                                pageNum = currentPage - 2 + index;
+                              }
+                              
+                              // 不显示超过实际可用页数的页码
+                              if (pageNum > maxPage) return null;
+                              
+                              return (
+                                <button
+                                  key={pageNum}
+                                  onClick={() => paginate(pageNum)}
+                                  className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                    currentPage === pageNum
+                                      ? "z-10 bg-blue-50 border-blue-500 text-blue-600"
+                                      : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
+                                  }`}
+                                >
+                                  {pageNum}
+                                </button>
+                              );
+                            })}
+                            
                             <button
                               onClick={() => paginate(currentPage + 1)}
                               disabled={currentPage === totalPages}
