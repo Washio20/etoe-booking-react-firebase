@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/utils/firebase";
@@ -67,8 +67,10 @@ export default function CardIssueManagementPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [showReservationList, setShowReservationList] = useState(true);
-  const [loadingRoomAssignments, setLoadingRoomAssignments] = useState(false);
   const [assignmentsLoaded, setAssignmentsLoaded] = useState(false);
+  // 添加refs来获取输入值
+  const emailInputRef = useRef<HTMLInputElement>(null);
+  const dateInputRef = useRef<HTMLInputElement>(null);
 
   // 房间类型映射
   const roomTypeMapping: { [key: string]: string } = {
@@ -142,7 +144,7 @@ export default function CardIssueManagementPage() {
     checkAdminStatus();
   }, [user, loading]);
 
-  // 加载预约
+  // 加载预约 - 移除searchEmail和searchDate依赖
   const loadReservations = useCallback(async () => {
     if (!user) return;
 
@@ -152,11 +154,10 @@ export default function CardIssueManagementPage() {
       setError1(null);
 
       const idToken = await user.getIdToken();
-      // 改为一次性获取更多数据 - 设置更大的limit值
-      let url = "/api/admin/reservations?status=paid&limit=1000";
+      // 使用新的API端点，一次性获取预约和房间分配状态 - 不带筛选条件
+      let url = "/api/admin/reservations-with-assignments?limit=500";
       
-      // 不在API层添加过滤参数，改为在前端过滤
-      
+      console.log("初始加载API请求:", url);
       const response = await fetch(url, {
         headers: {
           Authorization: `Bearer ${idToken}`,
@@ -168,16 +169,16 @@ export default function CardIssueManagementPage() {
       }
 
       const data = await response.json();
-      console.log(`获取到 ${data.reservations?.length || 0} 条预约数据`);
-
-      // 保存原始预约数据，初始化房间分配状态为未知
-      const reservationsData = (data.reservations || []).map((reservation: ExtendedReservation) => ({
-        ...reservation,
-        hasRoomAssignment: undefined, // 初始状态为未知
-        hasSlowRoomAssignment: undefined,
-      }));
+      console.log(`初始加载: 获取到 ${data.reservations?.length || 0} 条预约数据`);
       
-      setReservations(reservationsData);
+      // 确保所有预约记录都是已支付状态 - 再做一次过滤
+      const paidReservations = data.reservations
+        ? data.reservations.filter((res: ExtendedReservation) => res.paymentStatus === "paid")
+        : [];
+      
+      // 设置预约数据，包含房间分配状态
+      setReservations(paidReservations);
+      setAssignmentsLoaded(true); // 设置分配状态已加载
       setCurrentPage(1); // 重置到第一页
 
     } catch (error) {
@@ -188,115 +189,7 @@ export default function CardIssueManagementPage() {
     } finally {
       setLoadingReservations(false);
     }
-  }, [user]);
-
-  // 为当前显示页面的预约加载房间分配状态 - 如果尚未加载过
-  const loadRoomAssignmentsForCurrentPage = useCallback(async () => {
-    if (!user || reservations.length === 0 || loadingReservations || loadingRoomAssignments || !showReservationList) return;
-    
-    // 获取当前页面的预约
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = Math.min(startIndex + itemsPerPage, reservations.length);
-    const currentPageReservations = reservations.slice(startIndex, endIndex);
-    
-    // 检查当前页面的预约是否已加载过房间分配状态
-    const needsLoading = currentPageReservations.some(
-      res => res.hasRoomAssignment === undefined
-    );
-    
-    if (!needsLoading) {
-      return; // 如果所有预约都已加载过房间分配状态，则跳过
-    }
-    
-    try {
-      setLoadingRoomAssignments(true);
-      
-      // 收集需要查询的预约ID
-      const reservationIds = currentPageReservations
-        .filter(res => res.hasRoomAssignment === undefined)
-        .map(res => res.id);
-      
-      if (reservationIds.length === 0) return;
-      
-      const idToken = await user.getIdToken();
-      
-      // 定义响应类型
-      type AssignmentResponse = { id: string; data: any } | { id: string; error: any };
-      
-      // 批量查询API - 一次性获取多个预约的分配状态
-      const responses: AssignmentResponse[] = await Promise.all(
-        reservationIds.map(id => 
-          fetch(`/api/admin/room-assignments?reservationId=${id}`, {
-            headers: { Authorization: `Bearer ${idToken}` }
-          })
-            .then(res => res.json().then(data => ({ id, data } as const)))
-            .catch(err => ({ id, error: err } as const))
-        )
-      );
-      
-      // 处理响应并更新状态
-      const newReservations = [...reservations];
-      
-      responses.forEach(response => {
-        if ('error' in response) {
-          console.error(`获取预约 ${response.id} 的房间分配状态失败:`, response.error);
-          return;
-        }
-        
-        const reservationIndex = newReservations.findIndex(r => r.id === response.id);
-        if (reservationIndex === -1) return;
-        
-        const assignmentData = response.data;
-        
-        // 检查是否有主房间分配
-        const hasMainRoomAssignment = assignmentData.assignments &&
-          assignmentData.assignments.some(
-            (a: any) => a.roomType === newReservations[reservationIndex].roomType
-          );
-        
-        // 检查是否有Slow Room分配（套餐）
-        const hasSlowRoomAssignment = newReservations[reservationIndex].slowRoomAsSetPlan &&
-          assignmentData.assignments &&
-          assignmentData.assignments.some(
-            (a: any) => a.roomType === "slow_room"
-          );
-        
-        // 检查是否已发送卡片邮件
-        const cardEmailSent = assignmentData.reservation?.cardEmailSent === true;
-        
-        newReservations[reservationIndex] = {
-          ...newReservations[reservationIndex],
-          hasRoomAssignment: hasMainRoomAssignment,
-          hasSlowRoomAssignment: hasSlowRoomAssignment,
-          cardEmailSent: cardEmailSent,
-        };
-      });
-      
-      setReservations(newReservations);
-      setAssignmentsLoaded(true);
-      
-    } catch (error) {
-      console.error("批量获取房间分配状态时出错:", error);
-    } finally {
-      setLoadingRoomAssignments(false);
-    }
-  }, [user, reservations, currentPage, itemsPerPage, loadingReservations, loadingRoomAssignments, showReservationList]);
-
-  // 监听当前页面变化，加载对应页面的房间分配状态，但仅当显示预约列表且用户没有正在执行其他操作时执行
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-    
-    if (showReservationList && !loadingReservations && !loadingRoomAssignments) {
-      // 添加延迟，避免频繁调用
-      timeoutId = setTimeout(() => {
-        loadRoomAssignmentsForCurrentPage();
-      }, 300);
-    }
-    
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-    };
-  }, [currentPage, showReservationList, loadingReservations, loadingRoomAssignments, loadRoomAssignmentsForCurrentPage]);
+  }, [user]); // 只依赖user，不依赖searchEmail和searchDate
 
   // 选择预约后检查房间可用性
   const checkRoomAvailability = async (reservation: ExtendedReservation) => {
@@ -310,8 +203,10 @@ export default function CardIssueManagementPage() {
       setGeneratedCard(null);
       setGeneratedSlowRoomCard(null);
       setError1(null);
-      // 邮件状态重置 - 确保使用预约的实际状态
+      
+      // 从预约记录获取邮件发送状态，而不是从房间分配记录
       setEmailSent(reservation.cardEmailSent === true);
+      
       // 隐藏预约列表，转到房间分配视图
       setShowReservationList(false);
 
@@ -319,6 +214,8 @@ export default function CardIssueManagementPage() {
 
       // 如果已经分配了房间，获取分配信息和卡片信息
       if (reservation.hasRoomAssignment) {
+        console.log(`预约 ${reservation.id} 已有房间分配，获取卡片信息`);
+        
         // 获取房间分配信息
         const roomAssignmentsResponse = await fetch(
           `/api/admin/room-assignments?reservationId=${reservation.id}`,
@@ -381,6 +278,8 @@ export default function CardIssueManagementPage() {
         setAvailableSlowRooms({});
         
       } else {
+        console.log(`预约 ${reservation.id} 没有房间分配，获取可用房间`);
+        
         // 检查是否为套餐预约
         const isSetPlan = reservation.slowRoomAsSetPlan === true;
         setShowSetPlanSection(isSetPlan);
@@ -849,6 +748,11 @@ export default function CardIssueManagementPage() {
     if (!reservationsData.length) return [];
     
     return reservationsData.filter(reservation => {
+      // 0. 确保不显示已取消的预约
+      if (reservation.paymentStatus === "cancelled") {
+        return false;
+      }
+      
       // 1. 邮箱过滤
       if (searchEmail && !reservation.userEmail?.toLowerCase().includes(searchEmail.toLowerCase())) {
         return false;
@@ -949,37 +853,128 @@ export default function CardIssueManagementPage() {
 
   // 搜索条件更改时的处理
   const handleSearch = () => {
-    // 修改为只在明确需要重新加载时调用API
-    if (reservations.length === 0) {
-      // 如果没有任何数据，则从API获取
-      loadReservations();
-    } else {
-      // 如果已有数据，只修改当前页
-      setCurrentPage(1);
+    // 从refs获取当前输入值
+    const emailValue = emailInputRef.current?.value || "";
+    const dateValue = dateInputRef.current?.value || "";
+    
+    // 将当前页重置回第一页
+    setCurrentPage(1);
+    
+    // 直接使用输入的值进行搜索，不通过状态更新
+    if (user) {
+      // 记录本次搜索参数，避免重复搜索
+      console.log("开始执行搜索，条件:", { email: emailValue, date: dateValue });
+      
+      setLoadingReservations(true);
+      setAssignmentsLoaded(false);
+      setError1(null);
+      
+      user.getIdToken().then(idToken => {
+        let url = "/api/admin/reservations-with-assignments?limit=500";
+        
+        if (emailValue) {
+          url += `&email=${encodeURIComponent(emailValue)}`;
+        }
+        if (dateValue) {
+          url += `&date=${encodeURIComponent(dateValue)}`;
+        }
+        
+        console.log("执行搜索请求:", url);
+        
+        fetch(url, {
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
+        })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error("予約データの取得に失敗しました");
+          }
+          return response.json();
+        })
+        .then(data => {
+          console.log(`搜索结果: 获取到 ${data.reservations?.length || 0} 条预约数据`);
+          
+          // 确保所有预约记录都是已支付状态 - 再做一次过滤
+          const paidReservations = data.reservations
+            ? data.reservations.filter((res: ExtendedReservation) => res.paymentStatus === "paid")
+            : [];
+          
+          console.log(`搜索结果: 过滤后剩余 ${paidReservations.length} 条已支付预约`);
+          
+          // 设置预约数据，包含房间分配状态
+          setReservations(paidReservations);
+          setAssignmentsLoaded(true);
+          
+          // 更新状态，用于显示当前搜索条件
+          setSearchEmail(emailValue);
+          setSearchDate(dateValue);
+        })
+        .catch(error => {
+          console.error("予約の読み込みエラー:", error);
+          setError1(error instanceof Error ? error.message : "予約の読み込みに失敗しました");
+        })
+        .finally(() => {
+          setLoadingReservations(false);
+        });
+      });
     }
-  };
-
-  // 处理日期格式转换
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const dateValue = e.target.value;
-    setSearchDate(dateValue);
-    // 将当前页重置回第一页
-    setCurrentPage(1);
-  };
-  
-  // 处理邮箱搜索
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchEmail(e.target.value);
-    // 将当前页重置回第一页
-    setCurrentPage(1);
   };
 
   // 组件挂载后如果是管理员则加载预约
   useEffect(() => {
     if (adminState.isAdmin && adminState.checkComplete) {
-      loadReservations();
+      console.log("组件初始化，开始加载数据");
+      // 清空搜索条件
+      setSearchEmail("");
+      setSearchDate("");
+      
+      // 直接进行初始加载，避免通过状态变更触发额外的API调用
+      if (user) {
+        setLoadingReservations(true);
+        setAssignmentsLoaded(false);
+        setError1(null);
+        
+        user.getIdToken().then(idToken => {
+          const url = "/api/admin/reservations-with-assignments?limit=500";
+          
+          console.log("初始化加载请求:", url);
+          
+          fetch(url, {
+            headers: {
+              Authorization: `Bearer ${idToken}`,
+            },
+          })
+          .then(response => {
+            if (!response.ok) {
+              throw new Error("予約データの取得に失敗しました");
+            }
+            return response.json();
+          })
+          .then(data => {
+            console.log(`初始化加载: 获取到 ${data.reservations?.length || 0} 条预约数据`);
+            
+            // 确保所有预约记录都是已支付状态
+            const paidReservations = data.reservations
+              ? data.reservations.filter((res: ExtendedReservation) => res.paymentStatus === "paid")
+              : [];
+            
+            // 设置预约数据
+            setReservations(paidReservations);
+            setAssignmentsLoaded(true);
+            setCurrentPage(1);
+          })
+          .catch(error => {
+            console.error("初始化加载错误:", error);
+            setError1(error instanceof Error ? error.message : "予約の読み込みに失敗しました");
+          })
+          .finally(() => {
+            setLoadingReservations(false);
+          });
+        });
+      }
     }
-  }, [adminState.isAdmin, adminState.checkComplete, loadReservations]);
+  }, [adminState.isAdmin, adminState.checkComplete, user]);
 
   // 计算分页数据 - 修改为使用过滤后的数据
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -1062,8 +1057,8 @@ export default function CardIssueManagementPage() {
                   </label>
                   <input
                     type="email"
-                    value={searchEmail}
-                    onChange={handleEmailChange}
+                    ref={emailInputRef}
+                    defaultValue={searchEmail}
                     placeholder="example@email.com"
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
                   />
@@ -1074,8 +1069,8 @@ export default function CardIssueManagementPage() {
                   </label>
                   <input
                     type="date"
-                    value={searchDate}
-                    onChange={handleDateChange}
+                    ref={dateInputRef}
+                    defaultValue={searchDate}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
                   />
                 </div>
@@ -1092,9 +1087,59 @@ export default function CardIssueManagementPage() {
                   </button>
                   <button
                     onClick={() => {
+                      // 重置输入框值
+                      if (emailInputRef.current) emailInputRef.current.value = "";
+                      if (dateInputRef.current) dateInputRef.current.value = "";
+                      
+                      // 重置状态
                       setSearchEmail("");
                       setSearchDate("");
                       setCurrentPage(1);
+                      
+                      // 直接使用同样的逻辑加载所有数据
+                      console.log("执行重置操作，加载所有预约");
+                      if (user) {
+                        setLoadingReservations(true);
+                        setAssignmentsLoaded(false);
+                        setError1(null);
+                        
+                        user.getIdToken().then(idToken => {
+                          const url = "/api/admin/reservations-with-assignments?limit=500";
+                          
+                          console.log("重置后请求所有数据:", url);
+                          
+                          fetch(url, {
+                            headers: {
+                              Authorization: `Bearer ${idToken}`,
+                            },
+                          })
+                          .then(response => {
+                            if (!response.ok) {
+                              throw new Error("予約データの取得に失敗しました");
+                            }
+                            return response.json();
+                          })
+                          .then(data => {
+                            console.log(`重置结果: 获取到 ${data.reservations?.length || 0} 条预约数据`);
+                            
+                            // 确保所有预约记录都是已支付状态
+                            const paidReservations = data.reservations
+                              ? data.reservations.filter((res: ExtendedReservation) => res.paymentStatus === "paid")
+                              : [];
+                            
+                            // 设置预约数据
+                            setReservations(paidReservations);
+                            setAssignmentsLoaded(true);
+                          })
+                          .catch(error => {
+                            console.error("重置加载错误:", error);
+                            setError1(error instanceof Error ? error.message : "予約の読み込みに失敗しました");
+                          })
+                          .finally(() => {
+                            setLoadingReservations(false);
+                          });
+                        });
+                      }
                     }}
                     className="ml-2 px-4 py-2 bg-gray-200 text-gray-800 rounded-md text-sm font-zen-kaku-gothic hover:bg-gray-300"
                   >
