@@ -58,7 +58,8 @@ const clearAuthCookie = (): void => {
 export const registerUser = async (
   email: string,
   password: string,
-  userData: Omit<UserData, "uid" | "email" | "createdAt" | "updatedAt">
+  userData: Omit<UserData, "uid" | "email" | "createdAt" | "updatedAt">,
+  reservationInfo?: string
 ): Promise<{ success: boolean; data?: User; error?: any }> => {
   try {
     // 1. Firebase Authでユーザー作成
@@ -71,24 +72,43 @@ export const registerUser = async (
     // 2. 新規ユーザーのUID取得
     const user = userCredential.user;
 
+    // 如果有预约信息，保存到localStorage
+    if (reservationInfo) {
+      // 保存预约ID到localStorage（同设备解决方案）
+      localStorage.setItem("reservationId", reservationInfo);
+      localStorage.setItem("tempUserEmail", email);
+    }
+
     // 3. メール認証メール送信 - パラメータ追加
     const productionDomain = process.env.NEXT_PUBLIC_BASE_URL;
     const isProduction = process.env.NODE_ENV === 'production';
     
-    const verificationUrl = isProduction
-      ? `${productionDomain}/__/auth/action`
-      : emailVerificationSettings.url;
+    // 确保baseUrl设置正确
+    const baseUrl = isProduction && productionDomain 
+      ? productionDomain 
+      : window.location.origin;
     
-    // 明確な設定を使用
+    // 构建验证URL - 这将作为continueUrl传递给Firebase
+    let verificationUrl = `${baseUrl}/__/auth/action`;
+    
+    // 添加预约信息到URL，这些信息会保留在continueUrl中
+    if (reservationInfo) {
+      const separator = verificationUrl.includes('?') ? '&' : '?';
+      verificationUrl += `${separator}reservationInfo=${encodeURIComponent(reservationInfo)}`;
+    }
+    
+    // 明確な設定を使用 - 注意：Firebase验证链接的处理URL是/auth/action
+    // 而verificationUrl是验证成功后的重定向URL（continueUrl）
     const actionCodeSettings = {
-      url: verificationUrl,
+      url: verificationUrl,  // 这个URL会作为continueUrl参数传递
       handleCodeInApp: true,
-      // カスタムパラメータ追加 - メールとユーザーIDでユーザー識別を容易に
-      // 注意: Firebaseは一部のパラメータをフィルタリングする可能性がありますが、これらは通常安全です
       dynamicLinkDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
     };
 
     await sendEmailVerification(user, actionCodeSettings);
+
+    // 只保存邮箱，移除密码存储
+    localStorage.setItem("tempUserEmail", email);
 
     // 4. Firestoreにユーザードキュメント作成
     await setDoc(doc(db, "users", user.uid), {
@@ -135,19 +155,31 @@ export const resendVerificationEmail = async (): Promise<{
       return { success: false, error: "ユーザーがログインしていません" };
     }
 
-    // 現在の環境設定を取得
+    // 获取预约信息ID（如果存在）
+    const reservationId = localStorage.getItem("reservationId");
+    const userEmail = auth.currentUser.email;
+    
+    // 确保baseUrl设置正确 
     const productionDomain = process.env.NEXT_PUBLIC_BASE_URL;
     const isProduction = process.env.NODE_ENV === 'production';
+    const baseUrl = isProduction && productionDomain 
+      ? productionDomain 
+      : window.location.origin;
     
-    // 本番環境では常に本番ドメインを使用
-    const verificationUrl = isProduction
-      ? `${productionDomain}/__/auth/action`
-      : emailVerificationSettings.url;
+    // 构建验证URL - 这将作为continueUrl传递给Firebase
+    let verificationUrl = `${baseUrl}/__/auth/action`;
+    
+    // 添加预约信息到URL
+    if (reservationId) {
+      const separator = verificationUrl.includes('?') ? '&' : '?';
+      verificationUrl += `${separator}reservationInfo=${encodeURIComponent(reservationId)}`;
+    }
     
     // 明確なURL設定を使用
     const actionCodeSettings = {
-      url: verificationUrl,
-      handleCodeInApp: true
+      url: verificationUrl,  // 这个URL会作为continueUrl参数传递
+      handleCodeInApp: true,
+      dynamicLinkDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
     };
 
     await sendEmailVerification(auth.currentUser, actionCodeSettings);

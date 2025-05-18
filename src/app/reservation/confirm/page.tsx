@@ -8,6 +8,7 @@ import { onAuthStateChange, getUserData } from "@/utils/auth";
 import { User } from "firebase/auth";
 import { Coupon } from "@/types/coupon";
 import CouponSection from "@/components/CouponSection";
+import { deleteTempReservationById } from "@/utils/tempReservation";
 
 export default function ReservationConfirm() {
   const router = useRouter();
@@ -264,9 +265,25 @@ export default function ReservationConfirm() {
             // 添加是否选择了slow room作为套餐
             hasSlowRoomPlan: parsedInfo.needSlowRoom,
           });
+
+          // 清理临时预约信息：数据已成功恢复到确认页面，临时数据已完成使命
+          const reservationId = localStorage.getItem("reservationId");
+          if (reservationId) {
+            deleteTempReservationById(reservationId)
+              .then(success => {
+                if (success) {
+                  // 删除成功后，清除localStorage中的ID
+                  localStorage.removeItem("reservationId");
+                  console.log("预约数据已成功恢复到确认页面，临时数据已清理");
+                }
+              })
+              .catch(error => {
+                console.error("Failed to delete temporary reservation:", error);
+              });
+          }
         }
-      } catch (error) {
-        console.error("Error parsing reservation info:", error);
+      } catch (err) {
+        console.error("解析预约信息时出错:", err);
       }
     } else {
       console.warn("No reservation info found in localStorage");
@@ -480,7 +497,7 @@ export default function ReservationConfirm() {
       }
 
       const { url } = await response.json();
-
+      
       // 重定向到Stripe支付页面
       if (url) {
         // 保存预约信息到localStorage，支付成功后可以使用

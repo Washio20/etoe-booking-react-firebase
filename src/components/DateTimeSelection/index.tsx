@@ -9,6 +9,7 @@ import { TimeSlot } from "../types";
 import { auth } from "@/utils/firebase";
 import { onAuthStateChange } from "@/utils/auth";
 import { RoomType } from "@/types/room";
+import { saveTempReservation } from "@/utils/tempReservation";
 
 // 是否为纯sauna房间
 const isPureSaunaRoom = (roomType: string): boolean => {
@@ -640,7 +641,7 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
   };
 
   // 处理预约按钮点击
-  const handleReservation = () => {
+  const handleReservation = async () => {
     if (!agreeToTerms) {
       setShowTermsError(true);
       return;
@@ -664,8 +665,7 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
       ? new Date(selectedDateStr).toISOString()
       : null;
 
-    // 保存选择的时间和日期信息到localStorage
-    // 对于非纯sauna房间(如sauna_suite)，不需要slow room信息
+    // 创建预约信息对象
     const selectedInfo = {
       selectedRoomType,
       selectedDate: selectedDateValue,
@@ -692,8 +692,23 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
       // 已登录用户直接跳转到预约确认页面
       router.push("/reservation/confirm");
     } else {
-      // 未登录用户跳转到登录页面
+      // 对于未登录用户，将预约信息保存到Firestore，并获取唯一ID
+      try {
+        // 保存到Firestore
+        const reservationId = await saveTempReservation(selectedInfo);
+        
+        if (reservationId) {
+          // 将ID保存到localStorage，以便在同设备场景中使用
+          localStorage.setItem("reservationId", reservationId);
+        }
+        
+        // 跳转到登录页面
+        router.push("/login?returnTo=/reservation/confirm");
+      } catch (error) {
+        console.error("Failed to save reservation:", error);
+        // 即使保存失败，仍然跳转到登录页面
       router.push("/login?returnTo=/reservation/confirm");
+      }
     }
   };
 

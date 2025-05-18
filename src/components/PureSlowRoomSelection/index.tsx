@@ -11,6 +11,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import Precautions from "../Precautions";
+import { saveTempReservation } from "@/utils/tempReservation";
 
 // 星期几标签
 const weekDays = ["日", "月", "火", "水", "木", "金", "土"];
@@ -1024,7 +1025,7 @@ export default function ImprovedPureSlowRoomSelection({
   };
 
   // 处理预约按钮点击
-  const handleReservation = () => {
+  const handleReservation = async () => {
     if (!agreeToTerms) {
       setShowTermsError(true);
       return;
@@ -1088,8 +1089,24 @@ export default function ImprovedPureSlowRoomSelection({
       // 已登录用户直接跳转到预约确认页面
       router.push("/reservation/confirm");
     } else {
-      // 未登录用户跳转到登录页面
-      router.push("/login?returnTo=/reservation/confirm");
+      // 对于未登录用户，将预约信息保存到Firestore，并获取唯一ID
+      try {
+        // 保存到Firestore
+        const reservationId = await saveTempReservation(selectedInfo);
+        
+        if (reservationId) {
+          // 将ID保存到localStorage，以便在同设备场景中使用
+          localStorage.setItem("reservationId", reservationId);
+          console.log("纯slow room预约信息已临时保存，ID:", reservationId);
+        }
+        
+        // 跳转到登录页面
+        router.push("/login?returnTo=/reservation/confirm");
+      } catch (error) {
+        console.error("Failed to save pure slow room reservation:", error);
+        // 即使保存失败，仍然跳转到登录页面
+        router.push("/login?returnTo=/reservation/confirm");
+      }
     }
   };
 
