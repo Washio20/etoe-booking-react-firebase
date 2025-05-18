@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import AuthWrapper from "@/components/AuthWrapper";
+import Script from "next/script";
 
 // 定义CSS变量供全局使用
 const fontFallback = 'var(--font-zen-kaku-gothic, "Helvetica Neue", Arial, sans-serif)';
@@ -58,6 +59,19 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <head>
+        {/* Google Tag Manager */}
+        <Script
+          id="gtm-script"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-5MJXML8P');`,
+          }}
+        />
+        {/* End Google Tag Manager */}
         <style dangerouslySetInnerHTML={{ __html: `
           :root {
             --font-zen-kaku-gothic: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
@@ -72,6 +86,10 @@ export default function RootLayout({
         suppressHydrationWarning
         style={{ fontFamily: fontFallback }}
       >
+        {/* Google Tag Manager (noscript) */}
+        <noscript dangerouslySetInnerHTML={{ __html: `<iframe src="https://www.googletagmanager.com/ns.html?id=GTM-5MJXML8P"
+height="0" width="0" style="display:none;visibility:hidden"></iframe>` }} />
+        {/* End Google Tag Manager (noscript) */}
         <AuthWrapper>{children}</AuthWrapper>
       </body>
     </html>
