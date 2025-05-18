@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
+  // 禁用React的StrictMode
+  reactStrictMode: false,
   // 添加这些配置
   experimental: {
     // 将这些包标记为外部包，避免构建时验证

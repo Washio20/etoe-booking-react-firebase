@@ -90,6 +90,9 @@ export default function Register() {
     setLoading(true);
 
     try {
+      // 获取预约信息ID（如果存在）
+      const reservationId = localStorage.getItem("reservationId");
+      
       // 调用注册函数
       const { success, error, data } = await registerUser(
         formData.email,
@@ -99,10 +102,13 @@ export default function Register() {
           phone: formData.phone,
           birthdate: formData.birthdate,
           gender: formData.gender as "male" | "female" | "",
-        }
+        },
+        reservationId || undefined
       );
 
       if (success) {
+        localStorage.setItem("tempUserEmail", formData.email);
+        
         // 注册成功，显示验证邮件提示
         setRegistrationSuccess(true);
         setRegisteredEmail(formData.email);

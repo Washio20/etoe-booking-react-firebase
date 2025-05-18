@@ -1,59 +1,73 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { applyActionCode } from 'firebase/auth';
+import { initAdmin } from '@/utils/firebase-admin';
+import admin from "firebase-admin";
+import { auth as clientAuth } from '@/utils/firebase';
+
+// 设置此API路由为动态路由，不进行静态生成
+export const dynamic = "force-dynamic";
+
+// 设置时区为日本时区
+process.env.TZ = "Asia/Tokyo";
+
+// 确保Firebase Admin已初始化
+initAdmin();
 
 /**
- * Firebase メール認証リンクを処理する
- * Firebaseの認証メールのリンクには、mode=verifyEmailパラメータとoobCodeパラメータが含まれています
+ * メールアドレス認証を処理するAPI
+ * クライアントサイドから直接Firebaseを呼び出すのではなく、このAPIを経由して認証を行う
  */
-export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const mode = searchParams.get('mode');
-  const oobCode = searchParams.get('oobCode');
-  const apiKey = searchParams.get('apiKey');
-  
-  // メール認証リクエストかどうかをチェック
-  if (mode === 'verifyEmail' && oobCode) {
-    // リダイレクトURLを構築し、すべてのパラメータをフロントエンド検証ページに渡す
-    let redirectUrl = `/email-verification?mode=${mode}&oobCode=${oobCode}`;
-    if (apiKey) {
-      redirectUrl += `&apiKey=${apiKey}`;
+export async function POST(request: NextRequest) {
+  try {
+    // リクエストボディからactionCodeを取得
+    const body = await request.json();
+    const { oobCode } = body;
+    
+    if (!oobCode) {
+      return NextResponse.json({ 
+        success: false, 
+        error: "認証コードが必要です" 
+      }, { status: 400 });
     }
     
-    // Cloud Run 环境中适配正确的主机名
-    // 使用 X-Forwarded-Host 头（由 Cloud Run 设置）或原始主机名
-    let host = request.headers.get('x-forwarded-host') || 
-               request.headers.get('host') || 
-               'book.etoehotel.com';
-               
-    // 使用 X-Forwarded-Proto 头（由 Cloud Run 设置）或默认为 https
-    let protocol = request.headers.get('x-forwarded-proto') || 'https';
+    console.log("[API] メール認証処理:", { oobCode: `${oobCode.substring(0, 10)}...` });
     
-    // 如果有明确的环境变量，优先使用
-    if (process.env.NEXT_PUBLIC_BASE_URL) {
-      const url = new URL(process.env.NEXT_PUBLIC_BASE_URL);
-      host = url.host;
-      protocol = url.protocol.replace(':', '');
+    // Firebase Clientを使用してメール認証を行う
+    try {
+      await applyActionCode(clientAuth, oobCode);
+      
+      console.log("[API] メール認証成功");
+      
+      return NextResponse.json({ 
+        success: true,
+        message: "メールアドレスの認証が完了しました"
+      });
+    } catch (error: any) {
+      console.error("[API] メール認証処理に失敗:", error);
+      
+      // エラーコードに基づいてエラーメッセージを設定
+      let errorMessage = "メール認証に失敗しました";
+      let statusCode = 400;
+      
+      if (error.code === "auth/invalid-action-code") {
+        errorMessage = "認証リンクが無効または期限切れです";
+      } else if (error.code === "auth/user-disabled") {
+        errorMessage = "ユーザーアカウントが無効になっています";
+      } else if (error.code === "auth/user-not-found") {
+        errorMessage = "ユーザーが存在しません";
+      }
+      
+      return NextResponse.json({
+        success: false,
+        error: errorMessage,
+        code: error.code
+      }, { status: statusCode });
     }
-    
-    // 构建完整的 URL
-    const baseUrl = `${protocol}://${host}`;
-    console.log(`[Email Verification] Redirecting to: ${baseUrl}${redirectUrl}`);
-    
-    // フロントエンド検証ページにリダイレクト
-    return NextResponse.redirect(`${baseUrl}${redirectUrl}`);
+  } catch (error) {
+    console.error("[API] リクエスト処理エラー:", error);
+    return NextResponse.json({ 
+      success: false, 
+      error: "サーバーエラーが発生しました" 
+    }, { status: 500 });
   }
-  
-  // メール認証リクエストでない場合、ホームページにリダイレクト
-  let host = request.headers.get('x-forwarded-host') || 
-             request.headers.get('host') || 
-             'book.etoehotel.com';
-  let protocol = request.headers.get('x-forwarded-proto') || 'https';
-  
-  if (process.env.NEXT_PUBLIC_BASE_URL) {
-    const url = new URL(process.env.NEXT_PUBLIC_BASE_URL);
-    host = url.host;
-    protocol = url.protocol.replace(':', '');
-  }
-  
-  const baseUrl = `${protocol}://${host}`;
-  return NextResponse.redirect(`${baseUrl}/`);
 } 
