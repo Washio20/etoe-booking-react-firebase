@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Layout from "@/components/Layout";
 import { auth } from "@/utils/firebase";
 import { onAuthStateChange, getUserData } from "@/utils/auth";
@@ -41,9 +42,11 @@ export default function ReservationConfirm() {
   // 邮件验证相关状态
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
-  const [needResetPassword, setNeedResetPassword] = useState(false);
-  const [resetPasswordUrl, setResetPasswordUrl] = useState("");
   const [checkingVerification, setCheckingVerification] = useState(false);
+
+  // 添加Dialog相关状态
+  const [showDialog, setShowDialog] = useState(false);
+  const [dialogMessage, setDialogMessage] = useState("");
 
   // 添加一个状态用于强制刷新
   const [metadataRefreshTrigger, setMetadataRefreshTrigger] = useState(0);
@@ -265,22 +268,6 @@ export default function ReservationConfirm() {
             // 添加是否选择了slow room作为套餐
             hasSlowRoomPlan: parsedInfo.needSlowRoom,
           });
-
-          // 清理临时预约信息：数据已成功恢复到确认页面，临时数据已完成使命
-          const reservationId = localStorage.getItem("reservationId");
-          if (reservationId) {
-            deleteTempReservationById(reservationId)
-              .then(success => {
-                if (success) {
-                  // 删除成功后，清除localStorage中的ID
-                  localStorage.removeItem("reservationId");
-                  console.log("预约数据已成功恢复到确认页面，临时数据已清理");
-                }
-              })
-              .catch(error => {
-                console.error("Failed to delete temporary reservation:", error);
-              });
-          }
         }
       } catch (err) {
         console.error("解析预约信息时出错:", err);
@@ -338,13 +325,79 @@ export default function ReservationConfirm() {
     }
   }, [user, metadataRefreshTrigger, userInfo.fullName]);
 
-  // 处理用户信息输入变化
-  const handleUserInfoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setUserInfo((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+  // 检查用户邮箱验证状态
+  const checkEmailVerification = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      setCheckingVerification(true);
+
+      // 使用Firebase检查邮箱验证状态
+      const { checkEmailVerification } = await import("@/utils/auth");
+      const isVerified = await checkEmailVerification();
+
+      if (isVerified && user.emailVerified === false) {
+        // 如果邮箱已验证但用户状态未更新，刷新用户
+        await auth.currentUser?.reload();
+        // 刷新页面获取最新状态
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error("Error checking verification status:", error);
+    } finally {
+      setCheckingVerification(false);
+    }
+  }, [user]);
+
+  // 定期检查邮箱验证状态
+  useEffect(() => {
+    if (user && !user.emailVerified) {
+      // 立即检查一次
+      checkEmailVerification();
+
+      // 每30秒检查一次
+      const interval = setInterval(checkEmailVerification, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user, checkEmailVerification]);
+
+  // 如果用户正在加载，显示加载状态
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="max-w-[920px] mx-auto px-4 py-12 text-center">
+          <p className="text-gray-600 font-zen-kaku-gothic">読み込み中...</p>
+        </div>
+      </Layout>
+    );
+  }
+
+  // 处理重新发送验证邮件
+  const handleResendVerification = async () => {
+    try {
+      setSendingEmail(true);
+      setEmailError(null);
+
+      // 调用Firebase重新发送验证邮件
+      const { resendVerificationEmail } = await import("@/utils/auth");
+      const { success, error } = await resendVerificationEmail();
+
+      if (success) {
+        // 替换alert为Dialog
+        setDialogMessage("確認メールを再送信しました。メールをご確認ください。");
+        setShowDialog(true);
+      } else {
+        setEmailError(
+          error?.message ||
+            "確認メールの再送信に失敗しました。もう一度お試しください。"
+        );
+      }
+    } catch (error) {
+      console.error("Error resending verification email:", error);
+      setEmailError("確認メールの再送信中にエラーが発生しました。");
+    } finally {
+      setSendingEmail(false);
+    }
   };
 
   // 处理完成预约并跳转到Stripe支付页面
@@ -352,8 +405,17 @@ export default function ReservationConfirm() {
     try {
       // 确保用户已登录
       if (!user) {
+        // 未登录用户不应该看到这个按钮，但以防万一
         alert("ログインが必要です。");
         router.push("/login?returnTo=/reservation/confirm");
+        return;
+      }
+
+      // 检查用户邮箱是否已验证
+      if (!user.emailVerified) {
+        // 显示邮箱验证Dialog而不是跳转页面，提升用户体验
+        setDialogMessage("予約を続行するには、メールアドレスの確認が必要です。確認用メールをご確認ください。");
+        setShowDialog(true);
         return;
       }
 
@@ -505,6 +567,23 @@ export default function ReservationConfirm() {
           "pendingReservation",
           JSON.stringify(reservationData)
         );
+        
+        // 此时可以清理临时预约信息，因为已经成功创建支付会话，临时数据已完成使命
+        const reservationId = localStorage.getItem("reservationId");
+        if (reservationId) {
+          // 删除临时预约数据
+          deleteTempReservationById(reservationId)
+            .then(success => {
+              if (success) {
+                // 删除成功后，清除localStorage中的ID
+                localStorage.removeItem("reservationId");
+              }
+            })
+            .catch(error => {
+              console.error("Failed to delete temporary reservation:", error);
+            });
+        }
+        
         // 重定向到Stripe支付页面
         window.location.href = url;
       } else {
@@ -515,171 +594,6 @@ export default function ReservationConfirm() {
       alert("決済処理中にエラーが発生しました。もう一度お試しください。");
     }
   };
-
-  // 处理重新发送验证邮件
-  const handleResendVerification = async () => {
-    try {
-      setSendingEmail(true);
-      setEmailError(null);
-
-      // 调用Firebase重新发送验证邮件
-      const { resendVerificationEmail } = await import("@/utils/auth");
-      const { success, error } = await resendVerificationEmail();
-
-      if (success) {
-        alert("確認メールを再送信しました。メールをご確認ください。");
-      } else {
-        setEmailError(
-          error?.message ||
-            "確認メールの再送信に失敗しました。もう一度お試しください。"
-        );
-      }
-    } catch (error) {
-      console.error("Error resending verification email:", error);
-      setEmailError("確認メールの再送信中にエラーが発生しました。");
-    } finally {
-      setSendingEmail(false);
-    }
-  };
-
-  // 检查用户邮箱验证状态
-  const checkEmailVerification = useCallback(async () => {
-    if (!user) return;
-
-    try {
-      setCheckingVerification(true);
-
-      // 使用Firebase检查邮箱验证状态
-      const { checkEmailVerification } = await import("@/utils/auth");
-      const isVerified = await checkEmailVerification();
-
-      if (isVerified && user.emailVerified === false) {
-        // 如果邮箱已验证但用户状态未更新，刷新用户
-        await auth.currentUser?.reload();
-        // 刷新页面获取最新状态
-        window.location.reload();
-      }
-    } catch (error) {
-      console.error("Error checking verification status:", error);
-    } finally {
-      setCheckingVerification(false);
-    }
-  }, [user, setCheckingVerification]);
-
-  // 定期检查邮箱验证状态
-  useEffect(() => {
-    if (user && !user.emailVerified) {
-      // 立即检查一次
-      checkEmailVerification();
-
-      // 每30秒检查一次
-      const interval = setInterval(checkEmailVerification, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [user, checkEmailVerification]);
-
-  // 如果用户正在加载，显示加载状态
-  if (isLoading) {
-    return (
-      <Layout>
-        <div className="max-w-[920px] mx-auto px-4 py-12 text-center">
-          <p className="text-gray-600 font-zen-kaku-gothic">読み込み中...</p>
-        </div>
-      </Layout>
-    );
-  }
-
-  // 验证用户是否已登录
-  if (!user) {
-    return (
-      <Layout>
-        <div className="max-w-[920px] mx-auto px-4 py-12 text-center">
-          <p className="text-red-600 text-sm font-zen-kaku-gothic mb-4">
-            予約を確認するにはログインしてください。
-          </p>
-          <a
-            href="/login?returnTo=/reservation/confirm"
-            className="px-6 py-2 bg-[#444444] text-white rounded-full text-sm tracking-wide font-zen-kaku-gothic hover:bg-[#333333] transition-colors"
-          >
-            ログイン
-          </a>
-        </div>
-      </Layout>
-    );
-  }
-
-  // 检查用户邮箱是否已验证
-  if (user && !user.emailVerified) {
-    return (
-      <Layout>
-        <div className="max-w-[920px] mx-auto px-4 py-12 text-center">
-          <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
-            <h2 className="text-red-600 font-bold text-lg mb-2 font-zen-kaku-gothic">
-              メールアドレスの確認が必要です
-            </h2>
-            <p className="text-gray-700 text-sm mb-4 font-zen-kaku-gothic">
-              {user.email}{" "}
-              宛に確認メールを送信しました。メール内のリンクをクリックして、アカウントを有効化してください。
-            </p>
-            <p className="text-gray-700 text-sm mb-4 font-zen-kaku-gothic">
-              メールが届いていない場合は、迷惑メールフォルダをご確認いただくか、再送信してください。
-            </p>
-
-            {checkingVerification && (
-              <p className="text-blue-600 text-sm mb-4 font-zen-kaku-gothic">
-                メール認証状態を確認中...
-              </p>
-            )}
-
-            {emailError && (
-              <p className="text-red-600 text-sm mb-4 font-zen-kaku-gothic">
-                {emailError}
-              </p>
-            )}
-
-            {needResetPassword ? (
-              <div className="space-y-3">
-                <p className="text-gray-700 text-sm font-zen-kaku-gothic">
-                  パスワードリセットを行うことでもメールアドレスの確認ができます：
-                </p>
-                <a
-                  href={resetPasswordUrl}
-                  className="px-4 py-2 bg-[#444444] text-white rounded-full text-sm font-zen-kaku-gothic hover:bg-[#333333] transition-colors inline-block"
-                >
-                  パスワードリセット
-                </a>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <button
-                  onClick={handleResendVerification}
-                  disabled={sendingEmail}
-                  className={`px-4 py-2 bg-[#444444] text-white rounded-full text-sm font-zen-kaku-gothic hover:bg-[#333333] transition-colors ${
-                    sendingEmail ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
-                >
-                  {sendingEmail ? "送信中..." : "確認メールを再送信"}
-                </button>
-
-                <div className="mt-4">
-                  <button
-                    onClick={checkEmailVerification}
-                    disabled={checkingVerification}
-                    className="text-blue-600 underline text-sm hover:text-blue-800"
-                  >
-                    既にメール認証済みの場合はこちらをクリック
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-          <p className="text-sm text-gray-600 font-zen-kaku-gothic">
-            メールアドレス確認後、再度このページにアクセスして予約を続行してください。
-          </p>
-        </div>
-      </Layout>
-    );
-  }
 
   return (
     <Layout>
@@ -833,29 +747,53 @@ export default function ReservationConfirm() {
               予約者情報
             </h2>
             <div className="bg-white p-6 rounded-md">
-              <div className="grid grid-cols-1 gap-4 text-sm md:text-base">
-                <div className="flex items-center">
-                  <div className="text-gray-700 font-bold font-zen-kaku-gothic w-32 md:w-36">
-                    お名前
+              {user ? (
+                <div className="grid grid-cols-1 gap-4 text-sm md:text-base">
+                  <div className="flex items-center">
+                    <div className="text-gray-700 font-bold font-zen-kaku-gothic w-32 md:w-36">
+                      お名前
+                    </div>
+                    <div className="text-gray-700 font-zen-kaku-gothic flex-1">
+                      {userInfo.fullName}
+                    </div>
                   </div>
-                  <div className="text-gray-700 font-zen-kaku-gothic flex-1">
-                    {userInfo.fullName}
-                  </div>
-                </div>
 
-                <div className="flex items-center">
-                  <div className="text-gray-700 font-bold font-zen-kaku-gothic w-32 md:w-36">
-                    メールアドレス
-                  </div>
-                  <div className="text-gray-700 font-zen-kaku-gothic flex-1">
-                    {user.email}
+                  <div className="flex items-center">
+                    <div className="text-gray-700 font-bold font-zen-kaku-gothic w-32 md:w-36">
+                      メールアドレス
+                    </div>
+                    <div className="text-gray-700 font-zen-kaku-gothic flex-1">
+                      {user.email}
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-gray-700 font-zen-kaku-gothic mb-6">
+                  ご予約には会員登録が必要です。
+                  </p>
+                
+                  <div className="flex flex-col md:flex-row items-center justify-center gap-4">
+                    <Link
+                      href="/register?returnTo=/reservation/confirm"
+                      className="px-6 md:px-12 py-2 md:py-3 text-sm md:text-base font-medium text-[#444444] bg-white border border-[#444444] rounded-full hover:bg-gray-100 font-zen-kaku-gothic inline-block min-w-[12rem] whitespace-nowrap"
+                    >
+                      新規会員登録
+                    </Link>
+                    <Link
+                      href="/login?returnTo=/reservation/confirm"
+                      className="px-6 md:px-12 py-2 md:py-3 text-sm md:text-base font-medium text-white bg-[#444444] rounded-full hover:bg-[#333333] font-zen-kaku-gothic inline-block min-w-[12rem] whitespace-nowrap"
+                    >
+                      ログイン
+                    </Link>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Cancellation Policy */}
+          {user && (
           <div className="text-sm md:text-base text-gray-700 space-y-1 md:space-y-2 font-zen-kaku-gothic mt-2 md:mt-0">
             <p>予約キャンセルは、予約開始時間の48時間前まで無料で可能です。</p>
             <p>以降はキャンセル料100%がかかりますのでお気を付けください。</p>
@@ -865,23 +803,83 @@ export default function ReservationConfirm() {
               あらかじめご了承ください。）
             </p>
           </div>
+          )}
 
-          {/* Action Buttons */}
           <div className="flex justify-center space-x-4 pt-6 md:pt-8">
-            <button
-              onClick={() => router.push("/")}
-              className="px-6 md:px-12 py-2 md:py-3 text-sm md:text-base font-medium text-white bg-gray-600 rounded-full hover:bg-gray-700 font-zen-kaku-gothic"
-            >
-              戻る
-            </button>
-            <button
-              onClick={handleCompleteReservation}
-              className="px-6 md:px-12 py-2 md:py-3 text-sm md:text-base font-medium text-white bg-gray-700 rounded-full hover:bg-gray-800 font-zen-kaku-gothic"
-            >
-              次へ進む
-            </button>
+            {user && (
+              // 已登录用户显示"戻る"和"次へ進む"按钮
+              <>
+                <button
+                  onClick={() => router.push("/")}
+                  className="px-6 md:px-12 py-2 md:py-3 text-sm md:text-base font-medium text-white bg-gray-600 rounded-full hover:bg-gray-700 font-zen-kaku-gothic"
+                >
+                  戻る
+                </button>
+                <button
+                  onClick={handleCompleteReservation}
+                  className="px-6 md:px-12 py-2 md:py-3 text-sm md:text-base font-medium text-white bg-gray-700 rounded-full hover:bg-gray-800 font-zen-kaku-gothic"
+                >
+                  次へ進む
+                </button>
+              </>
+            )}
           </div>
         </div>
+
+        {/* 添加Dialog组件 */}
+        {showDialog && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-sm md:max-w-md mx-auto">
+              {dialogMessage.includes("予約を続行するには") ? (
+                <>
+                  <h3 className="text-lg font-bold text-gray-800 mb-3 font-zen-kaku-gothic">メールアドレスの確認が必要です</h3>
+                  <p className="text-gray-700 mb-4 font-zen-kaku-gothic">{user?.email} 宛に確認メールを送信しました。</p>
+                  <p className="text-gray-700 mb-4 font-zen-kaku-gothic">メール内のリンクをクリックして、アカウントを有効化してください。</p>
+                  
+                  {sendingEmail ? (
+                    <p className="text-blue-600 text-sm mb-4 font-zen-kaku-gothic">
+                      メールを送信中...
+                    </p>
+                  ) : emailError ? (
+                    <p className="text-red-600 text-sm mb-4 font-zen-kaku-gothic">
+                      {emailError}
+                    </p>
+                  ) : null}
+                  
+                  <div className="flex flex-col md:flex-row justify-center space-y-2 md:space-y-0 md:space-x-4 mt-3">
+                    <button
+                      onClick={handleResendVerification}
+                      disabled={sendingEmail}
+                      className={`px-4 py-2 text-white bg-blue-600 rounded-full text-sm font-zen-kaku-gothic hover:bg-blue-700 transition-colors ${
+                        sendingEmail ? "opacity-50 cursor-not-allowed" : ""
+                      }`}
+                    >
+                      確認メールを再送信
+                    </button>
+                    <button
+                      onClick={() => setShowDialog(false)}
+                      className="px-4 py-2 bg-gray-700 text-white rounded-full text-sm font-zen-kaku-gothic hover:bg-gray-800 transition-colors"
+                    >
+                      閉じる
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-gray-700 mb-6 font-zen-kaku-gothic">{dialogMessage}</p>
+                  <div className="flex justify-center">
+                    <button
+                      onClick={() => setShowDialog(false)}
+                      className="px-4 py-2 bg-gray-700 text-white rounded-full text-sm font-zen-kaku-gothic hover:bg-gray-800 transition-colors"
+                    >
+                      OK
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   );

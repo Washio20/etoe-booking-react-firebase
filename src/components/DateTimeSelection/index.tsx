@@ -687,29 +687,25 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
     // 将信息存储到localStorage
     localStorage.setItem("reservationInfo", JSON.stringify(selectedInfo));
 
-    // 使用Firebase检查用户是否已登录
-    if (user) {
-      // 已登录用户直接跳转到预约确认页面
-      router.push("/reservation/confirm");
-    } else {
-      // 对于未登录用户，将预约信息保存到Firestore，并获取唯一ID
+    // 对于未登录用户，保存临时预约数据
+    if (!user) {
       try {
         // 保存到Firestore
         const reservationId = await saveTempReservation(selectedInfo);
         
+        console.log("sauna预约信息已临时保存，ID:", reservationId);
         if (reservationId) {
           // 将ID保存到localStorage，以便在同设备场景中使用
           localStorage.setItem("reservationId", reservationId);
         }
-        
-        // 跳转到登录页面
-        router.push("/login?returnTo=/reservation/confirm");
       } catch (error) {
         console.error("Failed to save reservation:", error);
-        // 即使保存失败，仍然跳转到登录页面
-      router.push("/login?returnTo=/reservation/confirm");
+        // 即使保存失败，也继续跳转
       }
     }
+    
+    // 无论用户是否登录，都直接跳转到预约确认页面
+    router.push("/reservation/confirm");
   };
 
   // 处理checkbox变化
