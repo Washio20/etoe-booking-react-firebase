@@ -128,10 +128,10 @@ const TimeRangeSelector: React.FC<TimeRangeSelectorProps> = ({
   onEndTimeChange,
   selectedDate,
 }) => {
-  // 所有可选小时 (9:00 - 24:00)
-  const startHours = Array.from({ length: 15 }, (_, i) => i + 9);
-  // 修改结束时间最晚为23:40
-  const endHours = Array.from({ length: 15 }, (_, i) => i + 9);
+  // 开始时间显示14:00 - 19:40
+  const startHours = Array.from({ length: 6 }, (_, i) => i + 14);
+  // 结束时间显示16:00 - 21:40
+  const endHours = Array.from({ length: 6 }, (_, i) => i + 16);
   const minutes = ["00", "20", "40"];
 
   // 查找指定时间的可用性信息
@@ -172,6 +172,10 @@ const TimeRangeSelector: React.FC<TimeRangeSelectorProps> = ({
 
   // 处理开始时间选择
   const handleStartTimeSelect = (hour: number, minute: string) => {
+    // 检查是否超出开始时间最大限制（19:40）
+    const isOverStartMaxTime = hour === 19 && parseInt(minute) > 40;
+    if (isOverStartMaxTime) return;
+    
     const { isAvailable } = getAvailabilityInfo(hour, minute);
     if (!isAvailable) return;
 
@@ -248,7 +252,7 @@ const TimeRangeSelector: React.FC<TimeRangeSelectorProps> = ({
           )}
         </div>
 
-        <div className="grid grid-cols-5 md:grid-cols-8 lg:grid-cols-10 gap-2">
+        <div className="grid grid-cols-6 md:grid-cols-6 lg:grid-cols-6 gap-2">
           {startHours.map((hour) => (
             <div key={`start-hour-group-${hour}`} className="space-y-1">
               <div className="text-center text-xs text-gray-500 font-bold">
@@ -298,37 +302,44 @@ const TimeRangeSelector: React.FC<TimeRangeSelectorProps> = ({
           )}
         </div>
 
-        <div className="grid grid-cols-12 gap-1">
+        <div className="grid grid-cols-6 md:grid-cols-6 lg:grid-cols-6 gap-2">
           {endHours.map((hour) => (
             <div
               key={`end-hour-${hour}`}
-              className="col-span-3 md:col-span-2 lg:col-span-1 space-y-1"
+              className="space-y-1"
             >
-              {minutes.map((minute) => {
-                // 添加一个判断，检查该时间是否超出23:40
-                const isOverMaxTime = hour === 23 && parseInt(minute) > 40;
-                const isAvailable =
-                  startHour !== null && 
-                  isValidEndTime(hour, minute) && 
-                  !isOverMaxTime;
-                const isTimePassed = isTimePassedForToday(hour, minute);
-                return (
-                  <TimelineSlot
-                    key={`end-${hour}-${minute}`}
-                    hour={hour}
-                    minute={minute}
-                    isStart={false}
-                    isSelected={isTimeSelected(hour, minute, false)}
-                    isAvailable={isAvailable}
-                    availableCount={undefined}
-                    maxReservations={undefined}
-                    isTimePassed={isTimePassed}
-                    onClick={() =>
-                      isAvailable && handleEndTimeSelect(hour, minute)
-                    }
-                  />
-                );
-              })}
+              <div className="text-center text-xs text-gray-500 font-bold">
+                {hour}時
+              </div>
+              <div className="space-y-1">
+                {minutes.map((minute) => {
+                  // 添加一个判断，检查该时间是否超出21:40
+                  const isOverMaxTime = hour === 21 && parseInt(minute) > 40;
+                  // 对于开始时间，添加特殊处理19:40作为最大值
+                  const isOverStartMaxTime = hour === 19 && parseInt(minute) > 40;
+                  const isAvailable =
+                    startHour !== null && 
+                    isValidEndTime(hour, minute) && 
+                    !isOverMaxTime;
+                  const isTimePassed = isTimePassedForToday(hour, minute);
+                  return (
+                    <TimelineSlot
+                      key={`end-${hour}-${minute}`}
+                      hour={hour}
+                      minute={minute}
+                      isStart={false}
+                      isSelected={isTimeSelected(hour, minute, false)}
+                      isAvailable={isAvailable}
+                      availableCount={undefined}
+                      maxReservations={undefined}
+                      isTimePassed={isTimePassed}
+                      onClick={() =>
+                        isAvailable && handleEndTimeSelect(hour, minute)
+                      }
+                    />
+                  );
+                })}
+              </div>
             </div>
           ))}
         </div>

@@ -104,11 +104,10 @@ const TimeRangeSelector = ({
   onEndTimeChange,
   selectedDate,
 }: TimeRangeSelectorProps) => {
-  // All available hours for display (9:00 - 24:00)
-  // 开始时间显示9:00 - 23:00
-  const startHours = Array.from({ length: 15 }, (_, i) => i + 9);
-  // 结束时间显示到23:40
-  const endHours = Array.from({ length: 15 }, (_, i) => i + 9);
+  // 开始时间显示14:00 - 19:40
+  const startHours = Array.from({ length: 6 }, (_, i) => i + 14);
+  // 结束时间显示16:00 - 21:40
+  const endHours = Array.from({ length: 6 }, (_, i) => i + 16);
   const minutes = ["00", "20", "40"];
 
   // 检查时间是否过期（当天日期的当前时间之前）
@@ -175,6 +174,10 @@ const TimeRangeSelector = ({
 
   // Handle start time selection
   const handleStartTimeSelect = (hour: number, minute: string) => {
+    // 检查是否超出开始时间最大限制（19:40）
+    const isOverStartMaxTime = hour === 19 && parseInt(minute) > 40;
+    if (isOverStartMaxTime) return;
+    
     const { isAvailable } = getAvailabilityInfo(hour, minute);
     if (!isAvailable) return;
 
@@ -229,7 +232,7 @@ const TimeRangeSelector = ({
           )}
         </div>
 
-        <div className="grid grid-cols-5 md:grid-cols-8 lg:grid-cols-10 gap-2">
+        <div className="grid grid-cols-6 md:grid-cols-6 lg:grid-cols-6 gap-2">
           {startHours.map((hour) => (
             <div key={`start-hour-group-${hour}`} className="space-y-1">
               <div className="text-center text-xs text-gray-500 font-bold">
@@ -279,37 +282,44 @@ const TimeRangeSelector = ({
           )}
         </div>
 
-        <div className="grid grid-cols-12 gap-1">
+        <div className="grid grid-cols-6 md:grid-cols-6 lg:grid-cols-6 gap-2">
           {endHours.map((hour) => (
             <div
               key={`end-hour-${hour}`}
-              className="col-span-3 md:col-span-2 lg:col-span-1 space-y-1"
+              className="space-y-1"
             >
-              {minutes.map((minute) => {
-                // 添加一个判断，检查该时间是否超出23:40
-                const isOverMaxTime = hour === 23 && parseInt(minute) > 40;
-                const isAvailable =
-                  startHour !== null && 
-                  isValidEndTime(hour, minute) && 
-                  !isOverMaxTime;
-                const isTimePassed = isTimePassedForToday(hour, minute);
-                return (
-                  <TimelineSlot
-                    key={`end-${hour}-${minute}`}
-                    hour={hour}
-                    minute={minute}
-                    isStart={false}
-                    isSelected={isTimeSelected(hour, minute, false)}
-                    isAvailable={isAvailable}
-                    availableCount={undefined}
-                    maxReservations={undefined}
-                    isTimePassed={isTimePassed}
-                    onClick={() =>
-                      isAvailable && handleEndTimeSelect(hour, minute)
-                    }
-                  />
-                );
-              })}
+              <div className="text-center text-xs text-gray-500 font-bold">
+                {hour}時
+              </div>
+              <div className="space-y-1">
+                {minutes.map((minute) => {
+                  // 添加一个判断，检查该时间是否超出21:40
+                  const isOverMaxTime = hour === 21 && parseInt(minute) > 40;
+                  // 对于开始时间，添加特殊处理19:40作为最大值
+                  const isOverStartMaxTime = hour === 19 && parseInt(minute) > 40;
+                  const isAvailable =
+                    startHour !== null && 
+                    isValidEndTime(hour, minute) && 
+                    !isOverMaxTime;
+                  const isTimePassed = isTimePassedForToday(hour, minute);
+                  return (
+                    <TimelineSlot
+                      key={`end-${hour}-${minute}`}
+                      hour={hour}
+                      minute={minute}
+                      isStart={false}
+                      isSelected={isTimeSelected(hour, minute, false)}
+                      isAvailable={isAvailable}
+                      availableCount={undefined}
+                      maxReservations={undefined}
+                      isTimePassed={isTimePassed}
+                      onClick={() =>
+                        isAvailable && handleEndTimeSelect(hour, minute)
+                      }
+                    />
+                  );
+                })}
+              </div>
             </div>
           ))}
         </div>
@@ -426,16 +436,14 @@ export default function ImprovedSlowRoomSelection({
         <div className="w-full">
           <div className="flex flex-row items-center flex-wrap gap-2 md:gap-3">
             <h2 className="text-[16px] md:text-[20px] font-bold text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
-              セットプランを選択
+              客室の日帰りセットプランを選択
             </h2>
             <span className="inline-block text-xs md:text-sm font-bold text-[#D77777] border-2 border-[#D77777] rounded px-2 py-0.5 whitespace-nowrap font-zen-kaku-gothic">
-              お得なセット割 ¥1,000円
+              セットで¥1,000円お得
             </span>
           </div>
           <p className="text-sm md:text-base text-[#444444] mt-2 font-zen-kaku-gothic">
-            SLOW
-            ROOM（デイユース）をセットでご予約いただくと、通常よりお得に、サウナの前後をゆったりとお過ごしいただけます。
-            レコードプレーヤーとプロジェクターをご用意しており、音と映像に包まれながら、静かな時間をお楽しみください。
+            サウナの前後をゆったりとお過ごしいただけます。 レコードプレーヤーとプロジェクターをご用意しており、音と映像に包まれながら、SLOWROOMで静かな時間をお楽しみください。利用は２時間から可能です。
           </p>
           
           <p className="font-bold text-base text-[#444444] mt-4 font-zen-kaku-gothic">
@@ -453,7 +461,7 @@ export default function ImprovedSlowRoomSelection({
               htmlFor="skip-slow-room"
               className="text-base text-[#444444] font-zen-kaku-gothic cursor-pointer whitespace-nowrap"
             >
-              slow roomを利用しない
+              日帰りを利用しない
             </label>
           </div>
         </div>
