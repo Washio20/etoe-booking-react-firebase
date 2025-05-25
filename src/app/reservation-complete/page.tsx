@@ -190,7 +190,7 @@ function ReservationCompleteContent() {
                 JSON.stringify(verifiedPayments)
               );
             }
-            
+
             console.log("预约找到，处理完成");
             return true;
           }
@@ -238,10 +238,12 @@ function ReservationCompleteContent() {
 
             attemptCount++;
             if (attemptCount < maxAttempts) {
-              console.log(`第${attemptCount}次检查未找到预约，${pollInterval/1000}秒后重试...`);
-              await new Promise((resolve) =>
-                setTimeout(resolve, pollInterval)
+              console.log(
+                `第${attemptCount}次检查未找到预约，${
+                  pollInterval / 1000
+                }秒后重试...`
               );
+              await new Promise((resolve) => setTimeout(resolve, pollInterval));
             }
           }
 
@@ -403,44 +405,6 @@ function ReservationCompleteContent() {
             <br />
             予約内容は予約一覧ページでご確認いただけます。
           </p>
-
-          {/* 房间卡信息 - 已注释掉
-          {isLoadingCards ? (
-            <div className="mt-10 space-y-6">
-              <h2 className="text-xl font-bold text-gray-700">
-                入室カード情報
-              </h2>
-              <div className="text-center py-4">
-                <p className="text-gray-600">カード情報を読み込み中...</p>
-                <div className="animate-pulse mt-4">
-                  <div className="h-64 bg-gray-200 rounded max-w-md mx-auto"></div>
-                </div>
-              </div>
-            </div>
-          ) : roomCards.length > 0 ? (
-            <div className="mt-10 space-y-6">
-              <h2 className="text-xl font-bold text-gray-700">
-                入室カード情報
-              </h2>
-              <div
-                className={`${
-                  roomCards.length > 1
-                    ? "grid grid-cols-1 md:grid-cols-2 gap-4"
-                    : "flex justify-center"
-                }`}
-              >
-                {roomCards.map((card) => (
-                  <RoomCardDisplay key={card.id} card={card} />
-                ))}
-              </div>
-              <p className="text-sm text-gray-600 mt-4">
-                上記QRコードを部屋前のスキャナーにかざして入室してください。
-                <br />
-                予約時間内のみ有効です。
-              </p>
-            </div>
-          ) : null}
-          */}
 
           <div className="space-y-4 mt-8">
             <button
