@@ -139,11 +139,6 @@ function ReservationCompleteContent() {
       // 获取当前用户的ID令牌
       const idToken = await user.getIdToken();
 
-      // 最大重试次数和间隔
-      const maxRetries = 5;
-      const retryInterval = 2000; // 2秒
-      let retryCount = 0;
-
       const attemptVerification = async (): Promise<boolean> => {
         try {
           const response = await fetch(
@@ -195,7 +190,15 @@ function ReservationCompleteContent() {
                 JSON.stringify(verifiedPayments)
               );
             }
+            
+            console.log("预约找到，处理完成");
             return true;
+          }
+
+          // 如果是处理中状态，继续轮询
+          if (data.processing) {
+            console.log("预约仍在处理中，由webhook负责创建");
+            return false;
           }
 
           // 如果是支付未完成的错误，我们继续重试
@@ -218,25 +221,33 @@ function ReservationCompleteContent() {
 
       const runWithRetry = async () => {
         try {
-          while (retryCount < maxRetries) {
+          // 使用轮询机制，等待webhook完成预约创建
+          const maxAttempts = 20; // 最多尝试20次
+          const pollInterval = 2000; // 每2秒检查一次（总计40秒）
+          let attemptCount = 0;
+
+          console.log("开始轮询检查webhook创建的预约状态...");
+
+          while (attemptCount < maxAttempts) {
             const success = await attemptVerification();
             if (success) {
+              console.log(`轮询成功，第${attemptCount + 1}次尝试找到预约`);
               setIsVerifying(false);
               return;
             }
 
-            // 如果验证失败但还可以重试
-            retryCount++;
-            if (retryCount < maxRetries) {
+            attemptCount++;
+            if (attemptCount < maxAttempts) {
+              console.log(`第${attemptCount}次检查未找到预约，${pollInterval/1000}秒后重试...`);
               await new Promise((resolve) =>
-                setTimeout(resolve, retryInterval)
+                setTimeout(resolve, pollInterval)
               );
             }
           }
 
-          // 如果所有重试都失败
+          // 如果所有轮询都失败，可能是webhook处理失败
           setError(
-            "支払い確認がタイムアウトしました。予約一覧で状態をご確認ください。"
+            "予約処理に時間がかかっています。支払いは正常に完了していますので、予約一覧で状態をご確認ください。"
           );
         } catch (error) {
           console.error("Error verifying payment:", error);
