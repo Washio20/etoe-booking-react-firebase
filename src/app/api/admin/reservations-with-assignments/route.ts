@@ -89,12 +89,12 @@ export async function GET(request: Request) {
     }
 
     // 添加调试日志
-    console.log("查询参数:", {
-      limit,
-      email,
-      date,
-      searchDate: searchDate?.toISOString(),
-    });
+    // console.log("查询参数:", {
+    //   limit,
+    //   email,
+    //   date,
+    //   searchDate: searchDate?.toISOString(),
+    // });
 
     // 创建基础查询 - 始终过滤支付状态为paid，不返回已取消的预约
     const reservationsRef = db.collection("reservations");
@@ -134,7 +134,7 @@ export async function GET(request: Request) {
     
     // 执行查询
     const allReservationsSnapshot = await query.get();
-    console.log(`查询返回 ${allReservationsSnapshot.size} 条记录`);
+    // console.log(`查询返回 ${allReservationsSnapshot.size} 条记录`);
 
     // 转换查询结果
     let reservations: ExtendedReservation[] = allReservationsSnapshot.docs.map(
@@ -193,7 +193,7 @@ export async function GET(request: Request) {
             .where("reservationId", "in", batch)
             .get();
           
-          console.log(`批量查询房间分配状态 - 批次大小: ${batch.length}, 结果数量: ${assignmentsQuery.size}`);
+          // console.log(`批量查询房间分配状态 - 批次大小: ${batch.length}, 结果数量: ${assignmentsQuery.size}`);
           
           assignmentsQuery.forEach(doc => {
             const data = doc.data();
@@ -246,7 +246,7 @@ export async function GET(request: Request) {
             // 处理房间分配状态
             const assignmentData = assignmentsMap[reservation.id];
             if (assignmentData) {
-              console.log(`预约 ${reservation.id} 的分配数据存在`);
+              // console.log(`预约 ${reservation.id} 的分配数据存在`);
               
               let assignments = [];
               

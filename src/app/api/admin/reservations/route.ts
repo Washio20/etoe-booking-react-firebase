@@ -95,15 +95,15 @@ export async function GET(request: Request) {
     }
 
     // 添加调试日志
-    console.log("查询参数:", {
-      limit,
-      status,
-      roomType,
-      date, // 原始日期字符串
-      email,
-      reservationId,
-      searchDate: searchDate?.toISOString(), // 解析后的日期对象
-    });
+    // console.log("查询参数:", {
+    //   limit,
+    //   status,
+    //   roomType,
+    //   date, // 原始日期字符串
+    //   email,
+    //   reservationId,
+    //   searchDate: searchDate?.toISOString(), // 解析后的日期对象
+    // });
 
     // 创建基础查询
     const reservationsRef = db.collection("reservations");
@@ -216,7 +216,7 @@ export async function GET(request: Request) {
     
     // 应用limit限制
     const allReservationsSnapshot = await query.limit(limit).get();
-    console.log(`查询返回 ${allReservationsSnapshot.size} 条记录`);
+    // console.log(`查询返回 ${allReservationsSnapshot.size} 条记录`);
 
     // 转换查询结果
     let reservations: Reservation[] = allReservationsSnapshot.docs.map(
