@@ -108,9 +108,9 @@ export async function GET(request: NextRequest) {
     // 格式化为YYYY-MM-DD，用于查询dailyInventory
     const formattedDate = format(date, "yyyy-MM-dd");
 
-    console.log(
-      `请求参数: date=${dateStr}(${formattedDate}), startTime=${normalizedStartTime}, endTime=${normalizedEndTime}`
-    );
+    // console.log(
+    //   `请求参数: date=${dateStr}(${formattedDate}), startTime=${normalizedStartTime}, endTime=${normalizedEndTime}`
+    // );
 
     // 创建请求的时间范围
     const startDateTime = new Date(date);
@@ -119,14 +119,14 @@ export async function GET(request: NextRequest) {
     const endDateTime = new Date(date);
     endDateTime.setHours(endHour, endMinute, 0, 0);
 
-    console.log(
-      `请求时间范围: ${startDateTime.toISOString()} 到 ${endDateTime.toISOString()}`
-    );
+    // console.log(
+    //   `请求时间范围: ${startDateTime.toISOString()} 到 ${endDateTime.toISOString()}`
+    // );
 
     // 获取所有Slow Room的物理房间ID，用于计算总数
     const slowRoomIds = SLOW_ROOM_MAPPING.slow_room || [];
     const totalSlowRooms = slowRoomIds.length;
-    console.log(`总共有 ${totalSlowRooms} 个Slow Room物理房间`);
+    // console.log(`总共有 ${totalSlowRooms} 个Slow Room物理房间`);
 
     // 创建当天的日期范围用于查询
     const startOfDay = new Date(date);

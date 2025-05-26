@@ -69,12 +69,12 @@ export async function GET(request: NextRequest) {
     // 格式化为YYYY-MM-DD，用于查询dailyInventory
     const formattedDate = format(date, "yyyy-MM-dd");
 
-    console.log(`请求参数: date=${dateStr}(${formattedDate})`);
+    // console.log(`请求参数: date=${dateStr}(${formattedDate})`);
 
     // 获取所有Slow Room的物理房间ID，用于计算总数
     const slowRoomIds = SLOW_ROOM_MAPPING.slow_room || [];
     const totalSlowRooms = slowRoomIds.length;
-    console.log(`总共有 ${totalSlowRooms} 个Slow Room物理房间`);
+    // console.log(`总共有 ${totalSlowRooms} 个Slow Room物理房间`);
 
     // 创建当天的日期范围用于查询
     const startOfDay = new Date(date);
@@ -245,7 +245,7 @@ export async function GET(request: NextRequest) {
 
     // 合并所有预约
     const allReservations = [...slowRoomReservations, ...setplanReservations];
-    console.log(`成功提取 ${allReservations.length} 个预约时间段`);
+    // console.log(`成功提取 ${allReservations.length} 个预约时间段`);
 
     // 获取slow room配置，包括dailyInventory
     let maxReservationsFromConfig = totalSlowRooms;
@@ -323,14 +323,14 @@ export async function GET(request: NextRequest) {
       const overlappingCount = overlappingReservations.length;
 
       // 记录重叠的预约IDs用于调试
-      if (overlappingCount > 0) {
-        const overlappingIds = overlappingReservations
-          .map((r) => r.id)
-          .join(", ");
-        console.log(
-          `时间段 ${timeStr}~${endTimeStr} 有 ${overlappingCount} 个重叠预约: ${overlappingIds}`
-        );
-      }
+      // if (overlappingCount > 0) {
+      //   const overlappingIds = overlappingReservations
+      //     .map((r) => r.id)
+      //     .join(", ");
+      //   console.log(
+      //     `时间段 ${timeStr}~${endTimeStr} 有 ${overlappingCount} 个重叠预约: ${overlappingIds}`
+      //   );
+      // }
 
       // 判断是否可用
       const isAvailable = overlappingCount < dailyMaxReservations;
@@ -357,10 +357,10 @@ export async function GET(request: NextRequest) {
     // 修复：特别确保10:00时间槽正确处理，这是一个常见问题点
     const slot1000 = allTimeSlots.find((slot) => slot.startTime === "10:00");
     if (slot1000) {
-      console.log("10:00时间槽数据:", slot1000);
+      // console.log("10:00时间槽数据:", slot1000);
       // 确保如果有可用席位，isAvailable必须为true
       if (slot1000.availableCount > 0 && !slot1000.isAvailable) {
-        console.log("修正10:00时间槽可用状态");
+        // console.log("修正10:00时间槽可用状态");
         slot1000.isAvailable = true;
       }
     }
