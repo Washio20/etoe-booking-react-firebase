@@ -39,6 +39,15 @@ interface Reservation {
   [key: string]: any; // 允许其他属性
 }
 
+// 房间信息接口
+interface Room {
+  id: string;
+  roomType: string;
+  imageUrl?: string;
+  thumbnailUrl?: string;
+  name?: string;
+}
+
 // 获取用户自己的预约列表
 export async function GET(request: Request) {
   try {
@@ -119,6 +128,35 @@ export async function GET(request: Request) {
       return formattedData as Reservation;
     });
 
+    // 获取所有涉及的房间类型
+    const roomTypes = Array.from(new Set(reservations.map(res => res.roomType)));
+    
+    // 批量获取房间信息
+    const roomsMap = new Map<string, Room>();
+    
+    if (roomTypes.length > 0) {
+      try {
+        // 获取所有房间信息（因为房间数量通常不多，直接获取全部）
+        const roomsSnapshot = await db.collection("rooms").get();
+        
+        roomsSnapshot.docs.forEach(doc => {
+          const roomData = doc.data();
+          if (roomTypes.includes(roomData.roomType)) {
+            roomsMap.set(roomData.roomType, {
+              id: doc.id,
+              roomType: roomData.roomType,
+              imageUrl: roomData.imageUrl,
+              thumbnailUrl: roomData.thumbnailUrl,
+              name: roomData.name,
+            });
+          }
+        });
+      } catch (error) {
+        console.error("Error fetching room data:", error);
+        // 如果获取房间信息失败，继续处理但不添加图片
+      }
+    }
+
     // 构建房间类型名称映射
     const roomTypeNames: Record<string, string> = {
       tototo: "TOTOTO",
@@ -129,11 +167,17 @@ export async function GET(request: Request) {
       slow_room: "スロールーム",
     };
 
-    // 添加可读的房间名称
-    const enhancedReservations = reservations.map((res) => ({
-      ...res,
-      roomTypeName: roomTypeNames[res.roomType] || res.roomType,
-    }));
+    // 添加可读的房间名称和图片URL
+    const enhancedReservations = reservations.map((res) => {
+      const room = roomsMap.get(res.roomType);
+      
+      return {
+        ...res,
+        roomTypeName: roomTypeNames[res.roomType] || res.roomType,
+        // 添加房间图片，优先使用thumbnailUrl，其次imageUrl，最后默认图片
+        imageUrl: room?.thumbnailUrl || room?.imageUrl || "/images/room.png",
+      };
+    });
 
     return NextResponse.json({
       reservations: enhancedReservations,

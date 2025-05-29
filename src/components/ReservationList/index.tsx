@@ -1,9 +1,7 @@
-// src\components\ReservationList\index.tsx
-
 "use client";
 
 import Image from "next/image";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { useAuthState } from "react-firebase-hooks/auth";
@@ -62,27 +60,12 @@ export default function ReservationList() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 房间图片映射
-  const roomImages = useMemo<Record<string, string>>(
-    () => ({
-      tototo: "/images/tototo.jpeg",
-      fuuu: "/images/fuuu.jpeg",
-      zabuun: "/images/zabuun.jpeg",
-      toron: "/images/toron.jpeg",
-      sauna_suite: "/images/suite.jpeg",
-      slow_room: "/images/slow-room.jpeg",
-      // 默认图片
-      default: "/images/room.png",
-    }),
-    []
-  );
-
   // 确保只在客户端渲染模态框
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // 获取用户的预约数据
+  // 获取用户的预约数据（现在包含房间图片信息）
   useEffect(() => {
     const fetchReservations = async () => {
       if (!user) return;
@@ -103,18 +86,8 @@ export default function ReservationList() {
         }
 
         const data = await response.json();
-        // 添加图片URL到每个预约记录
-        const enhancedReservations = data.reservations.map(
-          (res: Reservation) => {
-            // 添加图片URL
-            return {
-              ...res,
-              imageUrl: roomImages[res.roomType] || roomImages.default,
-            };
-          }
-        );
-
-        setReservations(enhancedReservations);
+        // 现在后端API已经包含了房间图片信息，直接使用
+        setReservations(data.reservations);
       } catch (err) {
         console.error("Error fetching reservations:", err);
         setError(
@@ -128,7 +101,7 @@ export default function ReservationList() {
     };
 
     fetchReservations();
-  }, [user, roomImages]);
+  }, [user]);
 
   // 判断预约是否已结束的函数
   const isPastReservation = (reservation: Reservation): boolean => {
@@ -393,21 +366,6 @@ export default function ReservationList() {
     try {
       // 记录取消时当前的预约信息，便于调试
       const isFree = canCancelForFree(selectedReservation);
-      // console.log("取消预约:", {
-      //   reservationId: selectedReservation.id,
-      //   isFreeCancel: isFree,
-      //   calculatedFee: calculateCancellationFee(
-      //     typeof selectedReservation.price === "number"
-      //       ? selectedReservation.price
-      //       : parseInt(String(selectedReservation.price)),
-      //     selectedReservation
-      //   ),
-      //   startDateTime: selectedReservation.startDateTime instanceof Date 
-      //     ? selectedReservation.startDateTime.toLocaleString() 
-      //     : '非Date对象',
-      //   displayDate: selectedReservation.displayDate,
-      //   displayTimeRange: selectedReservation.displayTimeRange
-      // });
 
       // 获取用户令牌
       const token = await user.getIdToken();
@@ -432,13 +390,6 @@ export default function ReservationList() {
 
       // 解析响应数据
       const responseData = await response.json();
-      // console.log("取消预约响应:", responseData);
-
-      // 检查退款信息
-      // if (isFree && (!responseData.refund || responseData.refund.amount <= 0)) {
-      //   console.warn("警告: 预期免费取消但返回的退款金额为0或无退款信息", responseData);
-      //   // 仍然继续处理，但记录这个问题
-      // }
 
       // 更新本地预约列表
       setReservations((prev) =>
@@ -519,16 +470,11 @@ export default function ReservationList() {
       
       // 如果成功获取了预约开始时间，计算时间差
       if (reservationStartTime) {
-        // 记录调试信息
-        // console.log(`当前时间: ${now.toLocaleString()}`);
-        // console.log(`预约时间: ${reservationStartTime.toLocaleString()}`);
         
         // 计算时间差（毫秒）
         const timeDifference = reservationStartTime.getTime() - now.getTime();
         // 转换为小时
         const hoursBeforeReservation = timeDifference / (1000 * 60 * 60);
-        
-        // console.log(`距离预约还有: ${hoursBeforeReservation.toFixed(2)} 小时`);
         
         // 48小时以上可以免费取消
         return hoursBeforeReservation >= 48;
@@ -816,9 +762,9 @@ export default function ReservationList() {
           {filteredReservations.map((reservation) => (
             <div
               key={reservation.id}
-              className="flex flex-col md:flex-row md:items-start md:gap-8"
+              className="flex flex-col md:flex-row md:items-stretch md:gap-8"
             >
-              <div className="w-full md:w-[240px] h-[180px] relative rounded overflow-hidden">
+              <div className="w-full md:w-[240px] h-[200px] md:min-h-full relative rounded overflow-hidden md:flex-shrink-0">
                 <Image
                   src={reservation.imageUrl || "/images/room.png"}
                   alt={reservation.roomTypeName}
