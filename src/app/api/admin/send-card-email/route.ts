@@ -99,9 +99,6 @@ ${slowRoomCardViewUrl}
 ※ バーコードはご予約時間内のみ有効です。
 ※ 本リンクはお客様専用です。他の方と共有されませんようお願いいたします。
 
-よくあるご質問
-${fqaUrl}
-
 最新のキャンペーン情報を公式Instagramにてお届けしています。
 https://www.instagram.com/etoe_tokyo/
 

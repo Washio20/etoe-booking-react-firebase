@@ -50,7 +50,7 @@ const Navbar = () => {
     { name: "会員情報", href: "/member", requireLogin: true },
     // { name: "利用ガイド", href: "/guide" },
     // { name: "よくある質問", href: "/faq" },
-    { name: "お問い合わせ", href: "/contact" },
+    { name: "お問い合わせ", href: "https://mj3doa45pxo.typeform.com/to/kLxLSeZX#pid=4792465394462&client=junten" },
   ];
 
   const toggleMobileMenu = () => {

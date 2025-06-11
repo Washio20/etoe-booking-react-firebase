@@ -431,8 +431,8 @@ export default function RoomSelection() {
   // 分类标签列表
   const categoryLabels: Record<RoomCategory, string> = {
     private_sauna: "プライベートサウナ",
-    sauna_suite: "サウナスイート",
-    slow_room: "スロールーム",
+    sauna_suite: "サウナスイート客室",
+    slow_room: "スロールーム客室",
   };
 
   // 检查是否为slow_room房间类型

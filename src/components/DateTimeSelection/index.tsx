@@ -46,7 +46,7 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
     null
   );
   const [showSlowRoomSelection, setShowSlowRoomSelection] = useState(false);
-  const [skipSlowRoom, setSkipSlowRoom] = useState(false);
+  const [skipSlowRoom, setSkipSlowRoom] = useState(true);
   const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [showTermsError, setShowTermsError] = useState(false);
   const [slowRoomAvailabilityError, setSlowRoomAvailabilityError] = useState<
@@ -87,6 +87,7 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
       displayPrice: string;
       timeRangeType: string;
     }>;
+    thumbnailUrl?: string;
   } | null>(null);
 
   // 创建选定日期对象
@@ -202,11 +203,11 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
       }
     };
 
-    // 只有在处理纯sauna房间类型且不跳过slow room时才需要获取slow room设置
-    if (isPureSaunaRoom(selectedRoomType) && !skipSlowRoom) {
+    // 只要是纯sauna房间，就获取slow room设置，以便显示缩略图等信息
+    if (isPureSaunaRoom(selectedRoomType)) {
       fetchSlowRoomSettings();
     }
-  }, [selectedRoomType, skipSlowRoom]);
+  }, [selectedRoomType]);
 
   // 判断日期是否为周末或假日
   const isWeekendOrHolidayDate = useCallback((date: Date): boolean => {
@@ -377,7 +378,7 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
     setSelectedTimeSlot(null);
     setSelectedTimeSlotPrice(0);
     setShowSlowRoomSelection(false);
-    setSkipSlowRoom(false);
+    setSkipSlowRoom(true);
     resetTimeSelection();
     setAgreeToTerms(false);
     setShowTermsError(false);
@@ -636,7 +637,7 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
       setShowSlowRoomSelection(true);
     } else {
       setShowSlowRoomSelection(false);
-      setSkipSlowRoom(false);
+      setSkipSlowRoom(true);
     }
   };
 
@@ -783,6 +784,7 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
           slowRoomAvailabilityError={slowRoomAvailabilityError}
           onStartTimeChange={handleStartTimeChange}
           onEndTimeChange={handleEndTimeChange}
+          slowRoomThumbnailUrl={slowRoomSettings?.thumbnailUrl}
         />
       )}
 
