@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Info, Clock, AlertCircle, Square } from "lucide-react";
+import Image from "next/image";
 
 interface TimelineSlotProps {
   hour: number;
@@ -401,6 +402,7 @@ interface ImprovedSlowRoomSelectionProps {
   slowRoomAvailabilityError: string | null;
   onStartTimeChange: (hour: number, minute: string) => void;
   onEndTimeChange: (hour: number, minute: string) => void;
+  slowRoomThumbnailUrl?: string;
 }
 
 // Improved SlowRoomSelection component to replace in DateTimeSelection
@@ -420,6 +422,7 @@ export default function ImprovedSlowRoomSelection({
   slowRoomAvailabilityError,
   onStartTimeChange,
   onEndTimeChange,
+  slowRoomThumbnailUrl,
 }: ImprovedSlowRoomSelectionProps) {
   const weekDays = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -435,33 +438,45 @@ export default function ImprovedSlowRoomSelection({
       <div className="pb-4 flex flex-col md:flex-row md:justify-between md:items-start">
         <div className="w-full">
           <div className="flex flex-row items-center flex-wrap gap-2 md:gap-3">
-            <h2 className="text-[16px] md:text-[20px] font-bold text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
-              客室の日帰りセットプランを選択
+            <h2 className="text-base md:text-lg text-[#444444] font-bold font-zen-kaku-gothic">
+            オプション：客室のデイユースプラン
             </h2>
             <span className="inline-block text-xs md:text-sm font-bold text-[#D77777] border-2 border-[#D77777] rounded px-2 py-0.5 whitespace-nowrap font-zen-kaku-gothic">
               セットで¥1,000円お得
             </span>
           </div>
+          {slowRoomThumbnailUrl && (
+            <div className="mt-4">
+              <div className="relative w-full md:w-[500px] h-40 md:h-56 rounded-lg overflow-hidden">
+                <Image
+                  src={slowRoomThumbnailUrl}
+                  alt="Slow Room"
+                  layout="fill"
+                  objectFit="cover"
+                />
+              </div>
+            </div>
+          )}
           <p className="text-sm md:text-base text-[#444444] mt-2 font-zen-kaku-gothic">
-            サウナの前後をゆったりとお過ごしいただけます。 レコードプレーヤーとプロジェクターをご用意しており、音と映像に包まれながら、SLOWROOMで静かな時間をお楽しみください。利用は２時間から可能です。
+            <span className="font-bold">サウナの前後を、客室でゆったりと。</span>レコードの音色とプロジェクターの映像をお楽しみいただけます。ご利用は2時間から。
           </p>
           
-          <p className="font-bold text-base text-[#444444] mt-4 font-zen-kaku-gothic">
+          {/* <p className="font-bold text-base text-[#444444] mt-4 font-zen-kaku-gothic">
             利用しない場合は、<Square className="inline w-3 h-3 align-middle -mt-0.5 mx-0.5 text-[#444444]" />にチェックをしてください。
-          </p>
+          </p> */}
           <div className="flex items-start gap-2 mt-2">
             <input
               type="checkbox"
               id="skip-slow-room"
-              className="w-4 h-4 md:w-5 md:h-5 accent-[#444444] mt-0.5"
-              checked={skipSlowRoom}
+              className="w-4 h-4 md:w-4 md:h-4 accent-[#444444] mt-1"
+              checked={!skipSlowRoom}
               onChange={() => setSkipSlowRoom(!skipSlowRoom)}
             />
             <label
               htmlFor="skip-slow-room"
               className="text-base text-[#444444] font-zen-kaku-gothic cursor-pointer whitespace-nowrap"
             >
-              日帰りを利用しない
+              デイユースを利用する
             </label>
           </div>
         </div>
