@@ -146,6 +146,23 @@ etoe sauna & stayをご予約いただき、誠にありがとうございます
 `;
     }
 
+    // 添加优惠券折扣信息（如果有）
+    if (reservation.discountBreakdown && reservation.discountBreakdown.totalDiscount > 0) {
+      textContent += `
+割引詳細:
+`;
+      if (reservation.discountBreakdown.roomDiscount > 0) {
+        textContent += `• ${getRoomTypeDisplayName(reservation.roomType)}: -${reservation.discountBreakdown.roomDiscount.toLocaleString()}円
+`;
+      }
+      if (reservation.discountBreakdown.slowRoomDiscount > 0) {
+        textContent += `• スロールーム: -${reservation.discountBreakdown.slowRoomDiscount.toLocaleString()}円
+`;
+      }
+      textContent += `クーポン割引合計: -${reservation.discountBreakdown.totalDiscount.toLocaleString()}円
+`;
+    }
+
     textContent += `
 料金: ${Number(reservation.price || 0).toLocaleString()}円
 
@@ -217,6 +234,19 @@ Email: info@etoehotel.com
   }
 }
 
+// 获取房间类型显示名称
+function getRoomTypeDisplayName(roomType: string): string {
+  switch (roomType) {
+    case 'tototo': return 'TOTOTO';
+    case 'fuuu': return 'FUUU';
+    case 'zabuun': return 'ZABUUN';
+    case 'toron': return 'TORON';
+    case 'sauna_suite': return 'サウナスイート';
+    case 'slow_room': return 'スロールーム';
+    default: return roomType;
+  }
+}
+
 // 处理预约成功的逻辑
 async function handleReservationSuccess(session: Stripe.Checkout.Session): Promise<string | null> {
   try {
@@ -279,6 +309,17 @@ async function handleReservationSuccess(session: Stripe.Checkout.Session): Promi
         console.log("Webhook: Slow Room 时间范围:", slowRoomTime);
       } catch (e) {
         console.error("Webhook: 无法解析slow room时间范围:", e);
+      }
+    }
+
+    // 解析折扣详情
+    let discountBreakdown = null;
+    if (session.metadata?.discountBreakdown) {
+      try {
+        discountBreakdown = JSON.parse(session.metadata.discountBreakdown);
+        console.log("Webhook: 解析到折扣详情:", discountBreakdown);
+      } catch (e) {
+        console.error("Webhook: 无法解析折扣详情:", e);
       }
     }
 
@@ -351,7 +392,7 @@ async function handleReservationSuccess(session: Stripe.Checkout.Session): Promi
       : 0;
 
     // 创建预约记录
-    const reservationRef = await db.collection("reservations").add({
+    const reservationData: any = {
       // 用户信息
       userId: userRecord.uid,
       userEmail: userRecord.email,
@@ -393,7 +434,14 @@ async function handleReservationSuccess(session: Stripe.Checkout.Session): Promi
 
       // 标记此预约通过webhook创建
       createdViaWebhook: true,
-    });
+    };
+
+    // 如果有折扣详情，添加到预约记录中
+    if (discountBreakdown) {
+      reservationData.discountBreakdown = discountBreakdown;
+    }
+
+    const reservationRef = await db.collection("reservations").add(reservationData);
 
     // 如果应用了优惠券，更新优惠券使用记录
     if (session.metadata?.couponId) {
@@ -411,11 +459,18 @@ async function handleReservationSuccess(session: Stripe.Checkout.Session): Promi
         .get();
       
       if (!couponUsageQuery.empty) {
-        await couponUsageQuery.docs[0].ref.update({
+        const updateData: any = {
           reservationId: reservationId,
           status: "completed", // 更新状态为已完成
           updatedAt: admin.firestore.Timestamp.now()
-        });
+        };
+
+        // 如果有折扣详情，也更新到使用记录中
+        if (discountBreakdown) {
+          updateData.discountBreakdown = discountBreakdown;
+        }
+
+        await couponUsageQuery.docs[0].ref.update(updateData);
         
         // 增加优惠券使用次数
         await db.collection("coupons").doc(session.metadata.couponId).update({
@@ -452,6 +507,7 @@ async function handleReservationSuccess(session: Stripe.Checkout.Session): Promi
             paymentId: session.id,
             slowRoomAsSetPlan: slowRoomAsSetPlan,
             userFullName: userFullName,
+            discountBreakdown: discountBreakdown, // 添加折扣详情
           }
         );
 
