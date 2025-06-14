@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/utils/firebase";
 import Image from "next/image";
@@ -30,9 +30,13 @@ export default function ExternalCardHistory() {
   const [error, setError] = useState<string | null>(null);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [isResending, setIsResending] = useState<string | null>(null);
+  
+  // 分页相关状态
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // 获取外部预约历史
-  const fetchExternalReservations = async () => {
+  const fetchExternalReservations = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -56,26 +60,20 @@ export default function ExternalCardHistory() {
     } catch (error) {
       console.error("Error fetching external reservations:", error);
       setError(
-        error instanceof Error
-          ? error.message
-          : "データの取得中にエラーが発生しました"
+        error instanceof Error ? error.message : "データの取得中にエラーが発生しました"
       );
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user]);
 
   // 重新发送邮件
-  const resendEmail = async (
-    reservationId: string,
-    userEmail: string,
-    userName: string
-  ) => {
+  const resendEmail = async (reservationId: string, userEmail: string, userName: string) => {
     if (!user || isResending) return;
 
     try {
       setIsResending(reservationId);
-
+      
       const idToken = await user.getIdToken();
       const response = await fetch("/api/admin/send-external-card-email", {
         method: "POST",
@@ -101,9 +99,7 @@ export default function ExternalCardHistory() {
     } catch (error) {
       console.error("Error resending email:", error);
       alert(
-        error instanceof Error
-          ? error.message
-          : "メール送信中にエラーが発生しました"
+        error instanceof Error ? error.message : "メール送信中にエラーが発生しました"
       );
     } finally {
       setIsResending(null);
@@ -135,9 +131,19 @@ export default function ExternalCardHistory() {
     return "未知";
   };
 
+  // 计算总页数
+  const totalPages = Math.ceil(reservations.length / itemsPerPage);
+  
+  // 计算当前页应显示的数据
+  const getCurrentPageData = () => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return reservations.slice(startIndex, endIndex);
+  };
+
   useEffect(() => {
     fetchExternalReservations();
-  }, [user]);
+  }, [fetchExternalReservations]);
 
   if (isLoading) {
     return (
@@ -180,22 +186,57 @@ export default function ExternalCardHistory() {
           </p>
         </div>
       ) : (
-        <div className="space-y-4 overflow-y-auto">
-          {reservations.map((reservation) => (
+        <>
+          {/* 分页信息 */}
+          <div className="flex justify-between items-center mb-4">
+            <div className="text-sm text-gray-700 font-zen-kaku-gothic">
+              全 <span className="font-medium">{reservations.length}</span> 件中 
+              <span className="font-medium">
+                {reservations.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}
+              </span> - 
+              <span className="font-medium">
+                {Math.min(currentPage * itemsPerPage, reservations.length)}
+              </span> 件を表示
+            </div>
+            <div className="flex items-center">
+              <label htmlFor="itemsPerPageExternal" className="mr-2 text-sm text-gray-700 font-zen-kaku-gothic">
+                表示件数:
+              </label>
+              <select
+                id="itemsPerPageExternal"
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1); // 重置到第一页
+                }}
+                className="border border-gray-300 rounded-md text-sm px-2 py-1"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-4 overflow-y-auto">
+            {getCurrentPageData().map((reservation) => (
             <div
               key={reservation.id}
               className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
             >
               <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                {/* 主要信息区域 */}
                 <div className="flex-1 space-y-3">
+                  {/* 标题行 */}
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                     <h3 className="font-medium text-gray-800 font-zen-kaku-gothic">
                       {reservation.userName}
                     </h3>
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-sm text-gray-500 font-zen-kaku-gothic">
-                        部屋: {reservation.physicalRoomId.replace("room_", "")}{" "}
-                        ({getRoomTypeDisplay(reservation.physicalRoomId)})
+                        部屋: {reservation.physicalRoomId.replace("room_", "")} (
+                        {getRoomTypeDisplay(reservation.physicalRoomId)})
                       </span>
                       <span
                         className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium font-zen-kaku-gothic ${
@@ -212,25 +253,19 @@ export default function ExternalCardHistory() {
                   {/* 详细信息 */}
                   <div className="space-y-2 text-sm text-gray-600 font-zen-kaku-gothic">
                     <p className="break-words">
-                      <span className="font-medium">メール:</span>{" "}
-                      {reservation.userEmail}
+                      <span className="font-medium">メール:</span> {reservation.userEmail}
                     </p>
                     <p className="break-all">
-                      <span className="font-medium">カード番号:</span>{" "}
-                      {reservation.cardNumber}
+                      <span className="font-medium">カード番号:</span> {reservation.cardNumber}
                     </p>
                     <p className="break-words">
-                      <span className="font-medium">利用期間:</span>{" "}
-                      {formatDateTime(reservation.startAt)} ～{" "}
-                      {formatDateTime(reservation.endAt)}
+                      <span className="font-medium">利用期間:</span> {formatDateTime(reservation.startAt)} ～ {formatDateTime(reservation.endAt)}
                     </p>
-                    {reservation.cardEmailSent &&
-                      reservation.cardEmailSentAt && (
-                        <p className="break-words">
-                          <span className="font-medium">送信日時:</span>{" "}
-                          {formatDateTime(reservation.cardEmailSentAt)}
-                        </p>
-                      )}
+                    {reservation.cardEmailSent && reservation.cardEmailSentAt && (
+                      <p className="break-words">
+                        <span className="font-medium">送信日時:</span> {formatDateTime(reservation.cardEmailSentAt)}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -245,9 +280,7 @@ export default function ExternalCardHistory() {
                     }
                     className="flex-1 lg:flex-none px-3 py-1 bg-blue-100 text-blue-800 rounded text-sm font-zen-kaku-gothic hover:bg-blue-200 transition-colors whitespace-nowrap"
                   >
-                    {expandedCard === reservation.id
-                      ? "非表示"
-                      : "バーコード表示"}
+                    {expandedCard === reservation.id ? "非表示" : "バーコード表示"}
                   </button>
 
                   {/* 重新发送邮件按钮 */}
@@ -286,9 +319,7 @@ export default function ExternalCardHistory() {
                       />
                     ) : (
                       <div
-                        dangerouslySetInnerHTML={{
-                          __html: reservation.barcode,
-                        }}
+                        dangerouslySetInnerHTML={{ __html: reservation.barcode }}
                         className="max-w-full overflow-auto"
                       />
                     )}
@@ -300,7 +331,115 @@ export default function ExternalCardHistory() {
               )}
             </div>
           ))}
-        </div>
+          </div>
+
+          {/* 分页控件 */}
+          {reservations.length > 0 && (
+            <div className="px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6 mt-4">
+              <div className="flex-1 flex justify-between sm:hidden">
+                <button
+                  onClick={() => setCurrentPage(Math.max(currentPage - 1, 1))}
+                  disabled={currentPage === 1 || isLoading}
+                  className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
+                    currentPage === 1 || isLoading
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                      : "bg-white text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  前へ
+                </button>
+                <button
+                  onClick={() => setCurrentPage(Math.min(currentPage + 1, totalPages))}
+                  disabled={currentPage === totalPages || isLoading}
+                  className={`ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
+                    currentPage === totalPages || isLoading
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                      : "bg-white text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  次へ
+                </button>
+              </div>
+              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-gray-700 font-zen-kaku-gothic">
+                    <span className="font-medium">{currentPage}</span> / <span className="font-medium">{Math.max(currentPage, totalPages)}</span> ページ
+                  </p>
+                </div>
+                <div>
+                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="ページネーション">
+                    <button
+                      onClick={() => setCurrentPage(Math.max(currentPage - 1, 1))}
+                      disabled={currentPage === 1 || isLoading}
+                      className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium ${
+                        currentPage === 1 || isLoading
+                          ? "text-gray-300 cursor-not-allowed"
+                          : "text-gray-500 hover:bg-gray-50"
+                      }`}
+                    >
+                      <span className="sr-only">前へ</span>
+                      &laquo;
+                    </button>
+                    
+                    {/* 页码按钮 */}
+                    {Array.from({ length: Math.min(5, Math.max(currentPage, totalPages)) }).map((_, index) => {
+                      let pageNum;
+                      const maxPage = Math.max(currentPage, totalPages);
+                      
+                      // 如果总页数少于5，显示所有页码
+                      if (maxPage <= 5) {
+                        pageNum = index + 1;
+                      }
+                      // 如果当前页在开头，显示1-5
+                      else if (currentPage <= 3) {
+                        pageNum = index + 1;
+                      }
+                      // 如果当前页在末尾，显示末尾5页
+                      else if (currentPage >= maxPage - 2) {
+                        pageNum = maxPage - 4 + index;
+                      }
+                      // 其他情况，显示当前页及其前后2页
+                      else {
+                        pageNum = currentPage - 2 + index;
+                      }
+                      
+                      // 不显示超过实际可用页数的页码
+                      if (pageNum > maxPage) return null;
+                      
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setCurrentPage(pageNum)}
+                          disabled={isLoading}
+                          className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                            currentPage === pageNum
+                              ? "z-10 bg-indigo-50 border-indigo-500 text-indigo-600"
+                              : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
+                          } ${isLoading ? "cursor-not-allowed" : ""}`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                    
+                    <button
+                      onClick={() => setCurrentPage(Math.min(currentPage + 1, totalPages))}
+                      disabled={currentPage === totalPages || isLoading}
+                      className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium ${
+                        currentPage === totalPages || isLoading
+                          ? "text-gray-300 cursor-not-allowed"
+                          : "text-gray-500 hover:bg-gray-50"
+                      }`}
+                    >
+                      <span className="sr-only">次へ</span>
+                      &raquo;
+                    </button>
+                  </nav>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
