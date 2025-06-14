@@ -7,6 +7,7 @@ import { auth } from "@/utils/firebase";
 import Layout from "@/components/Layout";
 import AdminLayout from "@/components/AdminLayout";
 import ExternalCardGenerator from "@/components/admin/ExternalCardGenerator";
+import ExternalCardHistory from "@/components/admin/ExternalCardHistory";
 
 export default function AdminExternalCardsPage() {
   const router = useRouter();
@@ -16,6 +17,9 @@ export default function AdminExternalCardsPage() {
     isAdmin: false,
     checkComplete: false,
   });
+
+  // Tab状态管理
+  const [activeTab, setActiveTab] = useState<"generator" | "history">("generator");
 
   // 管理者権限をチェック
   useEffect(() => {
@@ -91,25 +95,72 @@ export default function AdminExternalCardsPage() {
         <div className="space-y-6">
           <div className="border-b border-gray-300 pb-4">
             <h1 className="text-xl md:text-2xl font-bold text-gray-700 tracking-wider font-zen-kaku-gothic">
-              外部予約サイト用カード発行
+              外部予約サイト用カード管理
             </h1>
           </div>
 
-          <div className="space-y-6">
-            <div className="mb-6 max-w-2xl">
-              <h2 className="text-lg font-medium text-gray-800 mb-2 font-zen-kaku-gothic">
-                外部予約用カード発行について
-              </h2>
-              <p className="text-sm text-gray-600 font-zen-kaku-gothic">
-                Booking.com、Expedia等の外部予約サイトで予約されたお客様のカードを発行する場合は、
-                以下のフォームに必要情報を入力してください。お客様にはカード情報がメールで自動送信されます。
-              </p>
-            </div>
+          {/* Tab导航 */}
+          <div className="border-b border-gray-200">
+            <nav className="flex space-x-8" aria-label="Tabs">
+              <button
+                onClick={() => setActiveTab("generator")}
+                className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm font-zen-kaku-gothic ${
+                  activeTab === "generator"
+                    ? "border-gray-700 text-gray-700"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+              >
+                カード発行
+              </button>
+              <button
+                onClick={() => setActiveTab("history")}
+                className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm font-zen-kaku-gothic ${
+                  activeTab === "history"
+                    ? "border-gray-700 text-gray-700"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+              >
+                発送履歴
+              </button>
+            </nav>
+          </div>
 
-            <ExternalCardGenerator />
+          {/* Tab内容 */}
+          <div className="space-y-6">
+            {activeTab === "generator" && (
+              <>
+                <div className="mb-6">
+                  <h2 className="text-lg font-medium text-gray-800 mb-2 font-zen-kaku-gothic">
+                    外部予約用カード発行について
+                  </h2>
+                  <p className="text-sm text-gray-600 font-zen-kaku-gothic">
+                    Booking.com、Expedia等の外部予約サイトで予約されたお客様のカードを発行する場合は、
+                    以下のフォームに必要情報を入力してください。お客様にはカード情報がメールで自動送信されます。
+                  </p>
+                </div>
+
+                <ExternalCardGenerator />
+              </>
+            )}
+
+            {activeTab === "history" && (
+              <>
+                <div className="mb-6">
+                  <h2 className="text-lg font-medium text-gray-800 mb-2 font-zen-kaku-gothic">
+                    外部予約カード発送履歴
+                  </h2>
+                  <p className="text-sm text-gray-600 font-zen-kaku-gothic">
+                    これまでに発行した外部予約用カードの履歴を確認できます。
+                    メールの再送信やバーコードの確認が可能です。
+                  </p>
+                </div>
+
+                <ExternalCardHistory />
+              </>
+            )}
           </div>
         </div>
       </AdminLayout>
     </Layout>
   );
-} 
+}
