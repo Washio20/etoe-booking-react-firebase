@@ -11,6 +11,14 @@ import { Coupon } from "@/types/coupon";
 import CouponSection from "@/components/CouponSection";
 import { deleteTempReservationById } from "@/utils/tempReservation";
 
+// 折扣详情接口
+interface DiscountBreakdown {
+  totalDiscount: number;
+  roomDiscount: number;
+  slowRoomDiscount: number;
+  applicableItems: string[];
+}
+
 export default function ReservationConfirm() {
   const router = useRouter();
 
@@ -27,6 +35,7 @@ export default function ReservationConfirm() {
     roomPrice: 0,
     slowRoomPrice: 0,
     totalPrice: 0,
+    originalTotalPrice: 0, // 添加原始总价
     isPureSaunaRoom: false,
     hasSlowRoomPlan: false,
   });
@@ -52,10 +61,10 @@ export default function ReservationConfirm() {
   const [metadataRefreshTrigger, setMetadataRefreshTrigger] = useState(0);
 
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
-  const [discountAmount, setDiscountAmount] = useState(0);
+  const [discountBreakdown, setDiscountBreakdown] = useState<DiscountBreakdown | null>(null);
   const [showCouponSection, setShowCouponSection] = useState(false);
 
-  // 计算折扣金额
+  // 兼容性：计算折扣金额（保留旧逻辑作为备用）
   const calculateDiscount = useCallback((coupon: any, originalPrice: number) => {
     if (!coupon) return 0;
     
@@ -74,31 +83,39 @@ export default function ReservationConfirm() {
   }, []);
 
   // 处理应用优惠券
-  const handleCouponApplied = useCallback((coupon: any) => {
+  const handleCouponApplied = useCallback((coupon: Coupon, breakdown?: DiscountBreakdown) => {
     setAppliedCoupon(coupon);
     
-    const originalPrice = reservation.totalPrice;
-    const discount = calculateDiscount(coupon, originalPrice);
-    setDiscountAmount(discount);
-    
-    // 更新价格显示
-    setReservation(prev => ({
-      ...prev,
-      totalPrice: prev.totalPrice - discount,
-    }));
-  }, [reservation.totalPrice, calculateDiscount]);
+    if (breakdown) {
+      setDiscountBreakdown(breakdown);
+      
+      // 更新价格显示
+      setReservation(prev => ({
+        ...prev,
+        totalPrice: prev.originalTotalPrice - breakdown.totalDiscount,
+      }));
+    } else {
+      // 兼容旧的计算方式
+      const originalPrice = reservation.originalTotalPrice;
+      const discount = calculateDiscount(coupon, originalPrice);
+      setReservation(prev => ({
+        ...prev,
+        totalPrice: prev.originalTotalPrice - discount,
+      }));
+    }
+  }, [reservation.originalTotalPrice, calculateDiscount]);
 
   // 处理移除优惠券
   const handleCouponRemoved = useCallback(() => {
     // 恢复原始价格
     setReservation(prev => ({
       ...prev,
-      totalPrice: prev.totalPrice + discountAmount,
+      totalPrice: prev.originalTotalPrice,
     }));
     
     setAppliedCoupon(null);
-    setDiscountAmount(0);
-  }, [discountAmount]);
+    setDiscountBreakdown(null);
+  }, []);
 
   // 监听Firebase认证状态
   useEffect(() => {
@@ -261,6 +278,7 @@ export default function ReservationConfirm() {
             roomPrice: roomPrice,
             slowRoomPrice: slowRoomPrice,
             totalPrice: totalPrice,
+            originalTotalPrice: totalPrice, // 保存原始总价
             // 添加标志，指示是否是纯sauna房间类型
             isPureSaunaRoom: ["tototo", "fuuu", "zabuun", "toron"].includes(
               parsedInfo.selectedRoomType
@@ -524,18 +542,26 @@ export default function ReservationConfirm() {
         // 添加优惠券信息
         couponId: appliedCoupon ? appliedCoupon.id : null,
         couponCode: appliedCoupon ? appliedCoupon.code : null,
-        discountAmount: discountAmount,
+        discountAmount: discountBreakdown ? discountBreakdown.totalDiscount : 0,
         
         // 优惠后的总价
         amount: reservation.totalPrice,
+
+        // 添加折扣详情（新增）
+        discountBreakdown: discountBreakdown ? {
+          roomDiscount: discountBreakdown.roomDiscount,
+          slowRoomDiscount: discountBreakdown.slowRoomDiscount,
+          applicableItems: discountBreakdown.applicableItems
+        } : null,
       };
 
       // 在控制台记录价格信息，用于调试
       console.log("预约价格信息:", {
-        原始总价: (reservation.totalPrice + discountAmount),
-        优惠券折扣: discountAmount,
+        原始总价: reservation.originalTotalPrice,
+        优惠券折扣: discountBreakdown ? discountBreakdown.totalDiscount : 0,
         最终价格: reservation.totalPrice,
-        优惠券ID: appliedCoupon ? appliedCoupon.id : "未使用优惠券"
+        优惠券ID: appliedCoupon ? appliedCoupon.id : "未使用优惠券",
+        折扣详情: discountBreakdown
       });
 
       // 获取当前用户的ID令牌
@@ -701,12 +727,26 @@ export default function ReservationConfirm() {
                     </div>
                   )}
                   
-                  {/* 如果有优惠券折扣 */}
-                  {discountAmount > 0 && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-red-600 font-zen-kaku-gothic text-sm md:text-base">クーポン割引</span>
-                      <span className=" text-red-600 font-zen-kaku-gothic">-{discountAmount.toLocaleString()}円</span>
-                    </div>
+                  {/* 如果有优惠券折扣 - 显示详细的折扣分解 */}
+                  {discountBreakdown && discountBreakdown.totalDiscount > 0 && (
+                    <>
+                      {discountBreakdown.roomDiscount > 0 && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-red-600 font-zen-kaku-gothic text-sm md:text-base">
+                            クーポン割引({getRoomTypeDisplayName(reservation.roomType)})
+                          </span>
+                          <span className=" text-red-600 font-zen-kaku-gothic">-{discountBreakdown.roomDiscount.toLocaleString()}円</span>
+                        </div>
+                      )}
+                      {discountBreakdown.slowRoomDiscount > 0 && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-red-600 font-zen-kaku-gothic text-sm md:text-base">
+                            クーポン割引(スロールーム)
+                          </span>
+                          <span className=" text-red-600 font-zen-kaku-gothic">-{discountBreakdown.slowRoomDiscount.toLocaleString()}円</span>
+                        </div>
+                      )}
+                    </>
                   )}
                   
                   {/* 合计 */}
@@ -737,6 +777,12 @@ export default function ReservationConfirm() {
               <CouponSection 
                 onCouponApplied={handleCouponApplied}
                 onCouponRemoved={handleCouponRemoved}
+                reservationData={{
+                  roomType: reservation.roomType,
+                  roomPrice: reservation.roomPrice,
+                  slowRoomPrice: reservation.slowRoomPrice,
+                  hasSlowRoomPlan: reservation.hasSlowRoomPlan
+                }}
               />
             </div>
           )}
@@ -883,4 +929,17 @@ export default function ReservationConfirm() {
       </div>
     </Layout>
   );
+
+  // 获取房间类型显示名称的辅助函数
+  function getRoomTypeDisplayName(roomType: string): string {
+    switch (roomType) {
+      case 'tototo': return 'TOTOTO';
+      case 'fuuu': return 'FUUU';
+      case 'zabuun': return 'ZABUUN';
+      case 'toron': return 'TORON';
+      case 'sauna_suite': return 'サウナスイート';
+      case 'slow_room': return 'スロールーム';
+      default: return roomType;
+    }
+  }
 }

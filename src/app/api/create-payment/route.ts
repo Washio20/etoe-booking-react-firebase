@@ -85,6 +85,7 @@ export async function POST(req: Request) {
     let amount = reservation.amount;
     let appliedCouponId = reservation.couponId || null;
     let discountAmount = reservation.discountAmount || 0;
+    let discountBreakdown = reservation.discountBreakdown || null;
     let skipCouponProcessing = false;
 
     // 如果前端已经提供了金额和折扣信息，跳过重复处理
@@ -92,7 +93,8 @@ export async function POST(req: Request) {
       console.log("使用前端提供的金额和折扣信息: ", {
         amount: amount,
         couponId: reservation.couponId,
-        discountAmount: reservation.discountAmount
+        discountAmount: reservation.discountAmount,
+        discountBreakdown: discountBreakdown
       });
       skipCouponProcessing = true;
     }
@@ -271,8 +273,8 @@ export async function POST(req: Request) {
         //   updatedAt: now
         // });
         
-        // 创建优惠券使用记录，添加status字段
-        await db.collection("couponUsage").add({
+        // 创建优惠券使用记录，添加status字段和折扣详情
+        const usageRecord: any = {
           couponId: appliedCouponId,
           userId: userRecord.uid,
           reservationId: null, // 此时还没有预约ID
@@ -281,13 +283,43 @@ export async function POST(req: Request) {
           finalAmount: amount,
           usedAt: now,
           status: "pending" // 添加状态字段，初始状态为pending
-        });
+        };
+        
+        // 如果有折扣详情，添加到使用记录中
+        if (discountBreakdown) {
+          usageRecord.discountBreakdown = discountBreakdown;
+        }
+        
+        await db.collection("couponUsage").add(usageRecord);
         
         console.log(`已创建优惠券(${appliedCouponId})使用记录，状态为pending`);
       } catch (error) {
         console.error("创建优惠券使用记录失败:", error);
         // 创建记录失败不应影响支付流程，继续执行
       }
+    }
+
+    // 创建Stripe支付会话的metadata
+    const metadata: any = {
+      userId: userRecord.uid,
+      reservationDate: reservation.date,
+      reservationTime: reservation.time,
+      roomType: reservation.roomType || reservation.room,
+      plan: reservation.plan,
+      price: String(amount), // 添加价格到metadata
+      needSlowRoom: String(reservation.needSlowRoom), // 将布尔值转换为字符串
+      slowRoomTimeRange: slowRoomTimeRangeStr, // 添加slow room时间范围
+      isPureSaunaRoom: String(
+        PURE_SAUNA_ROOM_TYPES.includes(reservation.roomType)
+      ), // 添加是否是纯sauna房间标记
+      couponId: appliedCouponId || "", // 添加优惠券ID
+      discountAmount: String(discountAmount), // 添加折扣金额
+      originalAmount: String(amount + discountAmount), // 添加原始金额
+    };
+
+    // 如果有折扣详情，添加到metadata中
+    if (discountBreakdown) {
+      metadata.discountBreakdown = JSON.stringify(discountBreakdown);
     }
 
     // 创建Stripe支付会话
@@ -310,22 +342,7 @@ export async function POST(req: Request) {
       success_url: `${baseUrl}/reservation-complete?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/reservation/confirm`,
       customer_email: userRecord.email,
-      metadata: {
-        userId: userRecord.uid,
-        reservationDate: reservation.date,
-        reservationTime: reservation.time,
-        roomType: reservation.roomType || reservation.room,
-        plan: reservation.plan,
-        price: String(amount), // 添加价格到metadata
-        needSlowRoom: String(reservation.needSlowRoom), // 将布尔值转换为字符串
-        slowRoomTimeRange: slowRoomTimeRangeStr, // 添加slow room时间范围
-        isPureSaunaRoom: String(
-          PURE_SAUNA_ROOM_TYPES.includes(reservation.roomType)
-        ), // 添加是否是纯sauna房间标记
-        couponId: appliedCouponId || "", // 添加优惠券ID
-        discountAmount: String(discountAmount), // 添加折扣金额
-        originalAmount: String(amount + discountAmount), // 添加原始金额
-      },
+      metadata: metadata,
     });
 
     return NextResponse.json({ url: stripeSession.url });
