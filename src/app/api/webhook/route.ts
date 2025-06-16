@@ -109,7 +109,7 @@ async function sendReservationConfirmationEmail(
     const gmail = google.gmail({ version: "v1", auth: oAuth2Client });
 
     // 邮件主题
-    const subject = "【etoe sauna & stay】ご予約ありがとうございます";
+    const subject = "etoe｜ご予約確定のご案内";
     
     // 手动使用RFC2047标准编码邮件标题
     const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString("base64")}?=`;
@@ -125,8 +125,6 @@ async function sendReservationConfirmationEmail(
     
     // 创建纯文本邮件内容，包含预约详情
     let textContent = `
-${subject}
-
 ${userName} 様
 
 etoe sauna & stayをご予約いただき、誠にありがとうございます。
@@ -166,17 +164,24 @@ etoe sauna & stayをご予約いただき、誠にありがとうございます
     textContent += `
 料金: ${Number(reservation.price || 0).toLocaleString()}円
 
-予約の詳細はこちらから確認できます:
+予約の詳細はこちらから
 ${reservationDetailsUrl}
 
-ご予約の前日までに、入室パスコードをお送りいたします。
-ご予約の変更やキャンセルは、マイページからお手続きいただけます。
+ご予約日時の直前に、入室用のパスコードをお送りします。
+ご予約の変更・キャンセルは、マイページからお手続きいただけます。
+チェックイン方法や館内設備についてはこちら：https://etoehotel.com/#faq
 
-その他ご不明な点がございましたら、お気軽にお問い合わせください。
+アクセス
+etoe sauna & stay
+Googleマップ　https://maps.app.goo.gl/BygJN9XWMWGbbggS9
+JR山手線「新大久保駅」徒歩3分
+JR総武線「大久保駅」徒歩3分
+
 お客様のご来館を心よりお待ちしております。
 
-etoe hotel
-Email: info@etoehotel.com
+※ このメールは送信専用アドレスからお送りしています。
+ご返信いただいても内容の確認ができかねますので、お問い合わせは公式サイトのお問い合わせフォームよりお願いいたします。
+https://etoehotel.com/#contact
 `;
 
     console.log("Webhook: 邮件内容准备完成");

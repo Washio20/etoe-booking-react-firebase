@@ -70,7 +70,7 @@ async function sendEmailWithGmailApi(
     const textContent = `
 ${userName} 様
 
-etoe sauna & stay｜お部屋カード情報のご案内
+etoe｜お部屋カード情報のご案内
 
 このたびは、etoe sauna & stayをご予約いただき、誠にありがとうございます。
 ご滞在予定のお部屋にご入室いただくためのカード情報をお届けいたします。
@@ -79,7 +79,7 @@ etoe sauna & stay｜お部屋カード情報のご案内
 ・ご予約のお部屋用バーコード
 ${cardViewUrl}
 
-※ バーコードはご予約時間内のみ有効です。
+※ バーコードはご予約時間内のみ有効です。5分前よりご入室可能です。
 ※ 本リンクはお客様専用です。他の方と共有されませんようお願いいたします。
 
 最新のキャンペーン情報を公式Instagramにてお届けしています。
@@ -88,8 +88,7 @@ https://www.instagram.com/etoe_tokyo/
 etoeでのひとときが、
 こころほどける、やさしい時間となりますように。
 
-etoe hotel
-Email: info@etoehotel.com
+etoe
 ※本メールは送信専用です。ご返信には対応いたしかねますのでご了承ください。
 `;
 
@@ -223,7 +222,7 @@ export async function POST(req: Request) {
     const roomNumberDisplay = reservationData.physicalRoomId.replace("room_", "");
 
     // 邮件主题 - 使用原始日文标题
-    const emailSubject = "【etoe sauna & stay】ご予約のお部屋カード情報";
+    const emailSubject = "etoe｜お部屋カード情報のご案内";
 
     console.log("准备发送邮件到:", userEmail);
 

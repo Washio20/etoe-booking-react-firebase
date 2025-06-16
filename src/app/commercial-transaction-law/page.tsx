@@ -29,13 +29,8 @@ export default function CommercialTransactionLawPage() {
             </section>
 
             <section>
-              <h2 className="font-medium">メールアドレス</h2>
-              <p>info@etoehotel.com</p>
-            </section>
-
-            <section>
               <h2 className="font-medium">TEL</h2>
-              <p>03-6279-3033</p>
+              <p>050-1726-0426</p>
             </section>
 
             <section>

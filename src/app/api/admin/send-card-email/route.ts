@@ -39,7 +39,8 @@ async function sendEmailWithGmailApi(
   htmlContent: string,
   reservationId: string,
   cardId: string,
-  slowRoomCardId?: string
+  slowRoomCardId?: string,
+  userName?: string
 ): Promise<any> {
   try {
     // 获取授权客户端
@@ -73,12 +74,12 @@ async function sendEmailWithGmailApi(
 
     // 创建纯文本邮件内容，包含访问网站的链接
     let textContent = `
-${subject}
+${userName ? `${userName} 様` : "お客様"}
 
-etoe sauna & stay｜お部屋カード情報のご案内
+etoe｜お部屋カード情報のご案内
+
 このたびは、etoe sauna & stayをご予約いただき、誠にありがとうございます。
 ご滞在予定のお部屋にご入室いただくためのカード情報をお届けいたします。
-詳細なご予約内容は、会員ページよりご確認いただけます。
 
 入室カードのご確認はこちら
 ・ご予約のお部屋用バーコード
@@ -96,7 +97,7 @@ ${slowRoomCardViewUrl}
     }
 
     textContent += `
-※ バーコードはご予約時間内のみ有効です。
+※ バーコードはご予約時間内のみ有効です。5分前よりご入室可能です。
 ※ 本リンクはお客様専用です。他の方と共有されませんようお願いいたします。
 
 最新のキャンペーン情報を公式Instagramにてお届けしています。
@@ -105,8 +106,7 @@ https://www.instagram.com/etoe_tokyo/
 etoeでのひとときが、
 こころほどける、やさしい時間となりますように。
 
-etoe hotel
-Email: info@etoehotel.com
+etoe
 ※本メールは送信専用です。ご返信には対応いたしかねますのでご了承ください。
 `;
 
@@ -232,6 +232,22 @@ export async function POST(req: Request) {
       );
     }
 
+    // 获取用户完整信息
+    let userFullName = reservation?.userFullName || reservation?.userName || null;
+    
+    // 如果没有用户全名且有userId，尝试从users集合获取
+    if (!userFullName && reservation?.userId) {
+      try {
+        const userDoc = await db.collection("users").doc(reservation.userId).get();
+        if (userDoc.exists) {
+          const userData = userDoc.data();
+          userFullName = userData?.fullName || userData?.name || null;
+        }
+      } catch (error) {
+        console.error("获取用户信息失败:", error);
+      }
+    }
+
     // 获取主房间卡片信息
     const cardDoc = await db.collection("roomCards").doc(cardId).get();
 
@@ -300,9 +316,8 @@ export async function POST(req: Request) {
       }
     };
 
-    // 提取用户名 - 支持新字段结构
-    const userName =
-      reservation.userFullName || reservation.userName || "お客様";
+    // 提取用户名 - 优先使用从users表获取的完整信息
+    const userName = userFullName || "";
 
     // 提取开始和结束时间
     const startDate = card.startAt;
@@ -323,7 +338,7 @@ export async function POST(req: Request) {
       </div>
       
       <div style="padding: 20px; border: 1px solid #ddd; background-color: #fff;">
-        <p>${userName} 様</p>
+        <p>${userName ? `${userName} 様` : "お客様"}</p>
         
         <p>この度はetoe sauna & stayをご予約いただき、誠にありがとうございます。</p>
         <p>ご予約のお部屋の入室カード情報をお送りいたします。</p>
@@ -393,7 +408,7 @@ export async function POST(req: Request) {
     `;
 
     // 邮件主题 - 恢复使用原始日文标题
-    const emailSubject = "【etoe sauna & stay】ご予約のお部屋カード情報";
+    const emailSubject = "etoe｜お部屋カード情報のご案内";
 
     console.log("准备发送邮件到:", userEmail);
 
@@ -407,7 +422,8 @@ export async function POST(req: Request) {
           emailHtml,
           reservationId,
           cardId,
-          slowRoomCardId
+          slowRoomCardId,
+          userName
         );
         console.log("邮件发送成功");
 
