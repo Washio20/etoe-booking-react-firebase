@@ -2,8 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { confirmPasswordReset, verifyPasswordResetCode } from "firebase/auth";
-import { auth } from "@/utils/firebase";
 
 export default function PasswordResetConfirm() {
   const router = useRouter();
@@ -14,39 +12,44 @@ export default function PasswordResetConfirm() {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const [verifying, setVerifying] = useState(true);
-  const [email, setEmail] = useState("");
   const [verificationFailed, setVerificationFailed] = useState(false);
 
-  // 获取URL中的重置代码 - 这是必要的参数
-  const oobCode = searchParams.get("oobCode");
+  // 获取URL中的重置令牌 - 使用自定义的token参数
+  const token = searchParams.get("token");
 
-  // 验证重置代码
+  // 验证重置令牌
   useEffect(() => {
-    const verifyCode = async () => {
-      if (!oobCode) {
-        console.error("oobCode missing from URL parameters");
+    const verifyToken = async () => {
+      if (!token) {
+        console.error("Token missing from URL parameters");
         setVerifying(false);
         setVerificationFailed(true);
-        setError("無効なリセットリンクです。コードが見つかりません。");
+        setError("無効なリセットリンクです。トークンが見つかりません。");
         return;
       }
 
       try {
-        const email = await verifyPasswordResetCode(auth, oobCode);
-        setEmail(email);
-        setVerifying(false);
+        // 调用API验证令牌
+        const response = await fetch(`/api/auth/reset-password?token=${token}`);
+        const data = await response.json();
+
+        if (data.valid) {
+          setVerifying(false);
+        } else {
+          setVerifying(false);
+          setVerificationFailed(true);
+          setError(data.error || "リセットリンクが無効です。");
+        }
       } catch (error) {
-        console.error("リセットコードの検証に失敗しました:", error);
+        console.error("トークンの検証に失敗しました:", error);
         setVerifying(false);
         setVerificationFailed(true);
-        setError(
-          "リセットリンクが無効または期限切れです。新しいリセットリンクをリクエストしてください。"
-        );
+        setError("リセットリンクの検証中にエラーが発生しました。");
       }
     };
 
-    verifyCode();
-  }, [oobCode]);
+    verifyToken();
+  }, [token]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,18 +68,27 @@ export default function PasswordResetConfirm() {
 
     setLoading(true);
     try {
-      if (!oobCode) {
-        throw new Error("リセットコードが見つかりません");
-      }
+      const response = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          token,
+          newPassword: password,
+        }),
+      });
 
-      await confirmPasswordReset(auth, oobCode, password);
-      setSuccess(true);
+      const data = await response.json();
+
+      if (response.ok) {
+        setSuccess(true);
+      } else {
+        setError(data.error || "パスワードリセットに失敗しました。");
+      }
     } catch (error: any) {
       console.error("パスワードリセットに失敗しました:", error);
-      setError(
-        error.message ||
-          "パスワードリセットに失敗しました。もう一度お試しください。"
-      );
+      setError("パスワードリセット中にエラーが発生しました。");
     } finally {
       setLoading(false);
     }

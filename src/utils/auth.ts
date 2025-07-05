@@ -6,8 +6,6 @@ import {
   User,
   UserCredential,
   getIdToken,
-  sendEmailVerification,
-  sendPasswordResetEmail,
 } from "firebase/auth";
 import {
   doc,
@@ -17,7 +15,7 @@ import {
   serverTimestamp,
   Timestamp,
 } from "firebase/firestore";
-import { auth, db, passwordResetSettings, emailVerificationSettings } from "./firebase";
+import { auth, db } from "./firebase";
 
 // ユーザー基本情報インターフェース
 export interface UserData {
@@ -62,7 +60,7 @@ export const registerUser = async (
   reservationInfo?: string
 ): Promise<{ success: boolean; data?: User; error?: any }> => {
   try {
-    // 1. Firebase Authでユーザー作成
+    // 1. Firebase Authでユーザー作成（メール認証なし）
     const userCredential: UserCredential = await createUserWithEmailAndPassword(
       auth,
       email,
@@ -79,38 +77,7 @@ export const registerUser = async (
       localStorage.setItem("tempUserEmail", email);
     }
 
-    // 3. メール認証メール送信 - パラメータ追加
-    const productionDomain = process.env.NEXT_PUBLIC_BASE_URL;
-    const isProduction = process.env.NODE_ENV === 'production';
-    
-    // 确保baseUrl设置正确
-    const baseUrl = isProduction && productionDomain 
-      ? productionDomain 
-      : window.location.origin;
-    
-    // 构建验证URL - 这将作为continueUrl传递给Firebase
-    let verificationUrl = `${baseUrl}/__/auth/action`;
-    
-    // 添加预约信息到URL，这些信息会保留在continueUrl中
-    if (reservationInfo) {
-      const separator = verificationUrl.includes('?') ? '&' : '?';
-      verificationUrl += `${separator}reservationInfo=${encodeURIComponent(reservationInfo)}`;
-    }
-    
-    // 明確な設定を使用 - 注意：Firebase验证链接的处理URL是/auth/action
-    // 而verificationUrl是验证成功后的重定向URL（continueUrl）
-    const actionCodeSettings = {
-      url: verificationUrl,  // 这个URL会作为continueUrl参数传递
-      handleCodeInApp: true,
-      dynamicLinkDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    };
-
-    await sendEmailVerification(user, actionCodeSettings);
-
-    // 只保存邮箱，移除密码存储
-    localStorage.setItem("tempUserEmail", email);
-
-    // 4. Firestoreにユーザードキュメント作成
+    // 3. Firestoreにユーザードキュメント作成
     await setDoc(doc(db, "users", user.uid), {
       uid: user.uid,
       email: user.email,
@@ -119,6 +86,42 @@ export const registerUser = async (
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
+
+    // 4. カスタムメール認証メール送信
+    try {
+      const response = await fetch("/api/auth/send-verification-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: user.uid,
+          email: user.email,
+          userName: userData.fullName || "",
+          reservationId: reservationInfo || null
+        }),
+      });
+
+      if (!response.ok) {
+        console.error("Failed to send custom verification email");
+        // オプション：Firebaseのデフォルトメールにフォールバック
+        // const actionCodeSettings = {
+        //   url: `${window.location.origin}/__/auth/action`,
+        //   handleCodeInApp: true,
+        // };
+        // await sendEmailVerification(user, actionCodeSettings);
+      }
+    } catch (emailError) {
+      console.error("Error sending custom verification email:", emailError);
+    }
+
+    // 保存邮箱
+    localStorage.setItem("tempUserEmail", email);
+    
+    // 如果这次注册没有预约信息，清理可能存在的旧预约ID
+    if (!reservationInfo) {
+      localStorage.removeItem("reservationId");
+    }
 
     // 5. 認証Cookie設定
     await setAuthCookie(user);
@@ -155,34 +158,40 @@ export const resendVerificationEmail = async (): Promise<{
       return { success: false, error: "ユーザーがログインしていません" };
     }
 
-    // 获取预约信息ID（如果存在）
-    const reservationId = localStorage.getItem("reservationId");
-    const userEmail = auth.currentUser.email;
-    
-    // 确保baseUrl设置正确 
-    const productionDomain = process.env.NEXT_PUBLIC_BASE_URL;
-    const isProduction = process.env.NODE_ENV === 'production';
-    const baseUrl = isProduction && productionDomain 
-      ? productionDomain 
-      : window.location.origin;
-    
-    // 构建验证URL - 这将作为continueUrl传递给Firebase
-    let verificationUrl = `${baseUrl}/__/auth/action`;
-    
-    // 添加预约信息到URL
-    if (reservationId) {
-      const separator = verificationUrl.includes('?') ? '&' : '?';
-      verificationUrl += `${separator}reservationInfo=${encodeURIComponent(reservationId)}`;
-    }
-    
-    // 明確なURL設定を使用
-    const actionCodeSettings = {
-      url: verificationUrl,  // 这个URL会作为continueUrl参数传递
-      handleCodeInApp: true,
-      dynamicLinkDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    };
+    // 获取用户信息
+    const user = auth.currentUser;
+    const userDoc = await getDoc(doc(db, "users", user.uid));
+    const userData = userDoc.data();
 
-    await sendEmailVerification(auth.currentUser, actionCodeSettings);
+    // 获取预约ID - 只有当用户邮箱匹配时才使用
+    const tempUserEmail = localStorage.getItem("tempUserEmail");
+    let reservationId = null;
+    
+    // 只有当保存的临时邮箱与当前用户邮箱匹配时，才认为reservationId是有效的
+    if (tempUserEmail === user.email) {
+      reservationId = localStorage.getItem("reservationId");
+    }
+
+    // 使用自定义邮件发送
+    const response = await fetch("/api/auth/send-verification-email", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        userId: user.uid,
+        email: user.email,
+        userName: userData?.fullName || "",
+        reservationId: reservationId
+      }),
+    });
+
+    if (!response.ok) {
+      // 如果自定义邮件发送失败，可以选择回退到Firebase默认邮件
+      console.error("Failed to resend custom verification email");
+      return { success: false, error: "メール送信に失敗しました" };
+    }
+
     return { success: true };
   } catch (error) {
     console.error("認証メール再送信に失敗しました:", error);
@@ -329,8 +338,22 @@ export const resetPassword = async (
   email: string
 ): Promise<{ success: boolean; error?: any }> => {
   try {
-    // 設定したパスワードリセット設定を使用
-    await sendPasswordResetEmail(auth, email, passwordResetSettings);
+    // カスタムパスワードリセットAPIを使用
+    const response = await fetch("/api/auth/send-password-reset", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email,
+      }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || "パスワードリセットメールの送信に失敗しました");
+    }
+
     return { success: true };
   } catch (error) {
     console.error("パスワードリセットに失敗しました:", error);
