@@ -11,7 +11,7 @@ interface AdminLayoutProps {
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
 
-  // 管理菜单项
+  // 管理菜单項
   const menuItems = [
     { name: "客室管理", path: "/admin/rooms" },
     { name: "お問い合わせ管理", path: "/admin/contacts" },
@@ -21,6 +21,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { name: "ユーザー管理", path: "/admin/users" },
     { name: "クーポン管理", path: "/admin/coupons" },
     { name: "売上統計", path: "/admin/sales-statistics" },
+    { name: "チェックアウト管理", path: "/admin/checkout-management" },
+    { name: "部屋QRコード生成", path: "/admin/room-qrcode" },
     { name: "テスト用カード発行", path: "/admin/cards" },
   ];
 
