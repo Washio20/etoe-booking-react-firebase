@@ -57,8 +57,14 @@ export async function GET(request: NextRequest) {
       .where('paymentStatus', '==', 'paid')
       .get();
 
+    // 获取用户信息用于リピーター统计
+    const usersSnapshot = await db.collection('users').get();
+
     interface ReservationData {
       id: string;
+      userId: string;
+      userEmail: string;
+      userFullName?: string;
       bookingDate: Timestamp;
       roomType: string;
       price: string | number;
@@ -67,10 +73,28 @@ export async function GET(request: NextRequest) {
       [key: string]: any;
     }
 
+    interface UserData {
+      uid: string;
+      email: string;
+      fullName: string;
+      gender?: string;
+      birthdate?: string;
+      createdAt?: any;
+      [key: string]: any;
+    }
+
     const reservations = reservationsSnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     })) as ReservationData[];
+
+    const users = usersSnapshot.docs.map(doc => ({
+      uid: doc.id,
+      ...doc.data()
+    })) as UserData[];
+
+    // 创建用户信息映射
+    const userMap = new Map(users.map(user => [user.uid, user]));
 
     const dailySalesMap = new Map<string, { totalAmount: number; count: number }>();
     const monthlySalesMap = new Map<string, { totalAmount: number; count: number }>();
@@ -207,11 +231,174 @@ export async function GET(request: NextRequest) {
       .map(([date, data]) => ({ date, ...data }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
+    // リピーター统计数据处理
+    // 1. 获取所有已付款的预约记录用于リピーター分析（不限日期范围）
+    const allReservationsSnapshot = await db.collection('reservations')
+      .where('paymentStatus', '==', 'paid')
+      .get();
+    
+    const allReservations = allReservationsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as ReservationData[];
+
+    // 按用户ID统计利用次数
+    const userUsageMap = new Map<string, {
+      userId: string;
+      userName: string;
+      userEmail: string;
+      gender?: string;
+      age?: number;
+      firstVisitDate: Date;
+      lastVisitDate: Date;
+      totalVisits: number;
+      totalAmount: number;
+      roomTypes: string[];
+    }>();
+
+    allReservations.forEach((reservation) => {
+      if (reservation.cancelledAt || !reservation.userId) return;
+
+      const bookingDate = toDate(reservation.bookingDate);
+      if (!bookingDate) return;
+
+      const userId = reservation.userId;
+      const user = userMap.get(userId);
+      const amount = typeof reservation.price === 'string' 
+        ? parseFloat(reservation.price) || 0 
+        : reservation.price || 0;
+
+      if (!userUsageMap.has(userId)) {
+        // 计算年龄
+        let age: number | undefined;
+        if (user?.birthdate) {
+          const birthYear = new Date(user.birthdate).getFullYear();
+          const currentYear = new Date().getFullYear();
+          age = currentYear - birthYear;
+        }
+
+        userUsageMap.set(userId, {
+          userId,
+          userName: user?.fullName || reservation.userFullName || 'Unknown',
+          userEmail: reservation.userEmail,
+          gender: user?.gender,
+          age,
+          firstVisitDate: bookingDate,
+          lastVisitDate: bookingDate,
+          totalVisits: 1,
+          totalAmount: amount,
+          roomTypes: [reservation.roomType]
+        });
+      } else {
+        const userData = userUsageMap.get(userId)!;
+        userData.totalVisits += 1;
+        userData.totalAmount += amount;
+        userData.lastVisitDate = bookingDate > userData.lastVisitDate ? bookingDate : userData.lastVisitDate;
+        userData.firstVisitDate = bookingDate < userData.firstVisitDate ? bookingDate : userData.firstVisitDate;
+        if (!userData.roomTypes.includes(reservation.roomType)) {
+          userData.roomTypes.push(reservation.roomType);
+        }
+      }
+    });
+
+    // リピーター统计分析
+    const allUsers = Array.from(userUsageMap.values());
+    const totalUsers = allUsers.length;
+    const firstTimeUsers = allUsers.filter(user => user.totalVisits === 1).length;
+    const repeatUsers = allUsers.filter(user => user.totalVisits >= 2).length;
+    const repeaterRate = totalUsers > 0 ? (repeatUsers / totalUsers * 100) : 0;
+
+    // 按性别统计
+    const genderStats = {
+      male: { total: 0, repeaters: 0 },
+      female: { total: 0, repeaters: 0 },
+      unknown: { total: 0, repeaters: 0 }
+    };
+
+    // 按年代统计
+    const ageGroupStats = {
+      '20代': { total: 0, repeaters: 0 },
+      '30代': { total: 0, repeaters: 0 },
+      '40代': { total: 0, repeaters: 0 },
+      '50代': { total: 0, repeaters: 0 },
+      '60代以上': { total: 0, repeaters: 0 },
+      '不明': { total: 0, repeaters: 0 }
+    };
+
+    // 按利用次数分布统计
+    const visitCountDistribution = {
+      '1回': 0,
+      '2回': 0,
+      '3回': 0,
+      '4回': 0,
+      '5回以上': 0
+    };
+
+    allUsers.forEach(user => {
+      const isRepeater = user.totalVisits >= 2;
+      
+      // 性别统计
+      const genderKey = user.gender === 'male' ? 'male' : 
+                       user.gender === 'female' ? 'female' : 'unknown';
+      genderStats[genderKey].total += 1;
+      if (isRepeater) genderStats[genderKey].repeaters += 1;
+
+      // 年代统计
+      let ageGroup = '不明';
+      if (user.age && user.age >= 20) {
+        if (user.age < 30) ageGroup = '20代';
+        else if (user.age < 40) ageGroup = '30代';
+        else if (user.age < 50) ageGroup = '40代';
+        else if (user.age < 60) ageGroup = '50代';
+        else ageGroup = '60代以上';
+      }
+      ageGroupStats[ageGroup as keyof typeof ageGroupStats].total += 1;
+      if (isRepeater) ageGroupStats[ageGroup as keyof typeof ageGroupStats].repeaters += 1;
+
+      // 利用次数分布
+      if (user.totalVisits === 1) visitCountDistribution['1回'] += 1;
+      else if (user.totalVisits === 2) visitCountDistribution['2回'] += 1;
+      else if (user.totalVisits === 3) visitCountDistribution['3回'] += 1;
+      else if (user.totalVisits === 4) visitCountDistribution['4回'] += 1;
+      else visitCountDistribution['5回以上'] += 1;
+    });
+
+    const repeaterStats = {
+      overview: {
+        totalUsers,
+        firstTimeUsers,
+        repeatUsers,
+        repeaterRate: Math.round(repeaterRate * 100) / 100
+      },
+      genderStats,
+      ageGroupStats,
+      visitCountDistribution,
+      userDetails: allUsers
+        .sort((a, b) => b.totalVisits - a.totalVisits)
+        .map(user => {
+          // 使用本地时间格式化日期，避免时区问题
+          const formatLocalDate = (date: Date) => {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}/${month}/${day}`;
+          };
+          
+          return {
+            ...user,
+            firstVisitDate: formatLocalDate(user.firstVisitDate),
+            lastVisitDate: formatLocalDate(user.lastVisitDate),
+            roomTypes: user.roomTypes.join(', ')
+          };
+        })
+    };
+
     return NextResponse.json({
       dailySales,
       monthlySales,
       roomTypeSales,
-      detailedDailySales
+      detailedDailySales,
+      repeaterStats
     });
   } catch (error) {
     console.error('Error fetching sales statistics:', error);
