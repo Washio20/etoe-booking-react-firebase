@@ -129,6 +129,9 @@ export async function GET(request: NextRequest) {
     reservations.forEach((reservation) => {
       // Skip cancelled reservations
       if (reservation.cancelledAt) return;
+      
+      // 排除工作人员用户ID
+      if (reservation.userId && EXCLUDED_STAFF_USER_IDS.includes(reservation.userId)) return;
 
       // 使用共通函数处理日期，确保正确处理时区
       const bookingDate = toDate(reservation.bookingDate);
