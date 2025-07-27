@@ -7,6 +7,14 @@ import { toDate } from '@/utils/date';
 // 确保Firebase Admin已初始化
 initAdmin();
 
+// 排除的工作人员用户ID
+const EXCLUDED_STAFF_USER_IDS = [
+  'lycapd3O2adB0dshwUHWEdQwDHv2',
+  'RaSoRvReD6craTlcg5YW95hcZL33',
+  'toDMjjsguBSTbjCdq4GVon5x9W93',
+  'bSbaTqVEbvfL0onTVlU6LUh3A4H3'
+];
+
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization');
@@ -263,6 +271,9 @@ export async function GET(request: NextRequest) {
       if (!bookingDate) return;
 
       const userId = reservation.userId;
+      
+      // 排除工作人员用户ID
+      if (EXCLUDED_STAFF_USER_IDS.includes(userId)) return;
       const user = userMap.get(userId);
       const amount = typeof reservation.price === 'string' 
         ? parseFloat(reservation.price) || 0 
