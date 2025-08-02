@@ -371,8 +371,10 @@ export default function CheckoutManagementPage() {
                             {getStatusDisplayName(checkout.status)}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
-                          {checkout.guestNote || '-'}
+                        <td className="px-6 py-4 text-sm text-gray-900 max-w-xs">
+                          <div className="whitespace-pre-wrap break-words">
+                            {checkout.guestNote || '-'}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                           {(checkout.status === CheckoutStatus.CHECKED_OUT || checkout.status === CheckoutStatus.CLEANED) && (
