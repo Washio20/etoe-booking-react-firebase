@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { convertToDate, formatTimestamp } from "@/utils/date";
+import FacilityGuideDialog from "@/components/FacilityGuideDialog";
 
 interface RoomCard {
   barcode: string;
@@ -32,6 +33,7 @@ function ExternalCardViewContent() {
   const [reservation, setReservation] = useState<Reservation | null>(null);
   const [expired, setExpired] = useState<boolean>(false);
   const [countdown, setCountdown] = useState<number>(0);
+  const [showGuideDialog, setShowGuideDialog] = useState<boolean>(false);
 
   // 检查卡片有效性
   const checkCardValidity = useCallback((cardData: RoomCard | null) => {
@@ -110,6 +112,14 @@ function ExternalCardViewContent() {
         }
 
         setLoading(false);
+        
+        // 成功获取数据后，检查是否需要显示指南对话框
+        if (data.card && !data.error) {
+          const hasShownGuide = sessionStorage.getItem('facilityGuideShown');
+          if (!hasShownGuide) {
+            setShowGuideDialog(true);
+          }
+        }
       } catch (err) {
         console.error("データ取得エラー:", err);
         setError("カード情報の取得中にエラーが発生しました");
@@ -119,6 +129,11 @@ function ExternalCardViewContent() {
 
     fetchData();
   }, [reservationId, secureToken, checkCardValidity]);
+
+  const handleCloseGuideDialog = () => {
+    setShowGuideDialog(false);
+    sessionStorage.setItem('facilityGuideShown', 'true');
+  };
 
   // 房间号格式化
   const formatRoomNumber = (physicalRoomId: string) => {
@@ -350,9 +365,9 @@ function ExternalCardViewContent() {
                 <Image
                   src={card.barcode}
                   alt="入室バーコード"
-                  width={320}
-                  height={250}
-                  className="w-[290px] md:w-[320px] h-auto rounded"
+                  width={400}
+                  height={300}
+                  className="w-[340px] md:w-[400px] h-auto rounded"
                   unoptimized={true}
                 />
                 {expired && (
@@ -368,23 +383,31 @@ function ExternalCardViewContent() {
                 バーコードが見つかりません
               </p>
             )}
-            <p className="text-sm text-gray-600 mt-4 font-zen-kaku-gothic">
-              上記バーコードを部屋前のスキャナーにかざすか、
-              <br />
-              スマホをリーダーにタッチして入室してください
-            </p>
           </div>
 
-          <div className="mt-4 md:mt-6 flex justify-center">
+          <div className="mt-4 md:mt-6 flex flex-col gap-3">
+            <button
+              onClick={() => setShowGuideDialog(true)}
+              className="px-6 md:px-8 py-2 md:py-3 text-[13px] md:text-sm font-medium text-[#8A7A6A] bg-white border-2 border-[#8A7A6A] rounded-full hover:bg-[#8A7A6A] hover:text-white transition-colors"
+            >
+              ご利用案内を見る
+            </button>
             <button
               onClick={() => (window.location.href = "/")}
-              className="px-6 md:px-8 py-2 md:py-3 text-[13px] md:text-sm font-medium text-white bg-gray-700 rounded-full hover:bg-gray-800"
+              className="px-6 md:px-8 py-2 md:py-3 text-[13px] md:text-sm font-medium text-white bg-gray-700 rounded-full hover:bg-gray-800 transition-colors"
             >
               トップページに戻る
             </button>
           </div>
         </div>
       </div>
+      
+      {/* 館内利用方法ダイアログ */}
+      <FacilityGuideDialog 
+        isOpen={showGuideDialog} 
+        onClose={handleCloseGuideDialog}
+        type="STAY"
+      />
     </div>
   );
 }
