@@ -364,6 +364,15 @@ function CardViewContent() {
             </div>
           )}
 
+          <div className="mb-4">
+            <button
+              onClick={() => setShowGuideDialog(true)}
+              className="w-full py-2 md:py-3 text-[13px] md:text-sm font-medium text-[#8A7A6A] bg-white border-2 border-[#8A7A6A] rounded-lg hover:bg-[#8A7A6A] hover:text-white transition-colors"
+            >
+              ご利用案内を見る
+            </button>
+          </div>
+
           <div className="bg-gray-50 p-4 rounded-lg mb-6">
             <h3 className="font-medium text-gray-800 mb-2 font-zen-kaku-gothic">
               カード情報
@@ -423,20 +432,9 @@ function CardViewContent() {
                 バーコードが見つかりません
               </p>
             )}
-            <p className="text-sm text-gray-600 mt-4 font-zen-kaku-gothic">
-              上記バーコードを部屋前のスキャナーにかざすか、
-              <br />
-              スマホをリーダーにタッチして入室してください
-            </p>
           </div>
 
-          <div className="mt-4 md:mt-6 flex flex-col gap-3">
-            <button
-              onClick={() => setShowGuideDialog(true)}
-              className="px-6 md:px-8 py-2 md:py-3 text-[13px] md:text-sm font-medium text-[#8A7A6A] bg-white border-2 border-[#8A7A6A] rounded-full hover:bg-[#8A7A6A] hover:text-white transition-colors"
-            >
-              ご利用案内を見る
-            </button>
+          <div className="mt-4 md:mt-6 flex justify-center">
             <button
               onClick={() => (window.location.href = "/")}
               className="px-6 md:px-8 py-2 md:py-3 text-[13px] md:text-sm font-medium text-white bg-gray-700 rounded-full hover:bg-gray-800 transition-colors"
@@ -451,6 +449,7 @@ function CardViewContent() {
       <FacilityGuideDialog 
         isOpen={showGuideDialog} 
         onClose={handleCloseGuideDialog}
+        type="DAYUSE"
       />
     </div>
   );
