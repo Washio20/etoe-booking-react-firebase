@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 
 interface FacilityGuideDialogProps {
   isOpen: boolean;
@@ -11,7 +11,31 @@ export default function FacilityGuideDialog({
   onClose,
   type,
 }: FacilityGuideDialogProps) {
-  const [language, setLanguage] = useState<"JP" | "EN">("JP");
+  // 住宿(STAY)场合默认显示英文，日帰り(DAYUSE)场合默认显示日文
+  const [language, setLanguage] = useState<"JP" | "EN">(
+    type === "STAY" ? "EN" : "JP"
+  );
+  const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // 检测滚动是否到达底部
+  const handleScroll = () => {
+    const container = scrollContainerRef.current;
+    if (container) {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      // 允许5px的误差，因为有时候无法精确滚动到底部
+      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 5;
+      setHasScrolledToBottom(isAtBottom);
+    }
+  };
+
+  // 当dialog打开或语言切换时重置滚动状态
+  useEffect(() => {
+    setHasScrolledToBottom(false);
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
+  }, [isOpen, language]);
 
   if (!isOpen) return null;
 
@@ -401,7 +425,11 @@ export default function FacilityGuideDialog({
         </div>
 
         {/* コンテンツ */}
-        <div className="p-6 overflow-y-auto flex-1">
+        <div
+          ref={scrollContainerRef}
+          className="p-6 overflow-y-auto flex-1"
+          onScroll={handleScroll}
+        >
           {type === "STAY" ? renderStayContent() : renderDayuseContent()}
         </div>
 
@@ -410,11 +438,23 @@ export default function FacilityGuideDialog({
           <div className="flex justify-center">
             <button
               onClick={onClose}
-              className="px-8 py-3 bg-[#8A7A6A] text-white rounded-full hover:bg-[#7A6A5A] transition-colors font-medium font-zen-kaku-gothic"
+              disabled={!hasScrolledToBottom}
+              className={`px-8 py-3 rounded-full font-medium font-zen-kaku-gothic transition-all duration-200 ${
+                hasScrolledToBottom
+                  ? "bg-[#8A7A6A] text-white hover:bg-[#7A6A5A] cursor-pointer"
+                  : "bg-gray-300 text-gray-500 cursor-not-allowed opacity-50"
+              }`}
             >
               {language === "JP" ? "確認しました" : "Confirmed"}
             </button>
           </div>
+          {!hasScrolledToBottom && (
+            <p className="text-xs text-gray-500 text-center mt-2">
+              {language === "JP"
+                ? "最後まで読んでから確認ボタンを押してください"
+                : "Please read to the end before confirming"}
+            </p>
+          )}
         </div>
       </div>
     </div>
