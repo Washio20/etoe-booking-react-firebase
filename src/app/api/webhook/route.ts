@@ -252,6 +252,103 @@ function getRoomTypeDisplayName(roomType: string): string {
   }
 }
 
+// 发送当日直前预约通知给管理员
+async function sendSameDayReservationNotification(
+  userName: string,
+  reservation: any
+): Promise<void> {
+  try {
+    console.log("Webhook: 开始发送当日直前预约通知给管理员...");
+    
+    // 获取授权客户端
+    try {
+      const { credentials } = await oAuth2Client.refreshAccessToken();
+      oAuth2Client.setCredentials(credentials);
+    } catch (authError: any) {
+      console.error("Webhook: 管理员通知OAuth2认证失败:", authError.message);
+      throw new Error(`Gmail认证失败: ${authError.message}`);
+    }
+
+    const gmail = google.gmail({ version: "v1", auth: oAuth2Client });
+
+    // 管理员邮箱
+    const adminEmail = "etoehotel@gmail.com";
+    
+    // 邮件主题
+    const subject = "【重要】当日直前予約のお知らせ";
+    const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString("base64")}?=`;
+
+    // 格式化房间类型显示
+    const roomTypeDisplay = getRoomTypeDisplayName(reservation.roomType || "");
+    
+    // 创建邮件内容
+    let textContent = `
+管理者様
+
+当日の直前予約がありました。以下ご確認ください。
+
+=== 予約情報 ===
+
+予約ID: ${reservation.reservationId}
+お客様名: ${reservation.userFullName}
+メールアドレス: ${reservation.userEmail}
+
+予約日: ${reservation.displayDate || ""}
+時間: ${reservation.displayTimeRange || ""}
+部屋タイプ: ${roomTypeDisplay}`;
+
+    // 如果有慢房间套餐，添加慢房间信息
+    if (reservation.displaySlowRoomTimeRange) {
+      textContent += `
+スロールーム: ${reservation.displaySlowRoomTimeRange}`;
+    }
+
+    textContent += `
+
+料金: ${Number(reservation.price || 0).toLocaleString()}円
+
+=================
+
+この予約は当日の直前予約です。
+必要に応じて準備をお願いいたします。
+
+---
+このメールは自動送信されています。
+`;
+
+    // Base64エンコードされたメールメッセージを作成（テキストのみ）
+    const message = [
+      `From: ${EMAIL_FROM}`,
+      `To: ${adminEmail}`,
+      `Subject: ${utf8Subject}`,
+      "MIME-Version: 1.0",
+      "Content-Type: text/plain; charset=UTF-8",
+      "Content-Transfer-Encoding: base64",
+      "",
+      Buffer.from(textContent, "utf-8").toString("base64"),
+    ].join("\n");
+
+    const encodedMessage = Buffer.from(message)
+      .toString("base64")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+
+    // Gmail APIを使ってメールを送信
+    const result = await gmail.users.messages.send({
+      userId: "me",
+      requestBody: {
+        raw: encodedMessage,
+      },
+    });
+
+    console.log(`Webhook: 当日直前予約通知を管理員に送信しました: ${result.data.id}`);
+  } catch (error) {
+    console.error("Webhook: 管理员通知邮件发送失败:", error);
+    // 管理员通知失败不影响预约流程，仅记录错误
+  }
+}
+
 // 处理预约成功的逻辑
 async function handleReservationSuccess(session: Stripe.Checkout.Session): Promise<string | null> {
   try {
@@ -489,6 +586,20 @@ async function handleReservationSuccess(session: Stripe.Checkout.Session): Promi
 
     const reservationId = reservationRef.id;
 
+    // 检查是否为当日直前预约
+    const checkSameDayReservation = () => {
+      const reservationDate = parseJapaneseDate(session.metadata?.reservationDate);
+      if (!reservationDate) return false;
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      reservationDate.setHours(0, 0, 0, 0);
+      
+      return reservationDate.getTime() === today.getTime();
+    };
+
+    const isSameDayReservation = checkSameDayReservation();
+
     // 发送预约确认邮件
     try {
       // 获取用户详细信息
@@ -527,9 +638,26 @@ async function handleReservationSuccess(session: Stripe.Checkout.Session): Promi
           });
 
         console.log(`Webhook: 预约确认邮件已发送至 ${userRecord.email}`);
-      } else {
-        // 测试模式 - 只记录邮件内容但不实际发送
-        console.log("Webhook: 测试模式 - 不发送实际邮件");
+
+        // 如果是当日直前预约，发送通知给管理员
+        if (isSameDayReservation) {
+          console.log("Webhook: 检测到当日直前预约，准备发送管理员通知");
+          await sendSameDayReservationNotification(
+            userFullName,
+            {
+              reservationId: reservationId,
+              userId: userRecord.uid,
+              userEmail: userRecord.email,
+              roomType: session.metadata?.roomType,
+              displayDate: session.metadata?.reservationDate,
+              displayTimeRange: session.metadata?.reservationTime,
+              displaySlowRoomTimeRange: slowRoomTime,
+              price: priceNumber,
+              userFullName: userFullName,
+            }
+          );
+          console.log("Webhook: 当日直前预约通知已发送给管理员");
+        }
       }
     } catch (error) {
       console.error("Webhook: 发送预约确认邮件时出错:", error);
