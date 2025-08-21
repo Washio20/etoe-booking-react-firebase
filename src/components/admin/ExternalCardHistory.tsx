@@ -17,6 +17,7 @@ interface ExternalReservation {
   cardNumber: string;
   cardEmailSent?: boolean;
   cardEmailSentAt?: any; // Firestore Timestamp
+  cardEmailLanguage?: 'ja' | 'en'; // 添加邮件语言字段
   createdAt: any; // Firestore Timestamp
   createdBy: string;
   barcode?: string;
@@ -68,11 +69,11 @@ export default function ExternalCardHistory() {
   }, [user]);
 
   // 重新发送邮件
-  const resendEmail = async (reservationId: string, userEmail: string, userName: string) => {
+  const resendEmail = async (reservationId: string, userEmail: string, userName: string, language: 'ja' | 'en') => {
     if (!user || isResending) return;
 
     try {
-      setIsResending(reservationId);
+      setIsResending(`${reservationId}_${language}`);
       
       const idToken = await user.getIdToken();
       const response = await fetch("/api/admin/send-external-card-email", {
@@ -85,6 +86,7 @@ export default function ExternalCardHistory() {
           reservationId,
           userEmail,
           userName,
+          language,
         }),
       });
 
@@ -95,7 +97,7 @@ export default function ExternalCardHistory() {
 
       // 重新获取数据
       await fetchExternalReservations();
-      alert("メールを再送信しました");
+      alert(language === 'en' ? "英語でメールを再送信しました" : "日本語でメールを再送信しました");
     } catch (error) {
       console.error("Error resending email:", error);
       alert(
@@ -240,12 +242,18 @@ export default function ExternalCardHistory() {
                       </span>
                       <span
                         className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium font-zen-kaku-gothic ${
-                          reservation.cardEmailSent
+                          !reservation.cardEmailSent
+                            ? "bg-yellow-100 text-yellow-800"
+                            : reservation.cardEmailLanguage === 'en'
                             ? "bg-green-100 text-green-800"
-                            : "bg-yellow-100 text-yellow-800"
+                            : "bg-blue-100 text-blue-800"
                         }`}
                       >
-                        {reservation.cardEmailSent ? "送信済み" : "未送信"}
+                        {reservation.cardEmailSent 
+                          ? reservation.cardEmailLanguage === 'en' 
+                            ? "英語送信済み" 
+                            : "日本語送信済み"
+                          : "未送信"}
                       </span>
                     </div>
                   </div>
@@ -278,28 +286,49 @@ export default function ExternalCardHistory() {
                         expandedCard === reservation.id ? null : reservation.id
                       )
                     }
-                    className="flex-1 lg:flex-none px-3 py-1 bg-blue-100 text-blue-800 rounded text-sm font-zen-kaku-gothic hover:bg-blue-200 transition-colors whitespace-nowrap"
+                    className="flex-1 lg:flex-none px-3 py-1 bg-gray-100 text-gray-700 rounded text-sm font-zen-kaku-gothic hover:bg-gray-200 transition-colors whitespace-nowrap"
                   >
                     {expandedCard === reservation.id ? "非表示" : "バーコード表示"}
                   </button>
 
-                  {/* 重新发送邮件按钮 */}
+                  {/* 重新发送邮件按钮 - 日本語 */}
                   <button
                     onClick={() =>
                       resendEmail(
                         reservation.id,
                         reservation.userEmail,
-                        reservation.userName
+                        reservation.userName,
+                        'ja'
                       )
                     }
-                    disabled={isResending === reservation.id}
+                    disabled={isResending === `${reservation.id}_ja` || isResending === `${reservation.id}_en`}
                     className={`flex-1 lg:flex-none px-3 py-1 rounded text-sm font-zen-kaku-gothic transition-colors whitespace-nowrap ${
-                      isResending === reservation.id
+                      isResending === `${reservation.id}_ja` || isResending === `${reservation.id}_en`
                         ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        : "bg-blue-600 text-white hover:bg-blue-700"
                     }`}
                   >
-                    {isResending === reservation.id ? "送信中..." : "再送信"}
+                    {isResending === `${reservation.id}_ja` ? "送信中..." : "日本語で再送信"}
+                  </button>
+                  
+                  {/* 重新发送邮件按钮 - English */}
+                  <button
+                    onClick={() =>
+                      resendEmail(
+                        reservation.id,
+                        reservation.userEmail,
+                        reservation.userName,
+                        'en'
+                      )
+                    }
+                    disabled={isResending === `${reservation.id}_ja` || isResending === `${reservation.id}_en`}
+                    className={`flex-1 lg:flex-none px-3 py-1 rounded text-sm font-zen-kaku-gothic transition-colors whitespace-nowrap ${
+                      isResending === `${reservation.id}_en` || isResending === `${reservation.id}_ja`
+                        ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                        : "bg-green-600 text-white hover:bg-green-700"
+                    }`}
+                  >
+                    {isResending === `${reservation.id}_en` ? "送信中..." : "英語で再送信"}
                   </button>
                 </div>
               </div>
