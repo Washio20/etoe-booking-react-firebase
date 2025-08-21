@@ -112,10 +112,10 @@ function ExternalCardViewContent() {
         }
 
         setLoading(false);
-        
+
         // 成功获取数据后，检查是否需要显示指南对话框
         if (data.card && !data.error) {
-          const hasShownGuide = sessionStorage.getItem('facilityGuideShown');
+          const hasShownGuide = sessionStorage.getItem("facilityGuideShown");
           if (!hasShownGuide) {
             setShowGuideDialog(true);
           }
@@ -132,7 +132,7 @@ function ExternalCardViewContent() {
 
   const handleCloseGuideDialog = () => {
     setShowGuideDialog(false);
-    sessionStorage.setItem('facilityGuideShown', 'true');
+    sessionStorage.setItem("facilityGuideShown", "true");
   };
 
   // 房间号格式化
@@ -180,13 +180,13 @@ function ExternalCardViewContent() {
         <div className="w-full max-w-md bg-white rounded-2xl shadow-md p-6 md:p-8">
           <div className="flex justify-center mb-6">
             <div className="w-32 mx-auto relative mb-6">
-                <Image
+              <Image
                 src="/images/logo.svg"
                 alt="etoe logo"
                 width={128}
                 height={70}
                 className="w-full h-auto"
-                />
+              />
             </div>
           </div>
           <p className="text-center text-gray-700 font-zen-kaku-gothic">
@@ -199,30 +199,42 @@ function ExternalCardViewContent() {
 
   // 错误状态
   if (error) {
+    const isCancelledError = error.includes("キャンセル");
+
     return (
       <div className="min-h-screen bg-[#FAF9F7] flex flex-col items-center justify-center p-4">
         <div className="w-full max-w-md bg-white rounded-2xl shadow-md p-6 md:p-8">
           <div className="flex justify-center mb-6">
             <div className="w-32 mx-auto relative mb-6">
-                <Image
+              <Image
                 src="/images/logo.svg"
                 alt="etoe logo"
                 width={128}
                 height={70}
                 className="w-full h-auto"
-                />
+              />
             </div>
           </div>
           <div className="text-center mb-6">
-            <h2 className="text-red-600 font-medium mb-2 font-zen-kaku-gothic">
-              エラーが発生しました
-            </h2>
-            <p className="text-gray-700 font-zen-kaku-gothic">{error}</p>
+            {isCancelledError ? (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                <p className="text-red-800 text-sm font-zen-kaku-gothic whitespace-pre-line">
+                  {error}
+                </p>
+              </div>
+            ) : (
+              <>
+                <h2 className="text-red-600 font-medium mb-2 font-zen-kaku-gothic">
+                  エラーが発生しました
+                </h2>
+                <p className="text-gray-700 font-zen-kaku-gothic">{error}</p>
+              </>
+            )}
           </div>
-          <div className="flex justify-center">
+          <div className="flex flex-col gap-3">
             <Link
               href="/"
-              className="px-6 py-2 bg-gray-800 text-white rounded-full text-sm"
+              className="px-6 py-2 bg-gray-800 text-white rounded-full text-sm text-center font-zen-kaku-gothic hover:bg-gray-700 transition-colors"
             >
               トップページに戻る
             </Link>
@@ -239,13 +251,13 @@ function ExternalCardViewContent() {
         <div className="w-full max-w-md bg-white rounded-2xl shadow-md p-6 md:p-8">
           <div className="flex justify-center mb-6">
             <div className="w-32 mx-auto relative mb-6">
-                <Image
+              <Image
                 src="/images/logo.svg"
                 alt="etoe logo"
                 width={128}
                 height={70}
                 className="w-full h-auto"
-                />
+              />
             </div>
           </div>
           <div className="text-center mb-6">
@@ -291,11 +303,15 @@ function ExternalCardViewContent() {
         <div className="p-6">
           {expired && (
             <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-100">
-                <h3 className="text-center font-medium mb-2 font-zen-kaku-gothic text-red-800">有効期限切れ</h3>
-                <p className="text-center text-sm font-zen-kaku-gothic text-red-600">このカードは有効期限が切れています</p>
+              <h3 className="text-center font-medium mb-2 font-zen-kaku-gothic text-red-800">
+                有効期限切れ
+              </h3>
+              <p className="text-center text-sm font-zen-kaku-gothic text-red-600">
+                このカードは有効期限が切れています
+              </p>
             </div>
           )}
-    
+
           {reservation && reservation.userName && (
             <div className="mb-6">
               <div className="border-b border-gray-200 pb-2 mb-2">
@@ -336,7 +352,11 @@ function ExternalCardViewContent() {
                   利用開始
                 </h3>
                 <p className="text-gray-800 text-sm font-zen-kaku-gothic">
-                  {formatTimestamp(card.startAt, "yyyy/MM/dd HH:mm", "日付不明")}
+                  {formatTimestamp(
+                    card.startAt,
+                    "yyyy/MM/dd HH:mm",
+                    "日付不明"
+                  )}
                 </p>
               </div>
             </div>
@@ -401,10 +421,10 @@ function ExternalCardViewContent() {
           </div>
         </div>
       </div>
-      
+
       {/* 館内利用方法ダイアログ */}
-      <FacilityGuideDialog 
-        isOpen={showGuideDialog} 
+      <FacilityGuideDialog
+        isOpen={showGuideDialog}
         onClose={handleCloseGuideDialog}
         type="STAY"
       />
@@ -420,15 +440,15 @@ export default function ExternalCardViewPage() {
         <div className="min-h-screen bg-[#FAF9F7] flex flex-col items-center justify-center p-4">
           <div className="w-full max-w-md bg-white rounded-2xl shadow-md p-6 md:p-8">
             <div className="flex justify-center mb-6">
-                <div className="w-32 mx-auto relative mb-6">
-                    <Image
-                    src="/images/logo.svg"
-                    alt="etoe logo"
-                    width={128}
-                    height={70}
-                    className="w-full h-auto"
-                    />
-                </div>
+              <div className="w-32 mx-auto relative mb-6">
+                <Image
+                  src="/images/logo.svg"
+                  alt="etoe logo"
+                  width={128}
+                  height={70}
+                  className="w-full h-auto"
+                />
+              </div>
             </div>
             <p className="text-center text-gray-700 font-zen-kaku-gothic">
               読み込み中...
@@ -440,4 +460,4 @@ export default function ExternalCardViewPage() {
       <ExternalCardViewContent />
     </Suspense>
   );
-} 
+}
