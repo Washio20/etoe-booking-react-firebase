@@ -72,6 +72,28 @@ export async function GET(req: Request) {
       );
     }
 
+    // 检查卡片是否已被取消
+    if (reservationData.isCancelled) {
+      return NextResponse.json(
+        { 
+          error: "このカードはキャンセルされています。\n\nご不明な点がございましたら、施設までお問い合わせください。",
+          isCancelled: true
+        },
+        { status: 403 }
+      );
+    }
+
+    // 检查预约状态
+    if (reservationData.status === "cancelled") {
+      return NextResponse.json(
+        { 
+          error: "この予約はキャンセルされています。\n\nご不明な点がございましたら、施設までお問い合わせください。",
+          isCancelled: true
+        },
+        { status: 403 }
+      );
+    }
+
     // 从外部预约数据中提取卡片信息
     const cardData = {
       id: reservationId, // 使用预约ID作为卡片ID

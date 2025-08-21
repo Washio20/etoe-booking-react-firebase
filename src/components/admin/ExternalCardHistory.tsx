@@ -22,6 +22,10 @@ interface ExternalReservation {
   createdBy: string;
   barcode?: string;
   status: string;
+  isCancelled?: boolean; // 取消状态
+  cancelledAt?: any; // 取消时间
+  cancelledBy?: string; // 取消操作者
+  cancelReason?: string; // 取消理由
 }
 
 export default function ExternalCardHistory() {
@@ -31,6 +35,9 @@ export default function ExternalCardHistory() {
   const [error, setError] = useState<string | null>(null);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [isResending, setIsResending] = useState<string | null>(null);
+  const [isCancelling, setIsCancelling] = useState<string | null>(null);
+  const [showCancelDialog, setShowCancelDialog] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
   
   // 分页相关状态
   const [currentPage, setCurrentPage] = useState(1);
@@ -105,6 +112,46 @@ export default function ExternalCardHistory() {
       );
     } finally {
       setIsResending(null);
+    }
+  };
+
+  // 取消外部预约卡片
+  const cancelCard = async (reservationId: string) => {
+    if (!user || isCancelling) return;
+
+    try {
+      setIsCancelling(reservationId);
+      
+      const idToken = await user.getIdToken();
+      const response = await fetch("/api/admin/cancel-external-card", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          reservationId,
+          cancelReason,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "カードキャンセルに失敗しました");
+      }
+
+      // 重新获取数据
+      await fetchExternalReservations();
+      setShowCancelDialog(null);
+      setCancelReason('');
+      alert("カードが正常にキャンセルされました");
+    } catch (error) {
+      console.error("Error cancelling card:", error);
+      alert(
+        error instanceof Error ? error.message : "カードキャンセル中にエラーが発生しました"
+      );
+    } finally {
+      setIsCancelling(null);
     }
   };
 
@@ -242,14 +289,18 @@ export default function ExternalCardHistory() {
                       </span>
                       <span
                         className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium font-zen-kaku-gothic ${
-                          !reservation.cardEmailSent
+                          reservation.isCancelled
+                            ? "bg-red-100 text-red-800"
+                            : !reservation.cardEmailSent
                             ? "bg-yellow-100 text-yellow-800"
                             : reservation.cardEmailLanguage === 'en'
                             ? "bg-green-100 text-green-800"
                             : "bg-blue-100 text-blue-800"
                         }`}
                       >
-                        {reservation.cardEmailSent 
+                        {reservation.isCancelled
+                          ? "キャンセル済み"
+                          : reservation.cardEmailSent 
                           ? reservation.cardEmailLanguage === 'en' 
                             ? "英語送信済み" 
                             : "日本語送信済み"
@@ -274,6 +325,16 @@ export default function ExternalCardHistory() {
                         <span className="font-medium">送信日時:</span> {formatDateTime(reservation.cardEmailSentAt)}
                       </p>
                     )}
+                    {reservation.isCancelled && reservation.cancelledAt && (
+                      <p className="break-words text-red-600">
+                        <span className="font-medium">キャンセル日時:</span> {formatDateTime(reservation.cancelledAt)}
+                      </p>
+                    )}
+                    {reservation.isCancelled && reservation.cancelReason && (
+                      <p className="break-words text-red-600">
+                        <span className="font-medium">キャンセル理由:</span> {reservation.cancelReason}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -291,45 +352,63 @@ export default function ExternalCardHistory() {
                     {expandedCard === reservation.id ? "非表示" : "バーコード表示"}
                   </button>
 
-                  {/* 重新发送邮件按钮 - 日本語 */}
-                  <button
-                    onClick={() =>
-                      resendEmail(
-                        reservation.id,
-                        reservation.userEmail,
-                        reservation.userName,
-                        'ja'
-                      )
-                    }
-                    disabled={isResending === `${reservation.id}_ja` || isResending === `${reservation.id}_en`}
-                    className={`flex-1 lg:flex-none px-3 py-1 rounded text-sm font-zen-kaku-gothic transition-colors whitespace-nowrap ${
-                      isResending === `${reservation.id}_ja` || isResending === `${reservation.id}_en`
-                        ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                        : "bg-blue-600 text-white hover:bg-blue-700"
-                    }`}
-                  >
-                    {isResending === `${reservation.id}_ja` ? "送信中..." : "日本語で再送信"}
-                  </button>
-                  
-                  {/* 重新发送邮件按钮 - English */}
-                  <button
-                    onClick={() =>
-                      resendEmail(
-                        reservation.id,
-                        reservation.userEmail,
-                        reservation.userName,
-                        'en'
-                      )
-                    }
-                    disabled={isResending === `${reservation.id}_ja` || isResending === `${reservation.id}_en`}
-                    className={`flex-1 lg:flex-none px-3 py-1 rounded text-sm font-zen-kaku-gothic transition-colors whitespace-nowrap ${
-                      isResending === `${reservation.id}_en` || isResending === `${reservation.id}_ja`
-                        ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                        : "bg-green-600 text-white hover:bg-green-700"
-                    }`}
-                  >
-                    {isResending === `${reservation.id}_en` ? "送信中..." : "英語で再送信"}
-                  </button>
+                  {!reservation.isCancelled && (
+                    <>
+                      {/* 重新发送邮件按钮 - 日本語 */}
+                      <button
+                        onClick={() =>
+                          resendEmail(
+                            reservation.id,
+                            reservation.userEmail,
+                            reservation.userName,
+                            'ja'
+                          )
+                        }
+                        disabled={isResending === `${reservation.id}_ja` || isResending === `${reservation.id}_en`}
+                        className={`flex-1 lg:flex-none px-3 py-1 rounded text-sm font-zen-kaku-gothic transition-colors whitespace-nowrap ${
+                          isResending === `${reservation.id}_ja` || isResending === `${reservation.id}_en`
+                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                            : "bg-blue-100 text-blue-800 hover:bg-blue-200"
+                        }`}
+                      >
+                        {isResending === `${reservation.id}_ja` ? "送信中..." : "日本語で再送信"}
+                      </button>
+                      
+                      {/* 重新发送邮件按钮 - English */}
+                      <button
+                        onClick={() =>
+                          resendEmail(
+                            reservation.id,
+                            reservation.userEmail,
+                            reservation.userName,
+                            'en'
+                          )
+                        }
+                        disabled={isResending === `${reservation.id}_ja` || isResending === `${reservation.id}_en`}
+                        className={`flex-1 lg:flex-none px-3 py-1 rounded text-sm font-zen-kaku-gothic transition-colors whitespace-nowrap ${
+                          isResending === `${reservation.id}_en` || isResending === `${reservation.id}_ja`
+                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                            : "bg-green-100 text-green-800 hover:bg-green-200"
+                        }`}
+                      >
+                        {isResending === `${reservation.id}_en` ? "送信中..." : "英語で再送信"}
+                      </button>
+
+                      {/* 取消按钮 */}
+                      <button
+                        onClick={() => setShowCancelDialog(reservation.id)}
+                        disabled={isCancelling === reservation.id}
+                        className={`flex-1 lg:flex-none px-3 py-1 rounded text-sm font-zen-kaku-gothic transition-colors whitespace-nowrap ${
+                          isCancelling === reservation.id
+                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                            : "bg-red-100 text-red-800 hover:bg-red-200"
+                        }`}
+                      >
+                        {isCancelling === reservation.id ? "処理中..." : "キャンセル"}
+                      </button>
+                    </>
+                  )}
+
                 </div>
               </div>
 
@@ -469,6 +548,57 @@ export default function ExternalCardHistory() {
             </div>
           )}
         </>
+      )}
+
+      {/* 取消确认对话框 */}
+      {showCancelDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-gray-800 mb-4 font-zen-kaku-gothic">
+                カードキャンセル確認
+              </h3>
+              <p className="text-sm text-gray-600 mb-4 font-zen-kaku-gothic">
+                このカードをキャンセルします。一度キャンセルされたカードは無効になり、お客様は入室できなくなります。
+              </p>
+              <div className="mb-4">
+                <label htmlFor="cancelReason" className="block text-sm font-medium text-gray-700 mb-2 font-zen-kaku-gothic">
+                  キャンセル理由（任意）
+                </label>
+                <textarea
+                  id="cancelReason"
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-zen-kaku-gothic"
+                  rows={3}
+                  placeholder="例：部屋番号間違い、満室のため..."
+                />
+              </div>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => {
+                    setShowCancelDialog(null);
+                    setCancelReason('');
+                  }}
+                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 font-zen-kaku-gothic"
+                >
+                  戻る
+                </button>
+                <button
+                  onClick={() => cancelCard(showCancelDialog)}
+                  disabled={isCancelling === showCancelDialog}
+                  className={`px-4 py-2 rounded-md font-zen-kaku-gothic ${
+                    isCancelling === showCancelDialog
+                      ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                      : "bg-red-600 text-white hover:bg-red-700"
+                  }`}
+                >
+                  {isCancelling === showCancelDialog ? "処理中..." : "キャンセル実行"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

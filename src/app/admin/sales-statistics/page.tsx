@@ -94,6 +94,26 @@ export default function SalesStatisticsPage() {
     start: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().split('T')[0],
     end: new Date().toISOString().split('T')[0]
   });
+  
+  // パスワード認証用の状態
+  const [isPasswordVerified, setIsPasswordVerified] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [passwordError, setPasswordError] = useState(false);
+  
+  // 売上統計閲覧用パスワード（環境変数または固定値）
+  const SALES_PASSWORD = process.env.NEXT_PUBLIC_SALES_PASSWORD || 'etoestats';
+  
+  // パスワード検証ハンドラー
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordInput === SALES_PASSWORD) {
+      setIsPasswordVerified(true);
+      setPasswordError(false);
+      setPasswordInput('');
+    } else {
+      setPasswordError(true);
+    }
+  };
 
   const fetchSalesData = useCallback(async (token: string) => {
     setIsLoading(true);
@@ -641,6 +661,60 @@ export default function SalesStatisticsPage() {
             このページにアクセスする権限がありません。
           </p>
         </div>
+      </Layout>
+    );
+  }
+
+  // パスワード認証画面の表示
+  if (!isPasswordVerified) {
+    return (
+      <Layout>
+        <AdminLayout>
+          <div className="max-w-md mx-auto mt-20">
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-xl font-bold text-gray-800 mb-4 text-center font-zen-kaku-gothic">
+                売上統計アクセス認証
+              </h2>
+              <p className="text-sm text-gray-600 mb-6 text-center font-zen-kaku-gothic">
+                売上統計の閲覧にはパスワードが必要です
+              </p>
+              <form onSubmit={handlePasswordSubmit}>
+                <div className="mb-4">
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2 font-zen-kaku-gothic">
+                    パスワード
+                  </label>
+                  <input
+                    type="password"
+                    id="password"
+                    value={passwordInput}
+                    onChange={(e) => {
+                      setPasswordInput(e.target.value);
+                      setPasswordError(false);
+                    }}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 font-zen-kaku-gothic ${
+                      passwordError
+                        ? 'border-red-500 focus:ring-red-500'
+                        : 'border-gray-300 focus:ring-blue-500'
+                    }`}
+                    placeholder="パスワードを入力してください"
+                    required
+                  />
+                  {passwordError && (
+                    <p className="mt-2 text-sm text-red-600 font-zen-kaku-gothic">
+                      パスワードが正しくありません
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="submit"
+                  className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors font-zen-kaku-gothic"
+                >
+                  認証
+                </button>
+              </form>
+            </div>
+          </div>
+        </AdminLayout>
       </Layout>
     );
   }
