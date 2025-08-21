@@ -58,6 +58,7 @@ export default function ExternalCardGenerator() {
   const [formError, setFormError] = useState<string | null>(null);
   const [generatedCard, setGeneratedCard] = useState<any>(null);
   const [emailSent, setEmailSent] = useState<boolean>(false);
+  const [emailLanguage, setEmailLanguage] = useState<'ja' | 'en' | null>(null);
 
   // 房间选项
   const roomOptions = getRoomOptions();
@@ -160,11 +161,7 @@ export default function ExternalCardGenerator() {
 
       const data = await response.json();
       setGeneratedCard(data.card);
-      
-      // 如果卡片生成成功，立即发送邮件
-      if (data.card) {
-        await sendCardEmail(reservationId);
-      }
+      // 不再自动发送邮件，改为手动选择语言发送
     } catch (error) {
       console.error("Error generating card:", error);
       setFormError(
@@ -178,8 +175,9 @@ export default function ExternalCardGenerator() {
   };
 
   // 发送卡片邮件
-  const sendCardEmail = async (reservationId: string) => {
+  const sendCardEmail = async (reservationId: string, language: 'ja' | 'en') => {
     setIsSendingEmail(true);
+    setEmailLanguage(language);
     try {
       // 获取当前用户的ID令牌
       const idToken = await user?.getIdToken();
@@ -198,6 +196,7 @@ export default function ExternalCardGenerator() {
           reservationId,
           userEmail,
           userName,
+          language,
         }),
       });
 
@@ -332,18 +331,16 @@ export default function ExternalCardGenerator() {
         <div className="mt-6 flex justify-end">
           <button
             onClick={handleGenerateCard}
-            disabled={isGenerating || isSendingEmail}
+            disabled={isGenerating}
             className={`px-4 py-2 bg-gray-800 text-white rounded-md text-sm font-zen-kaku-gothic ${
-              isGenerating || isSendingEmail
+              isGenerating
                 ? "opacity-50 cursor-not-allowed"
                 : "hover:bg-gray-700"
             }`}
           >
             {isGenerating 
               ? "生成中..." 
-              : isSendingEmail 
-                ? "メール送信中..." 
-                : "カードを発行してメール送信"}
+              : "カードを発行"}
           </button>
         </div>
       </div>
@@ -381,7 +378,9 @@ export default function ExternalCardGenerator() {
               <p className="text-sm text-gray-700 mt-3 font-zen-kaku-gothic">
                 <span className="font-medium text-base">メール送信状態:</span>{" "}
                 {emailSent ? (
-                  <span className="text-white bg-green-600 px-2 py-0.5 rounded text-base font-medium">送信完了</span>
+                  <span className="text-white bg-green-600 px-2 py-0.5 rounded text-base font-medium">
+                    {emailLanguage === 'ja' ? '日本語で送信完了' : '英語で送信完了'}
+                  </span>
                 ) : isSendingEmail ? (
                   <span className="text-white bg-blue-600 px-2 py-0.5 rounded text-base font-medium">送信中...</span>
                 ) : (
@@ -415,11 +414,44 @@ export default function ExternalCardGenerator() {
             </div>
           </div>
 
+          {/* メール送信ボタン */}
+          {!emailSent && (
+            <div className="mt-6 border-t pt-4">
+              <p className="text-sm text-gray-700 mb-3 font-zen-kaku-gothic font-medium">
+                お客様へメールを送信:
+              </p>
+              <div className="flex gap-4 justify-center">
+                <button
+                  onClick={() => sendCardEmail(generatedCard.reservationId, 'ja')}
+                  disabled={isSendingEmail}
+                  className={`px-6 py-2 bg-blue-600 text-white rounded-md text-sm font-zen-kaku-gothic ${
+                    isSendingEmail
+                      ? "opacity-50 cursor-not-allowed"
+                      : "hover:bg-blue-700"
+                  }`}
+                >
+                  {isSendingEmail && emailLanguage === 'ja' ? "送信中..." : "日本語で送信"}
+                </button>
+                <button
+                  onClick={() => sendCardEmail(generatedCard.reservationId, 'en')}
+                  disabled={isSendingEmail}
+                  className={`px-6 py-2 bg-green-600 text-white rounded-md text-sm font-zen-kaku-gothic ${
+                    isSendingEmail
+                      ? "opacity-50 cursor-not-allowed"
+                      : "hover:bg-green-700"
+                  }`}
+                >
+                  {isSendingEmail && emailLanguage === 'en' ? "Sending..." : "Send in English"}
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="mt-4 text-center">
             <p className="text-sm text-gray-600 font-zen-kaku-gothic">
               {emailSent 
                 ? "カードが正常に発行され、お客様にメールが送信されました。"
-                : "カードが正常に発行されました。"}
+                : "カードが正常に発行されました。メール送信ボタンから言語を選択してお客様に送信してください。"}
             </p>
           </div>
         </div>

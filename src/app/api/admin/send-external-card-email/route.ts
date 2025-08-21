@@ -39,13 +39,13 @@ oAuth2Client.setCredentials({
   refresh_token: process.env.GMAIL_REFRESH_TOKEN,
 });
 
-// 使用Gmail API发送邮件 - 保持日文标题优先，使用纯文本格式并提供网站链接
+// 使用Gmail API发送邮件 - 支持日语和英语
 async function sendEmailWithGmailApi(
   to: string,
   subject: string,
-  htmlContent: string,
   reservationId: string,
-  userName: string
+  userName: string,
+  language: 'ja' | 'en' = 'ja'
 ): Promise<any> {
   try {
     // 获取授权客户端
@@ -64,10 +64,38 @@ async function sendEmailWithGmailApi(
 
     // 创建查看条形码的链接（带安全令牌）
     const cardViewUrl = `${baseUrl}/external-card-view?reservationId=${reservationId}&token=${mainCardToken}`;
-    const faqUrl = `${baseUrl}/faq`;
 
-    // 创建纯文本邮件内容，包含访问网站的链接
-    const textContent = `
+    // 根据语言选择邮件内容
+    let textContent: string;
+    
+    if (language === 'en') {
+      // 英文邮件内容
+      textContent = `
+Dear ${userName},
+
+etoe｜Room Card Information
+
+Thank you for booking etoe sauna & stay.
+We are pleased to provide you with your room access card information.
+
+View Your Room Card
+・Access barcode for your reserved room
+${cardViewUrl}
+
+※ The barcode is valid only during your reservation time. You can enter 5 minutes before your scheduled time.
+※ This link is exclusive to you. Please do not share it with others.
+
+Follow us on Instagram for the latest campaigns and updates:
+https://www.instagram.com/etoe_tokyo/
+
+We hope your time at etoe will be a gentle moment of relaxation.
+
+etoe
+※ This is an automated message. Please do not reply to this email.
+`;
+    } else {
+      // 日文邮件内容（原始版本）
+      textContent = `
 ${userName} 様
 
 etoe｜お部屋カード情報のご案内
@@ -91,6 +119,7 @@ etoeでのひとときが、
 etoe
 ※本メールは送信専用です。ご返信には対応いたしかねますのでご了承ください。
 `;
+    }
 
     // 使用纯文本内容
     const message = [
@@ -178,6 +207,7 @@ export async function POST(req: Request) {
       reservationId,
       userEmail,
       userName,
+      language = 'ja', // デフォルトは日本語
     } = requestBody;
 
     // 验证请求参数
@@ -218,22 +248,21 @@ export async function POST(req: Request) {
       );
     }
 
-    // 提取房间号显示格式
-    const roomNumberDisplay = reservationData.physicalRoomId.replace("room_", "");
-
-    // 邮件主题 - 使用原始日文标题
-    const emailSubject = "etoe｜お部屋カード情報のご案内";
+    // 邮件主题 - 根据语言选择
+    const emailSubject = language === 'en' 
+      ? "etoe｜Room Card Information" 
+      : "etoe｜お部屋カード情報のご案内";
 
     console.log("准备发送邮件到:", userEmail);
 
     try {
-      // 使用 Gmail API 发送邮件 - 传递需要的ID参数
+      // 使用 Gmail API 发送邮件 - 传递需要的ID参数和语言
       await sendEmailWithGmailApi(
         userEmail,
         emailSubject,
-        "", // 不再需要HTML内容，使用空字符串
         reservationId,
-        userName
+        userName,
+        language
       );
       console.log("邮件发送成功");
 
@@ -244,6 +273,7 @@ export async function POST(req: Request) {
         .update({
           cardEmailSent: true,
           cardEmailSentAt: getFirebaseTimestamp(new Date()),
+          cardEmailLanguage: language,
           updatedAt: getFirebaseTimestamp(new Date()),
         });
 

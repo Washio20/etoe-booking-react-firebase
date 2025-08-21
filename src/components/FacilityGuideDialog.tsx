@@ -29,11 +29,30 @@ export default function FacilityGuideDialog({
     }
   };
 
+  // 检查内容是否需要滚动
+  const checkScrollNeeded = () => {
+    const container = scrollContainerRef.current;
+    if (container) {
+      const { scrollHeight, clientHeight } = container;
+      // 如果内容高度小于或等于容器高度，说明不需要滚动
+      if (scrollHeight <= clientHeight) {
+        setHasScrolledToBottom(true);
+      } else {
+        setHasScrolledToBottom(false);
+      }
+    }
+  };
+
   // 当dialog打开或语言切换时重置滚动状态
   useEffect(() => {
-    setHasScrolledToBottom(false);
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTop = 0;
+    if (isOpen) {
+      // 使用setTimeout确保DOM已经更新
+      setTimeout(() => {
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTop = 0;
+          checkScrollNeeded();
+        }
+      }, 0);
     }
   }, [isOpen, language]);
 
