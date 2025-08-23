@@ -66,12 +66,15 @@ export default function CheckoutPage() {
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="text-center">
               <div className="text-red-500 text-6xl mb-4">⚠️</div>
-              <h1 className="text-xl font-bold text-gray-800 mb-4 font-zen-kaku-gothic">
-                無効な部屋番号
+              <h1 className="text-xl font-bold text-gray-800 mb-4">
+                <span className="block text-lg mb-1">Invalid Room Number</span>
+                <span className="font-zen-kaku-gothic">無効な部屋番号</span>
               </h1>
-              <p className="text-gray-600 font-zen-kaku-gothic">
-                部屋番号が正しくありません。<br />
-                QRコードを再度スキャンしてください。
+              <p className="text-gray-600">
+                <span className="block text-sm mb-1">The room number is incorrect.</span>
+                <span className="block text-sm mb-2">Please scan the QR code again.</span>
+                <span className="font-zen-kaku-gothic">部屋番号が正しくありません。<br />
+                QRコードを再度スキャンしてください。</span>
               </p>
             </div>
           </div>
@@ -98,25 +101,28 @@ export default function CheckoutPage() {
                     />
                   </div>
                 </div> */}
-                <h1 className="text-2xl font-bold text-gray-800 mb-2 font-zen-kaku-gothic">
-                  チェックアウト
+                <h1 className="text-2xl font-bold text-gray-800 mb-2">
+                  <span className="block text-xl mb-1">Check Out</span>
+                  <span className="font-zen-kaku-gothic">チェックアウト</span>
                 </h1>
-                <p className="text-lg text-gray-700 font-zen-kaku-gothic">
-                  {roomId}号室
+                <p className="text-lg text-gray-700">
+                  <span className="block text-base">Room {roomId}</span>
+                  <span className="font-zen-kaku-gothic">{roomId}号室</span>
                 </p>
               </div>
 
               <div className="space-y-4 mb-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2 font-zen-kaku-gothic">
-                    ご感想・ご要望（任意）
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <span className="block text-sm mb-1">Feedback / Requests (Optional)</span>
+                    <span className="font-zen-kaku-gothic">ご感想・ご要望（任意）</span>
                   </label>
                   <textarea
                     value={guestNote}
                     onChange={(e) => setGuestNote(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-zen-kaku-gothic"
                     rows={3}
-                    placeholder="ご滞在のご感想やご要望がございましたらお聞かせください"
+                    placeholder="Please share your feedback or requests / ご滞在のご感想やご要望がございましたらお聞かせください"
                     maxLength={500}
                     disabled={isLoading}
                   />
@@ -136,12 +142,18 @@ export default function CheckoutPage() {
                 }`}
               >
                 {isLoading ? (
-                  <div className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-2"></div>
-                    処理中...
+                  <div className="flex flex-col items-center justify-center">
+                    <div className="flex items-center">
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-2"></div>
+                      <span className="text-sm">Processing...</span>
+                    </div>
+                    <span className="text-sm">処理中...</span>
                   </div>
                 ) : (
-                  'チェックアウトする'
+                  <div className="flex flex-col items-center">
+                    <span className="text-sm">Check Out</span>
+                    <span className="text-sm">チェックアウトする</span>
+                  </div>
                 )}
               </button>
 
@@ -156,16 +168,19 @@ export default function CheckoutPage() {
           ) : (
             <div className="text-center">
               <div className="text-green-500 text-4xl mb-4">✅</div>
-              <h1 className="text-xl font-bold text-gray-800 mb-4 font-zen-kaku-gothic">
-                チェックアウト完了
+              <h1 className="text-xl font-bold text-gray-800 mb-4">
+                <span className="block text-lg mb-1">Check Out Complete</span>
+                <span className="font-zen-kaku-gothic">チェックアウト完了</span>
               </h1>
               <p className="text-gray-700 font-zen-kaku-gothic mb-6">
                 {message}
               </p>
               <div className="bg-blue-50 p-4 rounded-lg">
-                <p className="text-sm text-blue-800 font-zen-kaku-gothic leading-relaxed">
-                  この度はご利用いただき、<br className="sm:hidden" />ありがとうございました。<br />
-                  またのご利用を心よりお待ちしております。
+                <p className="text-sm text-blue-800 leading-relaxed">
+                  <span className="block mb-2">Thank you for staying with us.</span>
+                  <span className="block mb-2">We look forward to welcoming you again.</span>
+                  <span className="font-zen-kaku-gothic">この度はご利用いただき、<br className="sm:hidden" />ありがとうございました。<br />
+                  またのご利用を心よりお待ちしております。</span>
                 </p>
               </div>
             </div>
@@ -173,8 +188,9 @@ export default function CheckoutPage() {
         </div>
 
         <div className="mt-6 text-center">
-          <p className="text-xs text-gray-500 font-zen-kaku-gothic">
-            問題が発生した場合は、フロントまでお声かけください
+          <p className="text-xs text-gray-500">
+            <span className="block mb-1">If you encounter any issues, please contact the front desk.</span>
+            <span className="font-zen-kaku-gothic">問題が発生した場合は、フロントまでお声かけください</span>
           </p>
         </div>
       </div>
