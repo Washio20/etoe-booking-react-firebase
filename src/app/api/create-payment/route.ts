@@ -3,7 +3,6 @@ import Stripe from "stripe";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { initAdmin } from "@/utils/firebase-admin";
-import { NextRequest } from "next/server";
 import admin from "firebase-admin";
 import { Coupon } from "@/types/coupon";
 
@@ -194,6 +193,204 @@ export async function POST(req: Request) {
       `创建支付会话，金额: ${amount}円，房间类型: ${reservation.roomType}`
     );
 
+    // ========== 添加预约冲突检查和临时锁定 ==========
+    let lockDocId: string | null = null; // 用于存储锁定文档ID
+    
+    try {
+      // 解析预约日期和时间
+      let displayTimeRange = reservation.displayTimeRange || reservation.time || "";
+      
+      // 解析预约日期 - 更可靠的方法
+      let targetYear: number | null = null;
+      let targetMonth: number | null = null; 
+      let targetDay: number | null = null;
+
+      if (reservation.bookingDate) {
+        const dateObj = new Date(reservation.bookingDate);
+        targetYear = dateObj.getFullYear();
+        targetMonth = dateObj.getMonth() + 1;
+        targetDay = dateObj.getDate();
+      } else if (reservation.date) {
+        // 从日期字符串解析（格式可能是 "2025年1月15日"）
+        const dateMatch = reservation.date.match(/(\d+)年(\d+)月(\d+)日/);
+        if (dateMatch) {
+          targetYear = parseInt(dateMatch[1]);
+          targetMonth = parseInt(dateMatch[2]);
+          targetDay = parseInt(dateMatch[3]);
+        }
+      }
+
+      if (targetYear && targetMonth && targetDay && displayTimeRange && reservation.roomType) {
+        console.log("检查预约冲突和创建锁定:", {
+          roomType: reservation.roomType,
+          targetDate: `${targetYear}年${targetMonth}月${targetDay}日`,
+          displayTimeRange: displayTimeRange
+        });
+
+        // 使用事务来确保原子性操作
+        const result = await db.runTransaction(async (transaction) => {
+          // 收集所有需要删除的过期锁定（在读操作阶段执行）
+          let expiredLockRefs: admin.firestore.DocumentReference[] = [];
+          
+          // 0. 查询过期锁定（随机触发，避免每次都执行）
+          if (Math.random() < 0.1) { // 10%概率触发清理
+            try {
+              const expiredQuery = db.collection("reservation_locks")
+                .where("expiresAt", "<=", admin.firestore.Timestamp.now())
+                .limit(50); // 限制一次清理数量
+
+              const expiredSnapshot = await transaction.get(expiredQuery);
+              expiredLockRefs = expiredSnapshot.docs.map(doc => doc.ref);
+              
+              if (expiredLockRefs.length > 0) {
+                console.log(`准备清理 ${expiredLockRefs.length} 个过期锁定`);
+              }
+            } catch (cleanupError) {
+              console.error("查询过期锁定失败:", cleanupError);
+              // 清理失败不影响主要逻辑
+            }
+          }
+          
+          // 1. 检查是否有已确认的预约
+          const reservationsRef = db.collection("reservations");
+          
+          // 创建日期范围查询（与webhook保持一致）
+          // 使用与parseJapaneseDate相同的逻辑：创建本地时区的日期对象
+          const startOfDay = new Date(targetYear, targetMonth - 1, targetDay, 0, 0, 0, 0);
+          const endOfDay = new Date(targetYear, targetMonth - 1, targetDay, 23, 59, 59, 999);
+          
+          console.log("日期范围查询:", {
+            targetDate: `${targetYear}年${targetMonth}月${targetDay}日`,
+            startOfDay: startOfDay.toISOString(),
+            endOfDay: endOfDay.toISOString(),
+            timezone: "服务器本地时区"
+          });
+          
+          const conflictQuery = reservationsRef
+            .where("roomType", "==", reservation.roomType)
+            .where("bookingDate", ">=", admin.firestore.Timestamp.fromDate(startOfDay))
+            .where("bookingDate", "<=", admin.firestore.Timestamp.fromDate(endOfDay))
+            .where("paymentStatus", "==", "paid");
+
+          const conflictSnapshot = await transaction.get(conflictQuery);
+          
+          // 在内存中进一步过滤相同的时间段
+          const exactMatches = conflictSnapshot.docs.filter(doc => {
+            const data = doc.data();
+            return data.displayTimeRange === displayTimeRange;
+          });
+
+          if (exactMatches.length > 0) {
+            // 发现冲突预约
+            console.error("预约冲突检测：发现重复预约", {
+              roomType: reservation.roomType,
+              targetDate: `${targetYear}年${targetMonth}月${targetDay}日`,
+              displayTimeRange: displayTimeRange,
+              exactMatches: exactMatches.length,
+              totalQueryResults: conflictSnapshot.size
+            });
+            throw new Error("CONFLICT_EXISTING_RESERVATION");
+          }
+
+          // 2. 检查是否有未过期的锁定
+          const locksRef = db.collection("reservation_locks");
+          const lockQuery = locksRef
+            .where("roomType", "==", reservation.roomType)
+            .where("bookingDate", ">=", admin.firestore.Timestamp.fromDate(startOfDay))
+            .where("bookingDate", "<=", admin.firestore.Timestamp.fromDate(endOfDay))
+            .where("displayTimeRange", "==", displayTimeRange)
+            .where("expiresAt", ">", admin.firestore.Timestamp.now());
+
+          const lockSnapshot = await transaction.get(lockQuery);
+
+          if (!lockSnapshot.empty) {
+            // 检查锁定是否属于当前用户
+            const otherUserLocks = lockSnapshot.docs.filter(
+              doc => doc.data().userId !== userRecord.uid
+            );
+
+            if (otherUserLocks.length > 0) {
+              console.error("预约锁定检测：时间段已被锁定", {
+                roomType: reservation.roomType,
+                date: reservation.date,
+                time: displayTimeRange,
+                lockedBy: otherUserLocks[0].data().userId
+              });
+              throw new Error("CONFLICT_LOCKED");
+            }
+          }
+
+          // === 所有读操作完成，开始写操作 ===
+          
+          // 3. 删除过期锁定（如果有）
+          if (expiredLockRefs.length > 0) {
+            expiredLockRefs.forEach(ref => {
+              transaction.delete(ref);
+            });
+            console.log(`事务中删除了 ${expiredLockRefs.length} 个过期锁定`);
+          }
+          
+          // 4. 创建新的锁定记录（15分钟过期）
+          const lockRef = locksRef.doc();
+          const lockExpiry = new Date();
+          lockExpiry.setMinutes(lockExpiry.getMinutes() + 15); // 15分钟过期
+
+          // 为锁定记录创建bookingDate（使用与webhook相同的方法）
+          const lockBookingDate = admin.firestore.Timestamp.fromDate(startOfDay);
+
+          const lockData = {
+            userId: userRecord.uid,
+            roomType: reservation.roomType,
+            bookingDate: lockBookingDate,
+            displayTimeRange: displayTimeRange,
+            createdAt: admin.firestore.Timestamp.now(),
+            expiresAt: admin.firestore.Timestamp.fromDate(lockExpiry),
+            status: "active"
+          };
+
+          transaction.set(lockRef, lockData);
+          
+          console.log("成功创建预约锁定:", lockRef.id);
+          return lockRef.id;
+        });
+
+        lockDocId = result;
+        console.log("预约冲突检查通过，已创建临时锁定:", lockDocId);
+
+      } else {
+        console.warn("预约冲突检查：缺少必要的预约信息", {
+          hasTargetDate: !!(targetYear && targetMonth && targetDay),
+          hasDisplayTimeRange: !!displayTimeRange,
+          hasRoomType: !!reservation.roomType,
+          targetYear, targetMonth, targetDay
+        });
+      }
+    } catch (conflictCheckError: any) {
+      console.error("预约冲突检查/锁定失败:", conflictCheckError);
+      
+      if (conflictCheckError.message === "CONFLICT_EXISTING_RESERVATION") {
+        return NextResponse.json(
+          { 
+            error: "選択された時間帯はすでに予約済みです。別の時間帯をお選びください。",
+            conflictDetected: true
+          },
+          { status: 409 }  // 409 Conflict
+        );
+      } else if (conflictCheckError.message === "CONFLICT_LOCKED") {
+        return NextResponse.json(
+          { 
+            error: "選択された時間帯は他のお客様が予約手続き中です。しばらくお待ちいただくか、別の時間帯をお選びください。",
+            conflictDetected: true
+          },
+          { status: 409 }  // 409 Conflict
+        );
+      }
+      
+      // 其他错误不应阻止用户支付，但需要记录错误
+      console.error("预约冲突检查出现异常，但继续处理:", conflictCheckError);
+    }
+    // ========== 预约冲突检查和临时锁定结束 ==========
+
     // 获取应用基础URL
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
 
@@ -315,6 +512,7 @@ export async function POST(req: Request) {
       couponId: appliedCouponId || "", // 添加优惠券ID
       discountAmount: String(discountAmount), // 添加折扣金额
       originalAmount: String(amount + discountAmount), // 添加原始金额
+      lockId: lockDocId || "", // 添加锁定ID，用于支付成功后删除锁定
     };
 
     // 如果有折扣详情，添加到metadata中
@@ -340,7 +538,7 @@ export async function POST(req: Request) {
       ],
       mode: "payment",
       success_url: `${baseUrl}/reservation-complete?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/reservation/confirm`,
+      cancel_url: `${baseUrl}/payment-cancelled${lockDocId ? `?lockId=${lockDocId}` : ''}`,
       customer_email: userRecord.email,
       metadata: metadata,
     });

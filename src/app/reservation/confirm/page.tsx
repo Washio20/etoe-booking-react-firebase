@@ -51,11 +51,16 @@ export default function ReservationConfirm() {
   // 邮件验证相关状态
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
-  const [checkingVerification, setCheckingVerification] = useState(false);
 
   // 添加Dialog相关状态
   const [showDialog, setShowDialog] = useState(false);
   const [dialogMessage, setDialogMessage] = useState("");
+  
+  // 添加处理中状态，防止重复提交
+  const [isProcessing, setIsProcessing] = useState(false);
+  
+  // 添加预约冲突状态
+  const [isConflictError, setIsConflictError] = useState(false);
 
   // 添加一个状态用于强制刷新
   const [metadataRefreshTrigger, setMetadataRefreshTrigger] = useState(0);
@@ -348,7 +353,6 @@ export default function ReservationConfirm() {
     if (!user) return;
 
     try {
-      setCheckingVerification(true);
 
       // 使用Firebase检查邮箱验证状态
       const { checkEmailVerification } = await import("@/utils/auth");
@@ -362,8 +366,6 @@ export default function ReservationConfirm() {
       }
     } catch (error) {
       console.error("Error checking verification status:", error);
-    } finally {
-      setCheckingVerification(false);
     }
   }, [user]);
 
@@ -420,12 +422,22 @@ export default function ReservationConfirm() {
 
   // 处理完成预约并跳转到Stripe支付页面
   const handleCompleteReservation = async () => {
+    // 防止重复提交
+    if (isProcessing) {
+      return;
+    }
+    
     try {
+      setIsProcessing(true); // 开始处理
+      
       // 确保用户已登录
       if (!user) {
         // 未登录用户不应该看到这个按钮，但以防万一
-        alert("ログインが必要です。");
-        router.push("/login?returnTo=/reservation/confirm");
+        setDialogMessage("ログインが必要です。");
+        setShowDialog(true);
+        setTimeout(() => {
+          router.push("/login?returnTo=/reservation/confirm");
+        }, 1500);
         return;
       }
 
@@ -443,7 +455,6 @@ export default function ReservationConfirm() {
       let slowRoomTimeRange = null;
       let selectedDate = null;
       let selectedTime = null;
-      let roomType = '';
 
       if (storedInfo) {
         try {
@@ -452,7 +463,6 @@ export default function ReservationConfirm() {
           slowRoomTimeRange = parsedInfo.slowRoomTimeRange;
           selectedDate = parsedInfo.selectedDate; // ISO格式日期字符串
           selectedTime = parsedInfo.selectedTime; // 时间段字符串，例如"00:20〜01:50"
-          roomType = parsedInfo.selectedRoomType;
         } catch (e) {
           console.error("解析localStorage中的预约数据时出错:", e);
         }
@@ -579,6 +589,15 @@ export default function ReservationConfirm() {
 
       if (!response.ok) {
         const errorData = await response.json();
+        
+        // 处理预约冲突错误
+        if (response.status === 409 && errorData.conflictDetected) {
+          setDialogMessage(errorData.error || "選択された時間帯はすでに予約済みです。別の時間帯をお選びください。");
+          setIsConflictError(true);
+          setShowDialog(true);
+          return;
+        }
+        
         throw new Error(
           errorData.error || "支払い処理中にエラーが発生しました"
         );
@@ -617,7 +636,10 @@ export default function ReservationConfirm() {
       }
     } catch (error) {
       console.error("支払い処理中のエラー:", error);
-      alert("決済処理中にエラーが発生しました。もう一度お試しください。");
+      setDialogMessage("決済処理中にエラーが発生しました。もう一度お試しください。");
+      setShowDialog(true);
+    } finally {
+      setIsProcessing(false); // 处理完成，重置状态
     }
   };
 
@@ -863,9 +885,14 @@ export default function ReservationConfirm() {
                 </button>
                 <button
                   onClick={handleCompleteReservation}
-                  className="px-6 md:px-12 py-2 md:py-3 text-sm md:text-base font-medium text-white bg-gray-700 rounded-full hover:bg-gray-800 font-zen-kaku-gothic"
+                  disabled={isProcessing}
+                  className={`px-6 md:px-12 py-2 md:py-3 text-sm md:text-base font-medium text-white rounded-full font-zen-kaku-gothic ${
+                    isProcessing 
+                      ? "bg-gray-400 cursor-not-allowed" 
+                      : "bg-gray-700 hover:bg-gray-800"
+                  }`}
                 >
-                  次へ進む
+                  {isProcessing ? "処理中..." : "次へ進む"}
                 </button>
               </>
             )}
@@ -910,7 +937,35 @@ export default function ReservationConfirm() {
                     </button>
                   </div>
                 </>
+              ) : isConflictError ? (
+                // 预约冲突专用Dialog
+                <>
+                  <h3 className="text-lg font-bold text-red-600 mb-3 font-zen-kaku-gothic">予約できませんでした</h3>
+                  <p className="text-gray-700 mb-6 font-zen-kaku-gothic">{dialogMessage}</p>
+                  <div className="flex flex-col md:flex-row justify-center space-y-2 md:space-y-0 md:space-x-4">
+                    <button
+                      onClick={() => {
+                        setShowDialog(false);
+                        setIsConflictError(false);
+                        router.push("/");
+                      }}
+                      className="px-6 py-2 bg-red-600 text-white rounded-full text-sm font-zen-kaku-gothic hover:bg-red-700 transition-colors"
+                    >
+                      別の時間を選択する
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowDialog(false);
+                        setIsConflictError(false);
+                      }}
+                      className="px-4 py-2 bg-gray-700 text-white rounded-full text-sm font-zen-kaku-gothic hover:bg-gray-800 transition-colors"
+                    >
+                      閉じる
+                    </button>
+                  </div>
+                </>
               ) : (
+                // 普通错误Dialog
                 <>
                   <p className="text-gray-700 mb-6 font-zen-kaku-gothic">{dialogMessage}</p>
                   <div className="flex justify-center">

@@ -376,6 +376,17 @@ async function handleReservationSuccess(session: Stripe.Checkout.Session): Promi
     if (!existingReservationsQuery.empty) {
       const existingReservation = existingReservationsQuery.docs[0];
       console.log(`Webhook: 找到现有预约，避免重复创建: ${existingReservation.id}`);
+      
+      // 尝试清理锁定（如果存在）
+      if (session.metadata?.lockId) {
+        try {
+          await db.collection("reservation_locks").doc(session.metadata.lockId).delete();
+          console.log(`Webhook: 清理了预约锁定: ${session.metadata.lockId}`);
+        } catch (error) {
+          console.error("Webhook: 清理锁定失败，但不影响流程:", error);
+        }
+      }
+      
       return existingReservation.id;
     }
 
@@ -585,6 +596,16 @@ async function handleReservationSuccess(session: Stripe.Checkout.Session): Promi
     }
 
     const reservationId = reservationRef.id;
+
+    // 清理预约锁定（如果存在）
+    if (session.metadata?.lockId) {
+      try {
+        await db.collection("reservation_locks").doc(session.metadata.lockId).delete();
+        console.log(`Webhook: 成功清理预约锁定: ${session.metadata.lockId}`);
+      } catch (error) {
+        console.error("Webhook: 清理锁定失败，但不影响预约流程:", error);
+      }
+    }
 
     // 检查是否为当日直前预约
     const checkSameDayReservation = () => {
