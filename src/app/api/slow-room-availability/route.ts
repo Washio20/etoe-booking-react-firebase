@@ -172,12 +172,12 @@ export async function GET(request: NextRequest) {
       slowRoomQuery.get(),
     ]);
 
-    console.log(
-      `查询到 ${slowRoomReservationsSnapshot.size} 个slow room普通预约`
-    );
-    console.log(
-      `查询到 ${setplanReservationsSnapshot.size} 个slow room套餐预约`
-    );
+    // console.log(
+    //   `查询到 ${slowRoomReservationsSnapshot.size} 个slow room普通预约`
+    // );
+    // console.log(
+    //   `查询到 ${setplanReservationsSnapshot.size} 个slow room套餐预约`
+    // );
 
     // 获取slow room配置，包括dailyInventory
     let maxReservationsFromConfig = totalSlowRooms; // 默认使用物理房间总数

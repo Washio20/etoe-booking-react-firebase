@@ -176,12 +176,12 @@ export async function GET(request: NextRequest) {
       slowRoomQuery.get(),
     ]);
 
-    console.log(
-      `查询到 ${slowRoomReservationsSnapshot.size} 个slow room普通预约`
-    );
-    console.log(
-      `查询到 ${setplanReservationsSnapshot.size} 个slow room套餐预约`
-    );
+    // console.log(
+    //   `查询到 ${slowRoomReservationsSnapshot.size} 个slow room普通预约`
+    // );
+    // console.log(
+    //   `查询到 ${setplanReservationsSnapshot.size} 个slow room套餐预约`
+    // );
 
     // 提取时间重叠的预约
     type ReservationDoc =

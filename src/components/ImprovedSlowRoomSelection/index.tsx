@@ -439,7 +439,7 @@ export default function ImprovedSlowRoomSelection({
         <div className="w-full">
           <div className="flex flex-row items-center flex-wrap gap-2 md:gap-3">
             <h2 className="text-base md:text-lg text-[#444444] font-bold font-zen-kaku-gothic">
-            オプション：客室のデイユースプラン
+            オプション：客室のデイユースプラン（2名まで）
             </h2>
             <span className="inline-block text-xs md:text-sm font-bold text-[#D77777] border-2 border-[#D77777] rounded px-2 py-0.5 whitespace-nowrap font-zen-kaku-gothic">
               セットで¥1,000円お得
