@@ -113,12 +113,12 @@ export async function GET(request: NextRequest) {
       slowRoomQuery.get(),
     ]);
 
-    console.log(
-      `查询到 ${slowRoomReservationsSnapshot.size} 个slow room普通预约`
-    );
-    console.log(
-      `查询到 ${setplanReservationsSnapshot.size} 个slow room套餐预约`
-    );
+    // console.log(
+    //   `查询到 ${slowRoomReservationsSnapshot.size} 个slow room普通预约`
+    // );
+    // console.log(
+    //   `查询到 ${setplanReservationsSnapshot.size} 个slow room套餐预约`
+    // );
 
     // 提取所有预约的时间段
     type Reservation = {
@@ -220,11 +220,11 @@ export async function GET(request: NextRequest) {
         }
 
         // 记录提取的预约信息用于调试
-        console.log(
-          `成功提取预约 ${
-            doc.id
-          }: ${startDateTime.toLocaleTimeString()} 到 ${endDateTime.toLocaleTimeString()}`
-        );
+        // console.log(
+        //   `成功提取预约 ${
+        //     doc.id
+        //   }: ${startDateTime.toLocaleTimeString()} 到 ${endDateTime.toLocaleTimeString()}`
+        // );
 
         reservations.push({
           startDateTime,

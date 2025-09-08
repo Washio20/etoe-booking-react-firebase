@@ -145,87 +145,100 @@ const createRoomCard = async (
     let cardKey = cardNumber;
     let barcode = "";
 
-      try {
-        console.log("准备调用外部API创建卡片...");
+    try {
+      console.log("准备调用外部API创建卡片...");
 
-        // 获取API令牌
-        const apiToken = CARD_API_TOKEN;
+      // 获取API令牌
+      const apiToken = CARD_API_TOKEN;
 
-        if (!apiToken) {
-          throw new Error("无法获取API令牌");
-        }
-
-        // 创建日本时区的日期时间对象
-        const bufferStartDateTime = new Date(startDateTime.getTime() - 5 * 60 * 1000);
-        const bufferEndDateTime = new Date(endDateTime.getTime() + 5 * 60 * 1000);
-
-        // 转换为日本时区的ISO字符串
-        const formatDateTimeJP = (date: Date): string => {
-          // 设置为日本时区 (UTC+9)
-          const offset = 9 * 60; // 日本是UTC+9，偏移量为9小时（分钟计算）
-          const jpTime = new Date(date.getTime() + offset * 60000);
-          // 格式化为ISO8601格式，但使用JST时区
-          return jpTime.toISOString().replace('Z', '+09:00');
-        };
-
-        const startDateJST = formatDateTimeJP(bufferStartDateTime);
-        const endDateJST = formatDateTimeJP(bufferEndDateTime);
-
-        console.log("转换后的日本时区时间参数:", {
-          startDateTime: startDateJST,
-          endDateTime: endDateJST
-        });
-
-        // 调用外部API创建卡片
-        const cardData = {
-          number: cardNumber,
-          name: `ETOE-${reservationId}`,
-          devices: [deviceId],
-          start_at: startDateJST, // 使用日本时区ISO字符串，已包含5分钟缓冲
-          end_at: endDateJST, // 使用日本时区ISO字符串，已包含5分钟缓冲
-          owner_client_id: CLIENT_ID,
-          symbol_type: "pdf417",
-        };
-
-        console.log("客户用-准备调用外部API创建卡片...", cardData);
-
-        // 调用API
-        const response = await fetch(CARD_API_URL, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiToken}`,
-            "Content-Type": "application/json",
-            "X-Environment": "standard",
-          },
-          body: JSON.stringify(cardData),
-        });
-
-        console.log("API响应状态:", response.status);
-
-        if (!response.ok) {
-          const errText = await response.text();
-          console.error(`外部API调用失败: ${response.status} - ${errText}`);
-          throw new Error(`创建卡失败: ${response.status} - ${errText}`);
-        }
-
-        const cardResponse = await response.json();
-
-        console.log("外部API返回的卡片信息:", cardResponse);
-
-        // 使用外部API返回的卡片密钥
-        cardKey = cardResponse.number;
-
-        // 如果API返回了条形码图像，使用它
-        if (cardResponse.symbol_image_base64) {
-          console.log("使用API返回的条形码图像");
-          barcode = `data:image/png;base64,${cardResponse.symbol_image_base64}`;
-        } else {
-          // 否则使用简单的条形码表示
-          barcode = await generateBarcode(cardNumber);
-        }
-      } catch (error) {
-        console.error("外部API错误:", error);
+      if (!apiToken) {
+        throw new Error("API令牌が設定されていません");
       }
+
+      // 创建日本时区的日期时间对象
+      const bufferStartDateTime = new Date(startDateTime.getTime() - 5 * 60 * 1000);
+      const bufferEndDateTime = new Date(endDateTime.getTime() + 5 * 60 * 1000);
+
+      // 转换为日本时区的ISO字符串
+      const formatDateTimeJP = (date: Date): string => {
+        // 设置为日本时区 (UTC+9)
+        const offset = 9 * 60; // 日本是UTC+9，偏移量为9小时（分钟计算）
+        const jpTime = new Date(date.getTime() + offset * 60000);
+        // 格式化为ISO8601格式，但使用JST时区
+        return jpTime.toISOString().replace('Z', '+09:00');
+      };
+
+      const startDateJST = formatDateTimeJP(bufferStartDateTime);
+      const endDateJST = formatDateTimeJP(bufferEndDateTime);
+
+      console.log("转换后的日本时区时间参数:", {
+        startDateTime: startDateJST,
+        endDateTime: endDateJST
+      });
+
+      // 调用外部API创建卡片
+      const cardData = {
+        number: cardNumber,
+        name: `ETOE-${reservationId}`,
+        devices: [deviceId],
+        start_at: startDateJST, // 使用日本时区ISO字符串，已包含5分钟缓冲
+        end_at: endDateJST, // 使用日本时区ISO字符串，已包含5分钟缓冲
+        owner_client_id: CLIENT_ID,
+        symbol_type: "pdf417",
+      };
+
+      console.log("客户用-准备调用外部API创建卡片...", cardData);
+
+      // 调用API
+      const response = await fetch(CARD_API_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiToken}`,
+          "Content-Type": "application/json",
+          "X-Environment": "standard",
+        },
+        body: JSON.stringify(cardData),
+      });
+
+      console.log("API响应状态:", response.status);
+
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error(`外部API调用失败: ${response.status} - ${errText}`);
+        throw new Error(`外部カードAPIエラー: ${response.status}`);
+      }
+
+      const cardResponse = await response.json();
+
+      console.log("外部API返回的卡片信息:", cardResponse);
+
+      // 使用外部API返回的卡片密钥
+      cardKey = cardResponse.number;
+
+      // 如果API返回了条形码图像，使用它
+      if (cardResponse.symbol_image_base64) {
+        console.log("使用API返回的条形码图像");
+        barcode = `data:image/png;base64,${cardResponse.symbol_image_base64}`;
+      } else {
+        // 否则使用本地生成的条形码
+        console.log("API未返回条形码，尝试本地生成...");
+        barcode = await generateBarcode(cardNumber);
+        
+        // 验证本地生成的条形码
+        if (!barcode) {
+          throw new Error("バーコード生成に失敗しました");
+        }
+      }
+    } catch (error) {
+      console.error("外部API或条形码生成错误:", error);
+      // 重新抛出错误，让调用方处理
+      throw error;
+    }
+
+    // 验证barcode不为空
+    if (!barcode) {
+      throw new Error("バーコードの生成に失敗しました。もう一度お試しください。");
+    }
 
     // 生成二维码
     const qrcode = await generateQRCode(cardNumber);
@@ -238,7 +251,8 @@ const createRoomCard = async (
     };
   } catch (error) {
     console.error("创建房间卡时出错:", error);
-    return null;
+    // 将错误信息向上传递
+    throw error;
   }
 };
 
@@ -689,11 +703,11 @@ export async function POST(req: Request) {
         assignmentEndObj = new Date(assignment.endDateTime);
       }
 
-      console.log(
-        `检查房间 ${physicalRoomId} 时间段冲突:`,
-        `已分配: ${assignmentStartObj.toISOString()} - ${assignmentEndObj.toISOString()}`,
-        `请求: ${effectiveStartDateTime.toISOString()} - ${effectiveEndDateTime.toISOString()}`
-      );
+      // console.log(
+      //   `检查房间 ${physicalRoomId} 时间段冲突:`,
+      //   `已分配: ${assignmentStartObj.toISOString()} - ${assignmentEndObj.toISOString()}`,
+      //   `请求: ${effectiveStartDateTime.toISOString()} - ${effectiveEndDateTime.toISOString()}`
+      // );
 
       // 检查时间段重叠
       const hasTimeOverlap =
@@ -734,16 +748,64 @@ export async function POST(req: Request) {
     });
 
     // 生成房间卡
-    const roomCard = await createRoomCard(
-      physicalRoomId,
-      reservationId,
-      effectiveStartDateTime,
-      effectiveEndDateTime
-    );
-
-    if (!roomCard) {
+    let roomCard;
+    try {
+      roomCard = await createRoomCard(
+        physicalRoomId,
+        reservationId,
+        effectiveStartDateTime,
+        effectiveEndDateTime
+      );
+    } catch (error) {
+      console.error("カード生成エラー:", error);
+      
+      // 如果房间分配已创建，需要删除它
+      try {
+        const assignmentQuery = await db
+          .collection("roomAssignments")
+          .where("reservationId", "==", reservationId)
+          .where("physicalRoomId", "==", physicalRoomId)
+          .where("status", "==", "active")
+          .limit(1)
+          .get();
+        
+        if (!assignmentQuery.empty) {
+          await assignmentQuery.docs[0].ref.delete();
+          console.log("エラー発生のため、房間割り当てを削除しました");
+        }
+      } catch (cleanupError) {
+        console.error("クリーンアップエラー:", cleanupError);
+      }
+      
+      // 返回具体的错误信息给前端
+      const errorMessage = error instanceof Error ? error.message : "カード生成に失敗しました";
       return NextResponse.json(
-        { error: "カード生成に失敗しました" },
+        { error: errorMessage },
+        { status: 500 }
+      );
+    }
+
+    // 额外的安全检查
+    if (!roomCard || !roomCard.barcode) {
+      // 清理已创建的房间分配
+      try {
+        const assignmentQuery = await db
+          .collection("roomAssignments")
+          .where("reservationId", "==", reservationId)
+          .where("physicalRoomId", "==", physicalRoomId)
+          .where("status", "==", "active")
+          .limit(1)
+          .get();
+        
+        if (!assignmentQuery.empty) {
+          await assignmentQuery.docs[0].ref.delete();
+        }
+      } catch (cleanupError) {
+        console.error("クリーンアップエラー:", cleanupError);
+      }
+      
+      return NextResponse.json(
+        { error: "バーコードの生成に失敗しました。もう一度お試しください。" },
         { status: 500 }
       );
     }
