@@ -28,18 +28,20 @@ interface RoomTypeSales {
 
 interface RepeaterStats {
   overview: {
-    totalUsers: number;
-    firstTimeUsers: number;
-    repeatUsers: number;
-    repeaterRate: number;
+    totalUsers: number;          // 期間内総利用者数
+    newUsers: number;            // 期間内新規ユーザー数
+    existingUsers: number;       // 期間内既存ユーザー数
+    periodRepeaters: number;     // 期間内複数回利用者数
+    newUserRate: number;         // 新規ユーザー率
+    existingUserRate: number;    // 既存ユーザー率
   };
   genderStats: {
-    male: { total: number; repeaters: number };
-    female: { total: number; repeaters: number };
-    unknown: { total: number; repeaters: number };
+    male: { total: number; newUsers: number; existingUsers: number };
+    female: { total: number; newUsers: number; existingUsers: number };
+    unknown: { total: number; newUsers: number; existingUsers: number };
   };
   ageGroupStats: {
-    [key: string]: { total: number; repeaters: number };
+    [key: string]: { total: number; newUsers: number; existingUsers: number };
   };
   visitCountDistribution: {
     [key: string]: number;
@@ -55,6 +57,12 @@ interface RepeaterStats {
     totalVisits: number;
     totalAmount: number;
     roomTypes: string;
+    // 新增期間内統計字段
+    periodVisits: number;         // 期間内利用次数
+    periodTotalAmount: number;    // 期間内総金額
+    isNewUser: boolean;          // 是否为期間内新用户
+    isRepeater: boolean;         // 是否为既存用户
+    isPeriodRepeater: boolean;   // 是否为期間内複数回利用者
   }>;
 }
 
@@ -271,35 +279,50 @@ export default function SalesStatisticsPage() {
 
     // 概要統計シート
     const overviewData = [
-      ['リピーター統計概要'],
+      [`期間内利用者統計概要 (${dateRange.start} 〜 ${dateRange.end})`],
       [''],
       ['項目', '数値'],
-      ['総ユーザー数', repeaterStats.overview.totalUsers],
-      ['初回利用者数', repeaterStats.overview.firstTimeUsers],
-      ['リピーター数', repeaterStats.overview.repeatUsers],
-      ['リピーター率(%)', repeaterStats.overview.repeaterRate],
+      ['期間内総利用者数', repeaterStats.overview.totalUsers],
+      ['期間内新規ユーザー数', repeaterStats.overview.newUsers],
+      ['期間内既存ユーザー数', repeaterStats.overview.existingUsers],
+      ['期間内複数回利用者数', repeaterStats.overview.periodRepeaters],
+      ['新規ユーザー率(%)', repeaterStats.overview.newUserRate],
+      ['既存ユーザー率(%)', repeaterStats.overview.existingUserRate],
       [''],
       ['性別統計'],
-      ['性別', '総数', 'リピーター数', 'リピーター率(%)'],
-      ['男性', repeaterStats.genderStats.male.total, repeaterStats.genderStats.male.repeaters, 
-       repeaterStats.genderStats.male.total > 0 ? Math.round(repeaterStats.genderStats.male.repeaters / repeaterStats.genderStats.male.total * 10000) / 100 : 0],
-      ['女性', repeaterStats.genderStats.female.total, repeaterStats.genderStats.female.repeaters,
-       repeaterStats.genderStats.female.total > 0 ? Math.round(repeaterStats.genderStats.female.repeaters / repeaterStats.genderStats.female.total * 10000) / 100 : 0],
-      ['不明', repeaterStats.genderStats.unknown.total, repeaterStats.genderStats.unknown.repeaters,
-       repeaterStats.genderStats.unknown.total > 0 ? Math.round(repeaterStats.genderStats.unknown.repeaters / repeaterStats.genderStats.unknown.total * 10000) / 100 : 0],
+      ['性別', '総数', '新規ユーザー数', '既存ユーザー数', '新規率(%)', '既存率(%)'],
+      ['男性', 
+       repeaterStats.genderStats.male.total, 
+       repeaterStats.genderStats.male.newUsers,
+       repeaterStats.genderStats.male.existingUsers,
+       repeaterStats.genderStats.male.total > 0 ? Math.round(repeaterStats.genderStats.male.newUsers / repeaterStats.genderStats.male.total * 10000) / 100 : 0,
+       repeaterStats.genderStats.male.total > 0 ? Math.round(repeaterStats.genderStats.male.existingUsers / repeaterStats.genderStats.male.total * 10000) / 100 : 0],
+      ['女性', 
+       repeaterStats.genderStats.female.total, 
+       repeaterStats.genderStats.female.newUsers,
+       repeaterStats.genderStats.female.existingUsers,
+       repeaterStats.genderStats.female.total > 0 ? Math.round(repeaterStats.genderStats.female.newUsers / repeaterStats.genderStats.female.total * 10000) / 100 : 0,
+       repeaterStats.genderStats.female.total > 0 ? Math.round(repeaterStats.genderStats.female.existingUsers / repeaterStats.genderStats.female.total * 10000) / 100 : 0],
+      ['不明', 
+       repeaterStats.genderStats.unknown.total, 
+       repeaterStats.genderStats.unknown.newUsers,
+       repeaterStats.genderStats.unknown.existingUsers,
+       repeaterStats.genderStats.unknown.total > 0 ? Math.round(repeaterStats.genderStats.unknown.newUsers / repeaterStats.genderStats.unknown.total * 10000) / 100 : 0,
+       repeaterStats.genderStats.unknown.total > 0 ? Math.round(repeaterStats.genderStats.unknown.existingUsers / repeaterStats.genderStats.unknown.total * 10000) / 100 : 0],
       [''],
       ['年代別統計'],
-      ['年代', '総数', 'リピーター数', 'リピーター率(%)']
+      ['年代', '総数', '新規ユーザー数', '既存ユーザー数', '新規率(%)', '既存率(%)']
     ];
 
     Object.entries(repeaterStats.ageGroupStats).forEach(([ageGroup, stats]) => {
-      const repeaterRate = stats.total > 0 ? Math.round(stats.repeaters / stats.total * 10000) / 100 : 0;
-      overviewData.push([ageGroup, stats.total, stats.repeaters, repeaterRate]);
+      const newUserRate = stats.total > 0 ? Math.round(stats.newUsers / stats.total * 10000) / 100 : 0;
+      const existingUserRate = stats.total > 0 ? Math.round(stats.existingUsers / stats.total * 10000) / 100 : 0;
+      overviewData.push([ageGroup, stats.total, stats.newUsers, stats.existingUsers, newUserRate, existingUserRate]);
     });
 
     overviewData.push(['']);
-    overviewData.push(['利用回数分布']);
-    overviewData.push(['利用回数', 'ユーザー数']);
+    overviewData.push(['期間内利用回数分布']);
+    overviewData.push(['期間内利用回数', 'ユーザー数']);
     Object.entries(repeaterStats.visitCountDistribution).forEach(([visitCount, userCount]) => {
       overviewData.push([visitCount, userCount]);
     });
@@ -332,7 +355,7 @@ export default function SalesStatisticsPage() {
     const userDetailsSheet = XLSX.utils.aoa_to_sheet(userDetailsData);
     XLSX.utils.book_append_sheet(wb, userDetailsSheet, 'ユーザー詳細');
 
-    const fileName = `リピーター統計_${new Date().toISOString().split('T')[0].replace(/-/g, '')}.xlsx`;
+    const fileName = `期間内利用者統計_${dateRange.start.replace(/-/g, '')}_${dateRange.end.replace(/-/g, '')}.xlsx`;
     XLSX.writeFile(wb, fileName);
   };
 
@@ -445,7 +468,7 @@ export default function SalesStatisticsPage() {
     if (!repeaterStats) {
       return (
         <div className="text-center py-8">
-          <p className="text-gray-600 font-zen-kaku-gothic">リピーターデータが読み込まれていません。</p>
+          <p className="text-gray-600 font-zen-kaku-gothic">期間内利用者データが読み込まれていません。</p>
         </div>
       );
     }
@@ -455,20 +478,20 @@ export default function SalesStatisticsPage() {
         {/* 概要統計 */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="bg-blue-50 rounded-lg p-4">
-            <h3 className="text-sm font-medium text-blue-600 mb-2">総ユーザー数</h3>
+            <h3 className="text-sm font-medium text-blue-600 mb-2">期間内総利用者数</h3>
             <p className="text-2xl font-bold text-blue-900">{repeaterStats.overview.totalUsers}</p>
           </div>
           <div className="bg-green-50 rounded-lg p-4">
-            <h3 className="text-sm font-medium text-green-600 mb-2">リピーター数</h3>
-            <p className="text-2xl font-bold text-green-900">{repeaterStats.overview.repeatUsers}</p>
+            <h3 className="text-sm font-medium text-green-600 mb-2">期間内新規ユーザー数</h3>
+            <p className="text-2xl font-bold text-green-900">{repeaterStats.overview.newUsers}</p>
           </div>
           <div className="bg-purple-50 rounded-lg p-4">
-            <h3 className="text-sm font-medium text-purple-600 mb-2">初回利用者数</h3>
-            <p className="text-2xl font-bold text-purple-900">{repeaterStats.overview.firstTimeUsers}</p>
+            <h3 className="text-sm font-medium text-purple-600 mb-2">期間内既存ユーザー数</h3>
+            <p className="text-2xl font-bold text-purple-900">{repeaterStats.overview.existingUsers}</p>
           </div>
           <div className="bg-orange-50 rounded-lg p-4">
-            <h3 className="text-sm font-medium text-orange-600 mb-2">リピーター率</h3>
-            <p className="text-2xl font-bold text-orange-900">{repeaterStats.overview.repeaterRate}%</p>
+            <h3 className="text-sm font-medium text-orange-600 mb-2">期間内複数回利用者数</h3>
+            <p className="text-2xl font-bold text-orange-900">{repeaterStats.overview.periodRepeaters}</p>
           </div>
         </div>
 
@@ -483,36 +506,53 @@ export default function SalesStatisticsPage() {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">性別</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">総数</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">リピーター数</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">リピーター率</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">新規ユーザー数</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">既存ユーザー数</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">新規率</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">既存率</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 <tr>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">男性</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{repeaterStats.genderStats.male.total}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{repeaterStats.genderStats.male.repeaters}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{repeaterStats.genderStats.male.newUsers}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{repeaterStats.genderStats.male.existingUsers}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {repeaterStats.genderStats.male.total > 0 ? 
-                      Math.round(repeaterStats.genderStats.male.repeaters / repeaterStats.genderStats.male.total * 10000) / 100 : 0}%
+                      Math.round(repeaterStats.genderStats.male.newUsers / repeaterStats.genderStats.male.total * 10000) / 100 : 0}%
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {repeaterStats.genderStats.male.total > 0 ? 
+                      Math.round(repeaterStats.genderStats.male.existingUsers / repeaterStats.genderStats.male.total * 10000) / 100 : 0}%
                   </td>
                 </tr>
                 <tr>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">女性</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{repeaterStats.genderStats.female.total}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{repeaterStats.genderStats.female.repeaters}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{repeaterStats.genderStats.female.newUsers}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{repeaterStats.genderStats.female.existingUsers}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {repeaterStats.genderStats.female.total > 0 ? 
-                      Math.round(repeaterStats.genderStats.female.repeaters / repeaterStats.genderStats.female.total * 10000) / 100 : 0}%
+                      Math.round(repeaterStats.genderStats.female.newUsers / repeaterStats.genderStats.female.total * 10000) / 100 : 0}%
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {repeaterStats.genderStats.female.total > 0 ? 
+                      Math.round(repeaterStats.genderStats.female.existingUsers / repeaterStats.genderStats.female.total * 10000) / 100 : 0}%
                   </td>
                 </tr>
                 <tr>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">不明</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{repeaterStats.genderStats.unknown.total}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{repeaterStats.genderStats.unknown.repeaters}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{repeaterStats.genderStats.unknown.newUsers}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{repeaterStats.genderStats.unknown.existingUsers}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {repeaterStats.genderStats.unknown.total > 0 ? 
-                      Math.round(repeaterStats.genderStats.unknown.repeaters / repeaterStats.genderStats.unknown.total * 10000) / 100 : 0}%
+                      Math.round(repeaterStats.genderStats.unknown.newUsers / repeaterStats.genderStats.unknown.total * 10000) / 100 : 0}%
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {repeaterStats.genderStats.unknown.total > 0 ? 
+                      Math.round(repeaterStats.genderStats.unknown.existingUsers / repeaterStats.genderStats.unknown.total * 10000) / 100 : 0}%
                   </td>
                 </tr>
               </tbody>
@@ -531,8 +571,10 @@ export default function SalesStatisticsPage() {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">年代</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">総数</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">リピーター数</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">リピーター率</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">新規ユーザー数</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">既存ユーザー数</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">新規率</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">既存率</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -540,9 +582,13 @@ export default function SalesStatisticsPage() {
                   <tr key={ageGroup}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{ageGroup}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{stats.total}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{stats.repeaters}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{stats.newUsers}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{stats.existingUsers}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {stats.total > 0 ? Math.round(stats.repeaters / stats.total * 10000) / 100 : 0}%
+                      {stats.total > 0 ? Math.round(stats.newUsers / stats.total * 10000) / 100 : 0}%
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {stats.total > 0 ? Math.round(stats.existingUsers / stats.total * 10000) / 100 : 0}%
                     </td>
                   </tr>
                 ))}
@@ -801,7 +847,7 @@ export default function SalesStatisticsPage() {
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                リピーター統計
+                期間内利用者統計
               </button>
             </nav>
           </div>

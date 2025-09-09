@@ -242,18 +242,23 @@ export async function GET(request: NextRequest) {
       .map(([date, data]) => ({ date, ...data }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
-    // リピーター统计数据处理
-    // 1. 获取所有已付款的预约记录用于リピーター分析（不限日期范围）
-    const allReservationsSnapshot = await db.collection('reservations')
-      .where('paymentStatus', '==', 'paid')
-      .get();
+    // リピーター统计数据处理（期间範囲対応）
+    // 1. 期间内的预约数据（已经过滤）
+    const periodReservations = reservations;
     
-    const allReservations = allReservationsSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as ReservationData[];
+    // 2. 收集期间内所有用户ID，然后查询他们的完整历史
+    const periodUserIds = new Set<string>();
+    periodReservations.forEach((reservation: ReservationData) => {
+      if (reservation.userId && 
+          !reservation.cancelledAt && 
+          !EXCLUDED_STAFF_USER_IDS.includes(reservation.userId)) {
+        periodUserIds.add(reservation.userId);
+      }
+    });
 
-    // 按用户ID统计利用次数
+    // console.log(`期間内利用ユーザー数: ${periodUserIds.size}`);
+
+    // 按用户ID统计利用次数（期间範囲対応）
     const userUsageMap = new Map<string, {
       userId: string;
       userName: string;
@@ -265,9 +270,121 @@ export async function GET(request: NextRequest) {
       totalVisits: number;
       totalAmount: number;
       roomTypes: string[];
+      // 新增期间内统计字段
+      periodVisits?: number;        // 期间内利用次数
+      periodTotalAmount?: number;   // 期间内总金额
+      isNewUser?: boolean;          // 是否为期间内新用户
+      isRepeater?: boolean;         // 是否为既存用户（期间前有利用记录）
+      isPeriodRepeater?: boolean;   // 是否为期间内複数回利用者
     }>();
 
-    allReservations.forEach((reservation) => {
+    // 查询期间内所有用户的完整历史数据
+    const periodUserIdsArray = Array.from(periodUserIds);
+    const userHistoryMap = new Map<string, ReservationData[]>();
+    
+    // 分批查询用户历史数据（避免Firestore in查询限制）
+    const batchSize = 10;
+    const historyBatches = [];
+    for (let i = 0; i < periodUserIdsArray.length; i += batchSize) {
+      const batch = periodUserIdsArray.slice(i, i + batchSize);
+      if (batch.length > 0) {
+        historyBatches.push(
+          db.collection('reservations')
+            .where('paymentStatus', '==', 'paid')
+            .where('userId', 'in', batch)
+            .get()
+        );
+      }
+    }
+
+    // 执行所有批次查询
+    const allHistoryBatchResults = await Promise.all(historyBatches);
+    const allUserHistory: ReservationData[] = [];
+    
+    allHistoryBatchResults.forEach(snapshot => {
+      snapshot.docs.forEach(doc => {
+        allUserHistory.push({
+          id: doc.id,
+          ...doc.data()
+        } as ReservationData);
+      });
+    });
+
+    // 按用户组织历史数据
+    allUserHistory.forEach(reservation => {
+      if (reservation.userId && !reservation.cancelledAt) {
+        if (!userHistoryMap.has(reservation.userId)) {
+          userHistoryMap.set(reservation.userId, []);
+        }
+        userHistoryMap.get(reservation.userId)!.push(reservation);
+      }
+    });
+
+    // 分析每个用户的类型：基于历史利用记录判断
+    const userTypeMap = new Map<string, { isNewUser: boolean; isRepeater: boolean }>();
+    
+    periodUserIds.forEach(userId => {
+      const userHistory = userHistoryMap.get(userId) || [];
+      
+      // 按时间排序所有历史记录
+      const sortedHistory = userHistory
+        .map(reservation => ({
+          ...reservation,
+          bookingDateObj: toDate(reservation.bookingDate)
+        }))
+        .filter(reservation => reservation.bookingDateObj)
+        .sort((a, b) => a.bookingDateObj!.getTime() - b.bookingDateObj!.getTime());
+
+      if (sortedHistory.length === 0) {
+        // 没有历史数据，标记为新用户
+        userTypeMap.set(userId, { isNewUser: true, isRepeater: false });
+        return;
+      }
+
+      const periodStartDate = toDate(startTimestamp);
+      const periodEndDate = toDate(endTimestamp);
+      
+      if (!periodStartDate || !periodEndDate) {
+        userTypeMap.set(userId, { isNewUser: true, isRepeater: false });
+        return;
+      }
+
+      // 统计期间前和期间内的利用次数
+      let beforePeriodCount = 0;
+      let inPeriodCount = 0;
+      
+      sortedHistory.forEach(reservation => {
+        const visitDate = reservation.bookingDateObj!;
+        if (visitDate < periodStartDate) {
+          beforePeriodCount++;
+        } else if (visitDate >= periodStartDate && visitDate <= periodEndDate) {
+          inPeriodCount++;
+        }
+      });
+
+      // 新的判断逻辑：
+      // 既存用户 = 期间前有利用记录 OR 总利用次数 >= 2
+      // 新规用户 = 期间前没有记录 AND 总利用次数 = 1
+      const totalVisits = sortedHistory.length;
+      const hasPrePeriodVisits = beforePeriodCount > 0;
+      const isRepeater = hasPrePeriodVisits || totalVisits >= 2;
+      
+      userTypeMap.set(userId, {
+        isNewUser: !isRepeater,
+        isRepeater: isRepeater
+      });
+    });
+
+    const newUsersCount = Array.from(userTypeMap.values()).filter(u => u.isNewUser).length;
+    const existingUsersCount = Array.from(userTypeMap.values()).filter(u => u.isRepeater).length;
+    
+    // console.log(`=== 用户类型分析结果 ===`);
+    // console.log(`期間内利用ユーザー数: ${periodUserIds.size}`);
+    // console.log(`新規ユーザー数: ${newUsersCount} (期間前无记录且总利用次数=1)`);
+    // console.log(`既存ユーザー数: ${existingUsersCount} (期間前有记录 OR 总利用次数>=2)`);
+
+    // 处理期间内的预约数据
+    periodReservations.forEach((reservation: ReservationData) => {
       if (reservation.cancelledAt || !reservation.userId) return;
 
       const bookingDate = toDate(reservation.bookingDate);
@@ -277,10 +394,15 @@ export async function GET(request: NextRequest) {
       
       // 排除工作人员用户ID
       if (EXCLUDED_STAFF_USER_IDS.includes(userId)) return;
+      
       const user = userMap.get(userId);
       const amount = typeof reservation.price === 'string' 
         ? parseFloat(reservation.price) || 0 
         : reservation.price || 0;
+
+      // 获取用户类型
+      const userType = userTypeMap.get(userId);
+      if (!userType) return;
 
       if (!userUsageMap.has(userId)) {
         // 计算年龄
@@ -299,14 +421,24 @@ export async function GET(request: NextRequest) {
           age,
           firstVisitDate: bookingDate,
           lastVisitDate: bookingDate,
-          totalVisits: 1,
-          totalAmount: amount,
-          roomTypes: [reservation.roomType]
+          totalVisits: 0,  // 初始化为0，后面会从历史数据更新
+          totalAmount: 0,  // 初始化为0，后面会从历史数据更新
+          roomTypes: [reservation.roomType],
+          // 新增字段 - 使用确定的用户类型
+          periodVisits: 1,
+          periodTotalAmount: amount,
+          isNewUser: userType.isNewUser,
+          isRepeater: userType.isRepeater,
+          isPeriodRepeater: false
         });
       } else {
         const userData = userUsageMap.get(userId)!;
-        userData.totalVisits += 1;
-        userData.totalAmount += amount;
+        // 不要累加totalVisits和totalAmount，这些会从历史数据计算
+        // userData.totalVisits += 1;  // 删除这行
+        // userData.totalAmount += amount;  // 删除这行
+        userData.periodVisits = (userData.periodVisits || 0) + 1;
+        userData.periodTotalAmount = (userData.periodTotalAmount || 0) + amount;
+        userData.isPeriodRepeater = (userData.periodVisits || 0) >= 2;
         userData.lastVisitDate = bookingDate > userData.lastVisitDate ? bookingDate : userData.lastVisitDate;
         userData.firstVisitDate = bookingDate < userData.firstVisitDate ? bookingDate : userData.firstVisitDate;
         if (!userData.roomTypes.includes(reservation.roomType)) {
@@ -315,32 +447,87 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // リピーター统计分析
+    // 使用已经获取的历史数据更新totalVisits和totalAmount
+    const userTotalStats = new Map<string, { visits: number; amount: number; firstDate: Date; lastDate: Date }>();
+    
+    allUserHistory.forEach((reservation: ReservationData) => {
+      if (reservation.cancelledAt || 
+          !reservation.userId ||
+          EXCLUDED_STAFF_USER_IDS.includes(reservation.userId)) {
+        return;
+      }
+
+      const userId = reservation.userId;
+      const bookingDate = toDate(reservation.bookingDate);
+      if (!bookingDate) return;
+      
+      const amount = typeof reservation.price === 'string' 
+        ? parseFloat(reservation.price) || 0 
+        : reservation.price || 0;
+
+      if (userTotalStats.has(userId)) {
+        const stats = userTotalStats.get(userId)!;
+        stats.visits += 1;
+        stats.amount += amount;
+        if (bookingDate < stats.firstDate) stats.firstDate = bookingDate;
+        if (bookingDate > stats.lastDate) stats.lastDate = bookingDate;
+      } else {
+        userTotalStats.set(userId, {
+          visits: 1,
+          amount: amount,
+          firstDate: bookingDate,
+          lastDate: bookingDate
+        });
+      }
+    });
+
+    // 更新userUsageMap中的总数据
+    userUsageMap.forEach((userData, userId) => {
+      const totalStats = userTotalStats.get(userId);
+      if (totalStats) {
+        userData.totalVisits = totalStats.visits;
+        userData.totalAmount = totalStats.amount;
+        userData.firstVisitDate = totalStats.firstDate;
+        userData.lastVisitDate = totalStats.lastDate;
+      }
+    });
+
+    // リピーター统计分析（期間範囲対応）
     const allUsers = Array.from(userUsageMap.values());
-    const totalUsers = allUsers.length;
-    const firstTimeUsers = allUsers.filter(user => user.totalVisits === 1).length;
-    const repeatUsers = allUsers.filter(user => user.totalVisits >= 2).length;
-    const repeaterRate = totalUsers > 0 ? (repeatUsers / totalUsers * 100) : 0;
+    const totalUsers = allUsers.length; // 期间内利用者数
+    
+    // 期间内新用户（期间前没有利用记录）
+    const newUsers = allUsers.filter(user => user.isNewUser === true).length;
+    
+    // 期间内既存用户（期间前有利用记录）
+    const existingUsers = allUsers.filter(user => user.isRepeater === true).length;
+    
+    // 期间内複数回利用者（期间内利用了2次以上）
+    const periodRepeaters = allUsers.filter(user => user.isPeriodRepeater === true).length;
+    
+    // 计算比率
+    const newUserRate = totalUsers > 0 ? (newUsers / totalUsers * 100) : 0;
+    const existingUserRate = totalUsers > 0 ? (existingUsers / totalUsers * 100) : 0;
 
-    // 按性别统计
+    // 按性别统计（期間範囲対応）
     const genderStats = {
-      male: { total: 0, repeaters: 0 },
-      female: { total: 0, repeaters: 0 },
-      unknown: { total: 0, repeaters: 0 }
+      male: { total: 0, newUsers: 0, existingUsers: 0 },
+      female: { total: 0, newUsers: 0, existingUsers: 0 },
+      unknown: { total: 0, newUsers: 0, existingUsers: 0 }
     };
 
-    // 按年代统计
+    // 按年代统计（期間範囲対応）
     const ageGroupStats = {
-      '20代': { total: 0, repeaters: 0 },
-      '30代': { total: 0, repeaters: 0 },
-      '40代': { total: 0, repeaters: 0 },
-      '50代': { total: 0, repeaters: 0 },
-      '60代以上': { total: 0, repeaters: 0 },
-      '不明': { total: 0, repeaters: 0 }
+      '20代': { total: 0, newUsers: 0, existingUsers: 0 },
+      '30代': { total: 0, newUsers: 0, existingUsers: 0 },
+      '40代': { total: 0, newUsers: 0, existingUsers: 0 },
+      '50代': { total: 0, newUsers: 0, existingUsers: 0 },
+      '60代以上': { total: 0, newUsers: 0, existingUsers: 0 },
+      '不明': { total: 0, newUsers: 0, existingUsers: 0 }
     };
 
-    // 按利用次数分布统计
-    const visitCountDistribution = {
+    // 按期间内利用次数分布统计
+    const periodVisitCountDistribution = {
       '1回': 0,
       '2回': 0,
       '3回': 0,
@@ -349,13 +536,15 @@ export async function GET(request: NextRequest) {
     };
 
     allUsers.forEach(user => {
-      const isRepeater = user.totalVisits >= 2;
+      const isNewUser = user.isNewUser === true;
+      const isExistingUser = user.isRepeater === true;
       
       // 性别统计
       const genderKey = user.gender === 'male' ? 'male' : 
                        user.gender === 'female' ? 'female' : 'unknown';
       genderStats[genderKey].total += 1;
-      if (isRepeater) genderStats[genderKey].repeaters += 1;
+      if (isNewUser) genderStats[genderKey].newUsers += 1;
+      if (isExistingUser) genderStats[genderKey].existingUsers += 1;
 
       // 年代统计
       let ageGroup = '不明';
@@ -367,27 +556,57 @@ export async function GET(request: NextRequest) {
         else ageGroup = '60代以上';
       }
       ageGroupStats[ageGroup as keyof typeof ageGroupStats].total += 1;
-      if (isRepeater) ageGroupStats[ageGroup as keyof typeof ageGroupStats].repeaters += 1;
+      if (isNewUser) ageGroupStats[ageGroup as keyof typeof ageGroupStats].newUsers += 1;
+      if (isExistingUser) ageGroupStats[ageGroup as keyof typeof ageGroupStats].existingUsers += 1;
 
-      // 利用次数分布
-      if (user.totalVisits === 1) visitCountDistribution['1回'] += 1;
-      else if (user.totalVisits === 2) visitCountDistribution['2回'] += 1;
-      else if (user.totalVisits === 3) visitCountDistribution['3回'] += 1;
-      else if (user.totalVisits === 4) visitCountDistribution['4回'] += 1;
-      else visitCountDistribution['5回以上'] += 1;
+      // 期间内利用次数分布
+      const periodVisits = user.periodVisits || 0;
+      if (periodVisits === 1) periodVisitCountDistribution['1回'] += 1;
+      else if (periodVisits === 2) periodVisitCountDistribution['2回'] += 1;
+      else if (periodVisits === 3) periodVisitCountDistribution['3回'] += 1;
+      else if (periodVisits === 4) periodVisitCountDistribution['4回'] += 1;
+      else if (periodVisits >= 5) periodVisitCountDistribution['5回以上'] += 1;
     });
+
+    // 详细调试信息
+    // console.log('=== 詳細デバッグ情報 ===');
+    // console.log('期間内利用回数分布:', periodVisitCountDistribution);
+    
+    // 找出期间内利用次数>=2的用户
+    const multipleVisitUsers = allUsers.filter(u => (u.periodVisits || 0) >= 2);
+    // console.log(`期間内複数回利用ユーザー詳細 (${multipleVisitUsers.length}名):`);
+    // multipleVisitUsers.forEach(u => {
+    //   console.log(`- ${u.userName}: 期間内=${u.periodVisits}回, 総利用=${u.totalVisits}回`);
+    // });
+    
+    // 全用户的期间内利用次数统计
+    const periodVisitsCount = allUsers.reduce((acc, u) => {
+      const visits = u.periodVisits || 0;
+      acc[visits] = (acc[visits] || 0) + 1;
+      return acc;
+    }, {} as Record<number, number>);
+    // console.log('実際の期間内利用回数統計:', periodVisitsCount);
 
     const repeaterStats = {
       overview: {
-        totalUsers,
-        firstTimeUsers,
-        repeatUsers,
-        repeaterRate: Math.round(repeaterRate * 100) / 100
+        totalUsers,                // 期間内総利用者数
+        newUsers,                  // 期間内新規ユーザー数
+        existingUsers,             // 期間内既存ユーザー数（期間前に利用歴あり）
+        periodRepeaters,           // 期間内複数回利用者数
+        newUserRate: Math.round(newUserRate * 100) / 100,
+        existingUserRate: Math.round(existingUserRate * 100) / 100
       },
       genderStats,
       ageGroupStats,
-      visitCountDistribution,
-      userDetails: allUsers
+      visitCountDistribution: periodVisitCountDistribution,
+      userDetails: allUsers.map(user => ({
+        ...user,
+        periodVisits: user.periodVisits || 0,
+        periodTotalAmount: user.periodTotalAmount || 0,
+        isNewUser: user.isNewUser || false,
+        isRepeater: user.isRepeater || false,
+        isPeriodRepeater: user.isPeriodRepeater || false
+      }))
         .sort((a, b) => b.totalVisits - a.totalVisits)
         .map(user => {
           // 使用本地时间格式化日期，避免时区问题
