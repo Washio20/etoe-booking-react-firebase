@@ -243,44 +243,49 @@ export async function GET(request: Request) {
     // 使用userId直接查询users表
 
     // 创建一个简单的缓存，减少重复查询
-    const userIdToNameCache: { [userId: string]: string } = {};
+    const userInfoCache: Record<string, { fullName?: string; phone?: string }> = {};
 
     // 使用Promise.all并行处理所有预约
     const enhancedReservationsPromises = reservations.map(
       async (reservation) => {
-        // 如果预约对象已经有userFullName，或者没有userId，则跳过
-        if (reservation.userFullName || !reservation.userId) {
+        // 如果没有用户ID，直接返回原始数据
+        if (!reservation.userId) {
           return reservation;
         }
 
         const userId = reservation.userId;
 
-        // 检查缓存中是否已有此userId对应的用户名
-        if (userIdToNameCache[userId]) {
+        // 检查缓存中是否已有此用户信息
+        const cachedUser = userInfoCache[userId];
+        if (cachedUser) {
           return {
             ...reservation,
-            userFullName: userIdToNameCache[userId],
+            userFullName: reservation.userFullName || cachedUser.fullName,
+            userPhone: reservation.userPhone || cachedUser.phone,
           };
         }
 
         try {
-          // 直接查询Firestore users表
+          // 直接查询Firestore users表获取用户信息
           const userDoc = await db.collection("users").doc(userId).get();
 
           if (userDoc.exists) {
             const userData = userDoc.data();
-            if (userData && userData.fullName) {
-              // 存入缓存
-              userIdToNameCache[userId] = userData.fullName;
+            const fullName = userData?.fullName;
+            const phone = userData?.phone;
 
-              return {
-                ...reservation,
-                userFullName: userData.fullName,
-              };
-            }
+            // 将结果写入缓存，避免重复查询
+            userInfoCache[userId] = { fullName, phone };
+
+            return {
+              ...reservation,
+              userFullName: reservation.userFullName || fullName,
+              userPhone: reservation.userPhone || phone,
+            };
           }
 
-          // 如果在users表中没找到，返回原始数据
+          // 记录空缓存，避免重复查询不存在的用户
+          userInfoCache[userId] = {};
           return reservation;
         } catch (error) {
           console.error(`获取用户ID ${userId} 信息失败:`, error);

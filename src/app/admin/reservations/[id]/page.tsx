@@ -376,6 +376,16 @@ export default function ReservationDetailPage({
                       {reservation.userEmail}
                     </div>
                   </div>
+                  {reservation.userPhone && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                      <div className="text-sm text-gray-500 font-zen-kaku-gothic">
+                        電話番号:
+                      </div>
+                      <div className="md:col-span-2 text-gray-700 break-all font-zen-kaku-gothic">
+                        {reservation.userPhone}
+                      </div>
+                    </div>
+                  )}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                     <div className="text-sm text-gray-500 font-zen-kaku-gothic">
                       ユーザーID:
@@ -907,4 +917,3 @@ export default function ReservationDetailPage({
     </Layout>
   );
 }
-
