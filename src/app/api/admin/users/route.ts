@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
-import { getAuth } from "firebase-admin/auth";
-import { getFirestore } from "firebase-admin/firestore";
+import { getAuth, type UserRecord } from "firebase-admin/auth";
+import {
+  getFirestore,
+  type DocumentSnapshot,
+  type QuerySnapshot,
+} from "firebase-admin/firestore";
 import { initAdmin } from "@/utils/firebase-admin";
 import { User } from "@/types/user";
 
@@ -19,11 +23,82 @@ async function isAdmin(idToken: string): Promise<boolean> {
   }
 }
 
+function mergeUserData(
+  authUser: UserRecord | null,
+  profileDoc?: DocumentSnapshot
+): User {
+  const profileData = profileDoc?.exists ? profileDoc.data() : undefined;
+
+  return {
+    uid: authUser?.uid ?? profileDoc?.id ?? "",
+    email:
+      authUser?.email ??
+      (typeof profileData?.email === "string" ? profileData.email : ""),
+    emailVerified:
+      authUser?.emailVerified ??
+      (typeof profileData?.emailVerified === "boolean"
+        ? profileData.emailVerified
+        : false),
+    fullName: profileData?.fullName ?? "",
+    gender: profileData?.gender,
+    birthdate: profileData?.birthdate,
+    phone: profileData?.phone,
+    createdAt:
+      authUser?.metadata.creationTime ?? profileData?.createdAt ?? "",
+    lastLogin:
+      authUser?.metadata.lastSignInTime ?? profileData?.lastLogin ?? "",
+    updatedAt: profileData?.updatedAt ?? "",
+    isAdmin: authUser?.customClaims?.admin === true,
+  };
+}
+
+async function listAllUsers(auth: ReturnType<typeof getAuth>) {
+  const allUsers: UserRecord[] = [];
+  let pageToken: string | undefined;
+
+  do {
+    const result = await auth.listUsers(1000, pageToken);
+    allUsers.push(...result.users);
+    pageToken = result.pageToken;
+  } while (pageToken);
+
+  return allUsers;
+}
+
+async function findProfilesByEmail(
+  db: ReturnType<typeof getFirestore>,
+  email: string,
+  normalizedEmail: string
+) {
+  const emailCandidates = new Set([email.trim()]);
+  emailCandidates.add(normalizedEmail);
+
+  const snapshotPromises: Promise<QuerySnapshot>[] = [
+    ...Array.from(emailCandidates).map((value) =>
+      db.collection("users").where("email", "==", value).get()
+    ),
+    db.collection("users").where("emailLowercase", "==", normalizedEmail).get(),
+  ];
+
+  const snapshots = await Promise.all(snapshotPromises);
+  const results = new Map<string, DocumentSnapshot>();
+
+  snapshots.forEach((snapshot) => {
+    snapshot.forEach((doc) => {
+      if (!results.has(doc.id)) {
+        results.set(doc.id, doc);
+      }
+    });
+  });
+
+  return Array.from(results.values());
+}
+
 export async function GET(req: Request) {
   try {
     // 初始化Firebase Admin
     initAdmin();
-    
+
     // 获取授权头部
     const authHeader = req.headers.get("authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -51,53 +126,96 @@ export async function GET(req: Request) {
     // 获取Firestore和Auth实例
     const db = getFirestore();
     const auth = getAuth();
-    
-    // 获取所有用户（最多获取1000个用户）
-    const userRecords = await auth.listUsers(1000);
-    
-    // 并行获取所有用户的Firestore数据
-    const userIds = userRecords.users.map(user => user.uid);
-    const userProfilesPromises = userIds.map(uid => 
-      db.collection("users").doc(uid).get()
-    );
-    
-    const userProfiles = await Promise.all(userProfilesPromises);
-    
-    // 合并Auth信息和Firestore信息
-    const usersData = userRecords.users.map((authUser, index) => {
-      const profileDoc = userProfiles[index];
-      const profileData = profileDoc.exists ? profileDoc.data() : {};
-      
-      return {
-        uid: authUser.uid,
-        email: authUser.email,
-        emailVerified: authUser.emailVerified,
-        fullName: profileData?.fullName,
-        gender: profileData?.gender,
-        birthdate: profileData?.birthdate,
-        phone: profileData?.phone,
-        createdAt: authUser.metadata.creationTime,
-        lastLogin: authUser.metadata.lastSignInTime,
-        updatedAt: profileData?.updatedAt,
-        isAdmin: authUser.customClaims?.admin === true,
-      };
-    });
-    
-    // 如果有邮箱筛选参数，进行过滤
-    let filteredUsers = usersData;
+
+    // 邮箱搜索逻辑优化
     if (email) {
-      const searchTerm = email.toLowerCase();
-      filteredUsers = usersData.filter(user => 
-        user.email?.toLowerCase().includes(searchTerm) || 
-        user.fullName?.toLowerCase().includes(searchTerm)
-      );
+      const trimmedEmail = email.trim();
+      const normalizedEmail = trimmedEmail.toLowerCase();
+      const likelyExactEmail = normalizedEmail.includes("@");
+
+      if (likelyExactEmail) {
+        try {
+          const authUser = await auth.getUserByEmail(normalizedEmail);
+          const profileDoc = await db.collection("users").doc(authUser.uid).get();
+          const mergedUser = mergeUserData(authUser, profileDoc);
+
+          return NextResponse.json({
+            users: [mergedUser],
+            totalCount: 1,
+          });
+        } catch (error: any) {
+          if (error?.code === "auth/user-not-found") {
+            const profileMatches = await findProfilesByEmail(
+              db,
+              trimmedEmail,
+              normalizedEmail
+            );
+
+            if (profileMatches.length > 0) {
+              const mergedProfiles = await Promise.all(
+                profileMatches.map(async (profileDoc) => {
+                  let authUser: UserRecord | null = null;
+                  try {
+                    authUser = await auth.getUser(profileDoc.id);
+                  } catch (authError: any) {
+                    if (authError?.code !== "auth/user-not-found") {
+                      console.error("Error fetching auth user:", authError);
+                    }
+                  }
+                  return mergeUserData(authUser, profileDoc);
+                })
+              );
+
+              return NextResponse.json({
+                users: mergedProfiles,
+                totalCount: mergedProfiles.length,
+              });
+            }
+            // 如果Firestore也没有匹配结果，继续执行全量检索
+          } else {
+            console.error("Error fetching user by email:", error);
+            return NextResponse.json(
+              { error: "ユーザー情報の取得中にエラーが発生しました" },
+              { status: 500 }
+            );
+          }
+        }
+      }
     }
-    
+
+    // 获取所有用户（支持分页获取超过1000个用户）
+    const userRecords = await listAllUsers(auth);
+
+    // 并行获取所有用户的Firestore数据
+    const userProfilesPromises = userRecords.map((record) =>
+      db.collection("users").doc(record.uid).get()
+    );
+
+    const userProfiles = await Promise.all(userProfilesPromises);
+
+    const usersData = userRecords.map((authUser, index) =>
+      mergeUserData(authUser, userProfiles[index])
+    );
+
+    // 如果有邮箱或姓名筛选参数，进行过滤
+    const filteredUsers = email
+      ? usersData.filter((user) => {
+          const searchTerm = email.toLowerCase();
+          const emailMatch = user.email
+            ?.toLowerCase()
+            .includes(searchTerm);
+          const nameMatch = user.fullName
+            ?.toLowerCase()
+            .includes(searchTerm);
+          return emailMatch || nameMatch;
+        })
+      : usersData;
+
     return NextResponse.json({
       users: filteredUsers,
       totalCount: filteredUsers.length,
     });
-    
+
   } catch (error) {
     console.error("Error fetching users:", error);
     return NextResponse.json(
