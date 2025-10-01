@@ -624,6 +624,11 @@ export default function ReservationsPage() {
                             <span className="text-xs text-gray-500 truncate max-w-[150px]">
                               {reservation.userEmail}
                             </span>
+                            {reservation.userPhone && (
+                              <span className="text-xs text-gray-500 truncate max-w-[150px]">
+                                {reservation.userPhone}
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 font-zen-kaku-gothic">

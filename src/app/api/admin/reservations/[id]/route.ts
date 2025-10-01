@@ -82,14 +82,16 @@ export async function GET(
 
     // 获取用户完整信息
     let userFullName = reservationData?.userFullName || null;
+    let userPhone = reservationData?.userPhone || null;
     
-    // 如果没有用户全名且有userId，尝试从users集合获取
-    if (!userFullName && reservationData?.userId) {
+    // 如果缺少用户姓名或电话且有userId，尝试从users集合获取
+    if (reservationData?.userId && (!userFullName || !userPhone)) {
       try {
         const userDoc = await db.collection("users").doc(reservationData.userId).get();
         if (userDoc.exists) {
           const userData = userDoc.data();
-          userFullName = userData?.fullName || null;
+          userFullName = userData?.fullName || userFullName;
+          userPhone = userData?.phone || userPhone;
         }
       } catch (error) {
         console.error("获取用户信息失败:", error);
@@ -102,6 +104,7 @@ export async function GET(
       ...reservationData,
       // 添加用户全名
       userFullName: userFullName,
+      userPhone: userPhone,
       // 处理日期时间字段 - 保留原始格式，让前端处理显示
       createdAt: reservationData?.createdAt || null,
       updatedAt: reservationData?.updatedAt || null,
