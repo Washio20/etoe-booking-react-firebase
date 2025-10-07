@@ -5,6 +5,7 @@ import { getFirestore } from "firebase-admin/firestore";
 import { initAdmin } from "@/utils/firebase-admin";
 import admin from "firebase-admin";
 import { Coupon } from "@/types/coupon";
+import { convertToDate, parseReservationDate } from "@/utils/date";
 
 // 纯sauna房间类型列表
 const PURE_SAUNA_ROOM_TYPES = ["tototo", "fuuu", "zabuun", "toron"];
@@ -21,6 +22,71 @@ const ROOM_BASE_PRICES: Record<string, number> = {
 
 // 设置此API路由为动态路由，不进行静态生成
 export const dynamic = "force-dynamic";
+
+// JST (UTC+9) 偏移量，用于在UTC时间与日本当地日历日之间转换
+const JST_OFFSET_MINUTES = 9 * 60;
+
+// 根据预约数据推导出“日本时间的预约日期”
+function deriveTargetDate(reservation: any): {
+  year: number;
+  month: number;
+  day: number;
+  source: string;
+} | null {
+  const extract = (value: string | null | undefined, source: string) => {
+    if (!value) return null;
+    const parsed = parseReservationDate(value);
+    if (parsed) {
+      return {
+        year: parsed.getFullYear(),
+        month: parsed.getMonth() + 1,
+        day: parsed.getDate(),
+        source,
+      };
+    }
+    return null;
+  };
+
+  // 优先使用UI直接展示的日期（避免时区歧义）
+  const displayDate = extract(reservation?.displayDate, "displayDate");
+  if (displayDate) return displayDate;
+
+  const dateField = extract(reservation?.date, "date");
+  if (dateField) return dateField;
+
+  // 退而求其次：使用bookingDate或startDateTime（ISO字符串）
+  const isoCandidate = reservation?.bookingDate || reservation?.startDateTime;
+  if (isoCandidate) {
+    const isoDate = convertToDate(isoCandidate);
+    if (isoDate) {
+      // 转换成JST对应的日历日
+      const jstMillis = isoDate.getTime() + JST_OFFSET_MINUTES * 60 * 1000;
+      const jstDate = new Date(jstMillis);
+      return {
+        year: jstDate.getUTCFullYear(),
+        month: jstDate.getUTCMonth() + 1,
+        day: jstDate.getUTCDate(),
+        source: reservation?.bookingDate ? "bookingDate" : "startDateTime",
+      };
+    }
+  }
+
+  return null;
+}
+
+// 生成以JST为基准的一天的起止UTC时间
+function createJstDayRange(year: number, month: number, day: number) {
+  const startUtcMillis =
+    Date.UTC(year, month - 1, day) - JST_OFFSET_MINUTES * 60 * 1000;
+  const endUtcMillis =
+    Date.UTC(year, month - 1, day, 23, 59, 59, 999) -
+    JST_OFFSET_MINUTES * 60 * 1000;
+
+  return {
+    startOfDay: new Date(startUtcMillis),
+    endOfDay: new Date(endUtcMillis),
+  };
+}
 
 export async function POST(req: Request) {
   // 设置时区为日本时区
@@ -199,32 +265,24 @@ export async function POST(req: Request) {
     try {
       // 解析预约日期和时间
       let displayTimeRange = reservation.displayTimeRange || reservation.time || "";
-      
-      // 解析预约日期 - 更可靠的方法
-      let targetYear: number | null = null;
-      let targetMonth: number | null = null; 
-      let targetDay: number | null = null;
 
-      if (reservation.bookingDate) {
-        const dateObj = new Date(reservation.bookingDate);
-        targetYear = dateObj.getFullYear();
-        targetMonth = dateObj.getMonth() + 1;
-        targetDay = dateObj.getDate();
-      } else if (reservation.date) {
-        // 从日期字符串解析（格式可能是 "2025年1月15日"）
-        const dateMatch = reservation.date.match(/(\d+)年(\d+)月(\d+)日/);
-        if (dateMatch) {
-          targetYear = parseInt(dateMatch[1]);
-          targetMonth = parseInt(dateMatch[2]);
-          targetDay = parseInt(dateMatch[3]);
-        }
-      }
+      const derivedDate = deriveTargetDate(reservation);
 
-      if (targetYear && targetMonth && targetDay && displayTimeRange && reservation.roomType) {
+      if (derivedDate && displayTimeRange && reservation.roomType) {
+        const { year: targetYear, month: targetMonth, day: targetDay, source } =
+          derivedDate;
+
+        const { startOfDay, endOfDay } = createJstDayRange(
+          targetYear,
+          targetMonth,
+          targetDay
+        );
+
         console.log("检查预约冲突和创建锁定:", {
           roomType: reservation.roomType,
           targetDate: `${targetYear}年${targetMonth}月${targetDay}日`,
-          displayTimeRange: displayTimeRange
+          targetDateSource: source,
+          displayTimeRange: displayTimeRange,
         });
 
         // 使用事务来确保原子性操作
@@ -254,16 +312,11 @@ export async function POST(req: Request) {
           // 1. 检查是否有已确认的预约
           const reservationsRef = db.collection("reservations");
           
-          // 创建日期范围查询（与webhook保持一致）
-          // 使用与parseJapaneseDate相同的逻辑：创建本地时区的日期对象
-          const startOfDay = new Date(targetYear, targetMonth - 1, targetDay, 0, 0, 0, 0);
-          const endOfDay = new Date(targetYear, targetMonth - 1, targetDay, 23, 59, 59, 999);
-          
           console.log("日期范围查询:", {
             targetDate: `${targetYear}年${targetMonth}月${targetDay}日`,
             startOfDay: startOfDay.toISOString(),
             endOfDay: endOfDay.toISOString(),
-            timezone: "服务器本地时区"
+            timezone: "JST基准(转换为UTC)"
           });
           
           const conflictQuery = reservationsRef
@@ -359,10 +412,12 @@ export async function POST(req: Request) {
 
       } else {
         console.warn("预约冲突检查：缺少必要的预约信息", {
-          hasTargetDate: !!(targetYear && targetMonth && targetDay),
+          hasDerivedDate: !!derivedDate,
           hasDisplayTimeRange: !!displayTimeRange,
           hasRoomType: !!reservation.roomType,
-          targetYear, targetMonth, targetDay
+          rawDisplayDate: reservation.displayDate,
+          rawDate: reservation.date,
+          rawBookingDate: reservation.bookingDate,
         });
       }
     } catch (conflictCheckError: any) {
