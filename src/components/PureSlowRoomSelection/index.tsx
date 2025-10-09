@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { auth } from "@/utils/firebase";
 import { onAuthStateChange } from "@/utils/auth";
@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import Precautions from "../Precautions";
 import { saveTempReservation } from "@/utils/tempReservation";
+import { STAFF_USER_IDS } from "@/constants/staff";
 
 // 星期几标签
 const weekDays = ["日", "月", "火", "水", "木", "金", "土"];
@@ -405,21 +406,24 @@ const SlowRoomAvailabilityLegend = () => {
 interface DateSelectorProps {
   selectedDate: Date | null;
   onDateChange: (date: Date) => void;
+  maxDays: number;
 }
 
 // 日期选择组件（替换原有的日历组件）
 const DateSelector: React.FC<DateSelectorProps> = ({
   selectedDate,
   onDateChange,
+  maxDays,
 }) => {
   const today = new Date();
   const weekDayNames = ["日", "月", "火", "水", "木", "金", "土"];
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
-  // 生成未来21天的日期数组
+  // 生成未来指定天数的日期数组
   const generateDateList = () => {
     const dates = [];
-    for (let i = 0; i < 21; i++) {
+    const totalDays = Math.max(maxDays, 1);
+    for (let i = 0; i < totalDays; i++) {
       const date = new Date();
       date.setDate(today.getDate() + i);
       dates.push(date);
@@ -594,6 +598,14 @@ export default function ImprovedPureSlowRoomSelection({
 
   const timeoutIdRef = useRef<NodeJS.Timeout | null>(null);
 
+  const isStaffUser = useMemo(() => {
+    if (!user) return false;
+    return STAFF_USER_IDS.includes(user.uid);
+  }, [user]);
+
+  const maxAdvanceDays = isStaffUser ? 42 : 21;
+  const maxAdvanceWeeks = isStaffUser ? 6 : 3;
+
   // 当组件卸载时清除超时定时器
   useEffect(() => {
     return () => {
@@ -619,9 +631,14 @@ export default function ImprovedPureSlowRoomSelection({
     try {
       setIsLoadingTimeSlots(true);
 
+      const params = new URLSearchParams({ date: dateStr });
+      if (user?.uid) {
+        params.append("userId", user.uid);
+      }
+
       // 调用API获取时间槽可用性
       const response = await fetch(
-        `/api/pure-slow-room-availability-day?date=${dateStr}`
+        `/api/pure-slow-room-availability-day?${params.toString()}`
       );
 
       if (!response.ok) {
@@ -683,7 +700,7 @@ export default function ImprovedPureSlowRoomSelection({
     } finally {
       setIsLoadingTimeSlots(false);
     }
-  }, []);
+  }, [user]);
 
   // 当选中日期变化时，获取该日期的时间段可用性
   useEffect(() => {
@@ -712,8 +729,18 @@ export default function ImprovedPureSlowRoomSelection({
         }
 
         // 使用纯slow room的API端点
+        const params = new URLSearchParams({
+          date: dateStr,
+          startTime: startTimeStr,
+          endTime: endTimeStr,
+        });
+
+        if (user?.uid) {
+          params.append("userId", user.uid);
+        }
+
         const response = await fetch(
-          `/api/pure-slow-room-availability?date=${dateStr}&startTime=${startTimeStr}&endTime=${endTimeStr}`
+          `/api/pure-slow-room-availability?${params.toString()}`
         );
 
         if (!response.ok) {
@@ -742,7 +769,7 @@ export default function ImprovedPureSlowRoomSelection({
         setIsCheckingAvailability(false);
       }
     },
-    []
+    [user]
   );
 
   // 判断日期是否为周末或假日
@@ -967,9 +994,9 @@ export default function ImprovedPureSlowRoomSelection({
 
   // 处理日期选择
   const handleDateChange = (date: Date) => {
-    // 检查日期是否在有效范围内（今天到未来3周）
+    // 检查日期是否在有效范围内（今天到未来 maxAdvanceDays 天）
     const maxAllowedDate = new Date();
-    maxAllowedDate.setDate(maxAllowedDate.getDate() + 21); // 今天 + 21天 = 3周后
+    maxAllowedDate.setDate(maxAllowedDate.getDate() + maxAdvanceDays);
     
     // 如果日期超过了最大允许日期，则不允许选择
     if (date > maxAllowedDate) {
@@ -1143,6 +1170,7 @@ export default function ImprovedPureSlowRoomSelection({
           <DateSelector
             selectedDate={selectedDate}
             onDateChange={handleDateChange}
+            maxDays={maxAdvanceDays}
           />
           
           {/* 添加滚动提示信息（仅在移动端显示） */}
@@ -1151,7 +1179,7 @@ export default function ImprovedPureSlowRoomSelection({
           </div>
 
           <div className="mt-2 text-sm md:text-base text-gray-500 font-zen-kaku-gothic">
-            ※ 本日から3週間以内の日付のみ予約可能です
+            {`※ 本日から${maxAdvanceWeeks}週間以内の日付のみ予約可能です`}
           </div>
         </div>
 

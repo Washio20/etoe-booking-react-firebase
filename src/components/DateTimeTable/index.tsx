@@ -35,6 +35,8 @@ export interface DateTimeTableProps {
     timeIndex: number,
     timeSlotData?: any
   ) => void;
+  currentUserId?: string | null;
+  maxWeeks?: number;
 }
 
 const weekDays = ["日", "月", "火", "水", "木", "金", "土"];
@@ -46,6 +48,8 @@ export default function DateTimeTable({
   selectedDateIndex,
   selectedTimeIndex,
   onTimeSlotSelect,
+  currentUserId = null,
+  maxWeeks = 3,
 }: DateTimeTableProps) {
   // API数据相关状态
   const [availabilityData, setAvailabilityData] =
@@ -79,7 +83,9 @@ export default function DateTimeTable({
       if (!roomId) return;
 
       // 防止短时间内多次调用
-      const cacheKey = `${roomId}_${formatDateForApi(startDate)}`;
+      const cacheKey = `${roomId}_${formatDateForApi(startDate)}_${
+        currentUserId ?? "guest"
+      }`;
 
       // 检查是否是相同的请求，且在300毫秒内
       if (
@@ -99,10 +105,18 @@ export default function DateTimeTable({
       setApiError(null);
 
       try {
+        const searchParams = new URLSearchParams({
+          roomType: roomId,
+          startDate: formatDateForApi(startDate),
+          duration: "7",
+        });
+
+        if (currentUserId) {
+          searchParams.append("userId", currentUserId);
+        }
+
         const response = await fetch(
-          `/api/room-availability?roomType=${roomId}&startDate=${formatDateForApi(
-            startDate
-          )}&duration=7`
+          `/api/room-availability?${searchParams.toString()}`
         );
 
         if (!response.ok) {
@@ -120,7 +134,7 @@ export default function DateTimeTable({
         setIsLoading(false);
       }
     },
-    [formatDateForApi]
+    [formatDateForApi, currentUserId]
   );
 
   // 当房间类型变化时，加载该房间的可用性数据
@@ -215,13 +229,14 @@ export default function DateTimeTable({
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // 计算今天起3周后的日期
-    const threeWeeksLater = new Date(today);
-    threeWeeksLater.setDate(today.getDate() + 14); // 允许查看从今天起2周时间
+    const effectiveWeeks = Math.max(maxWeeks, 1);
+    const latestStartDate = new Date(today);
+    latestStartDate.setDate(
+      today.getDate() + (effectiveWeeks - 1) * 7
+    );
 
-    // 判断当前周起始日期是否已经接近或超过2周限制
-    return currentWeekStartDate >= threeWeeksLater;
-  }, [currentWeekStartDate]);
+    return currentWeekStartDate >= latestStartDate;
+  }, [currentWeekStartDate, maxWeeks]);
 
   // 处理前一周按钮点击
   const handlePreviousWeek = useCallback(() => {

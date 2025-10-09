@@ -11,6 +11,7 @@ import {
   getDoc,
 } from "firebase/firestore";
 import { Room, TimeSlotDefinition } from "@/types/room";
+import { STAFF_USER_IDS } from "@/constants/staff";
 
 // 设置此API路由为动态路由，不进行静态生成
 export const dynamic = "force-dynamic";
@@ -217,6 +218,7 @@ export async function GET(request: NextRequest) {
     const roomType = searchParams.get("roomType");
     const startDateStr = searchParams.get("startDate");
     const durationStr = searchParams.get("duration");
+    const userId = searchParams.get("userId");
 
     // 参数验证
     if (!roomType) {
@@ -230,14 +232,16 @@ export async function GET(request: NextRequest) {
     // 解析参数
     const startDate = new Date(startDateStr);
     const duration = durationStr ? parseInt(durationStr) : 7; // 默认7天
+    const isStaffUser = userId ? STAFF_USER_IDS.includes(userId) : false;
+    const maxWeeks = isStaffUser ? 6 : 3;
 
     // 获取今天的日期（不包含时间）
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // 计算最大允许日期（今天起3周）
+    // 计算最大允许日期（默认3周，工作人员6周）
     const maxAllowedDate = new Date(today);
-    maxAllowedDate.setDate(today.getDate() + 21); // 3周 = 21天
+    maxAllowedDate.setDate(today.getDate() + maxWeeks * 7);
 
     // 确保开始日期不早于今天
     if (startDate < today) {
