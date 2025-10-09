@@ -4,6 +4,7 @@ import * as admin from "firebase-admin";
 import { parseISO, format, addMinutes } from "date-fns";
 import { initAdmin } from "@/utils/firebase-admin";
 import { SLOW_ROOM_MAPPING } from "@/types/room";
+import { STAFF_USER_IDS } from "@/constants/staff";
 
 // 设置此API路由为动态路由，不进行静态生成
 export const dynamic = "force-dynamic";
@@ -33,6 +34,7 @@ export async function GET(request: NextRequest) {
     // 从URL获取查询参数
     const searchParams = request.nextUrl.searchParams;
     const dateStr = searchParams.get("date");
+    const userId = searchParams.get("userId");
 
     // 参数验证
     if (!dateStr) {
@@ -44,20 +46,23 @@ export async function GET(request: NextRequest) {
 
     // 解析日期
     const date = parseISO(dateStr);
+    const isStaffUser = userId ? STAFF_USER_IDS.includes(userId) : false;
+    const maxAdvanceDays = isStaffUser ? 42 : 21;
+    const maxAdvanceWeeks = isStaffUser ? 6 : 3;
     
-    // 检查日期是否在允许范围内（今天到未来3周）
+    // 检查日期是否在允许范围内（今天到未来指定周数）
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
     const maxAllowedDate = new Date();
-    maxAllowedDate.setDate(maxAllowedDate.getDate() + 21); // 3周后
+    maxAllowedDate.setDate(maxAllowedDate.getDate() + maxAdvanceDays);
     maxAllowedDate.setHours(23, 59, 59, 999);
     
-    // 如果日期早于今天或晚于3周后，拒绝请求
+    // 如果日期早于今天或晚于允许范围，拒绝请求
     if (date < today || date > maxAllowedDate) {
       return NextResponse.json(
         { 
-          error: "予約可能な日付は本日から3週間以内です",
+          error: `予約可能な日付は本日から${maxAdvanceWeeks}週間以内です`,
           timeSlots: [],
           date: dateStr,
           maxReservations: 0

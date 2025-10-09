@@ -10,6 +10,7 @@ import { auth } from "@/utils/firebase";
 import { onAuthStateChange } from "@/utils/auth";
 import { RoomType } from "@/types/room";
 import { saveTempReservation } from "@/utils/tempReservation";
+import { STAFF_USER_IDS } from "@/constants/staff";
 
 // 是否为纯sauna房间
 const isPureSaunaRoom = (roomType: string): boolean => {
@@ -96,6 +97,15 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
     return new Date(selectedDateStr);
   }, [selectedDateStr]);
 
+  // 判定当前用户是否为工作人员
+  const isStaffUser = useMemo(() => {
+    if (!user) return false;
+    return STAFF_USER_IDS.includes(user.uid);
+  }, [user]);
+
+  const currentUserId = useMemo(() => user?.uid ?? null, [user]);
+  const maxWeeksToDisplay = isStaffUser ? 6 : 3;
+
   // 初始化日期数组
   useEffect(() => {
     const newDates = Array.from({ length: 7 }, (_, i) => {
@@ -140,8 +150,17 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
       try {
         setIsLoadingTimeSlots(true);
 
+        const params = new URLSearchParams({
+          date: dateStr,
+          isSetPlan: "true",
+        });
+
+        if (currentUserId) {
+          params.append("userId", currentUserId);
+        }
+
         const response = await fetch(
-          `/api/slow-room-availability-day?date=${dateStr}&isSetPlan=true`
+          `/api/slow-room-availability-day?${params.toString()}`
         );
 
         if (!response.ok) {
@@ -174,7 +193,7 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
         setIsLoadingTimeSlots(false);
       }
     },
-    [selectedRoomType]
+    [selectedRoomType, currentUserId]
   );
 
   // 当选中日期变化时，获取该日期的时间段可用性
@@ -411,8 +430,19 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
         }
 
         // 调用API检查可用性
+        const params = new URLSearchParams({
+          date: dateStr,
+          startTime: startTimeStr,
+          endTime: endTimeStr,
+          isSetPlan: "true",
+        });
+
+        if (currentUserId) {
+          params.append("userId", currentUserId);
+        }
+
         const response = await fetch(
-          `/api/slow-room-availability?date=${dateStr}&startTime=${startTimeStr}&endTime=${endTimeStr}&isSetPlan=true`
+          `/api/slow-room-availability?${params.toString()}`
         );
 
         if (!response.ok) {
@@ -441,7 +471,7 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
         setIsCheckingAvailability(false);
       }
     },
-    []
+    [currentUserId]
   );
 
   const timeoutIdRef = useRef<NodeJS.Timeout | null>(null);
@@ -750,6 +780,8 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
         selectedDateIndex={selectedDateIndex}
         selectedTimeIndex={selectedTimeIndex}
         onTimeSlotSelect={handleTimeSlotSelection}
+        currentUserId={currentUserId}
+        maxWeeks={maxWeeksToDisplay}
       />
 
       {/* 当前选择信息展示区域 */}
