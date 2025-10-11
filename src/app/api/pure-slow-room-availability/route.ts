@@ -14,6 +14,10 @@ export const dynamic = "force-dynamic";
 // 设置时区为日本时区
 process.env.TZ = "Asia/Tokyo";
 
+// 清扫缓冲时间（分钟）
+const CLEANING_BUFFER_MINUTES = 20;
+const CLEANING_BUFFER_MS = CLEANING_BUFFER_MINUTES * 60 * 1000;
+
 // 辅助函数：从时间字符串解析时间
 function parseTimeString(date: Date, timeStr: string): Date | null {
   const match = timeStr.match(/(\d+):(\d+)/);
@@ -296,10 +300,18 @@ export async function GET(request: NextRequest) {
           return;
         }
 
-        // 检查时间是否重叠 - 即使有1分钟的重叠也算冲突
+        const candidateStartMs = startDateTime.getTime();
+        const candidateEndMs = endDateTime.getTime();
+        const reservationStartMs = reservationStartTime.getTime();
+        const reservationEndMs = reservationEndTime.getTime();
+
+        const adjustedReservationStart = reservationStartMs - CLEANING_BUFFER_MS;
+        const adjustedReservationEnd = reservationEndMs + CLEANING_BUFFER_MS;
+
+        // 检查时间是否重叠（考虑清扫缓冲时间）
         const hasOverlap =
-          reservationStartTime < endDateTime &&
-          reservationEndTime > startDateTime;
+          adjustedReservationStart < candidateEndMs &&
+          adjustedReservationEnd > candidateStartMs;
 
         if (hasOverlap) {
           console.log(

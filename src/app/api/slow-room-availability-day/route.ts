@@ -11,6 +11,10 @@ export const dynamic = "force-dynamic";
 // 设置时区为日本时区
 process.env.TZ = "Asia/Tokyo";
 
+// 清扫缓冲时间（分钟）
+const CLEANING_BUFFER_MINUTES = 20;
+const CLEANING_BUFFER_MS = CLEANING_BUFFER_MINUTES * 60 * 1000;
+
 // 辅助函数：解析时间字符串为Date对象
 function parseDateTimeString(date: Date, timeStr: string): Date | null {
   const match = timeStr.trim().match(/(\d+):(\d+)/);
@@ -314,11 +318,20 @@ export async function GET(request: NextRequest) {
       ).padStart(2, "0")}`;
 
       // 检查该时间段有多少个重叠的预约
+      const candidateStartMs = currentTime.getTime();
+      const candidateEndMs = endDateTime.getTime();
+
       const overlappingReservations = allReservations.filter((reservation) => {
-        // 检查是否有任何时间重叠
+        const reservationStartMs = reservation.startDateTime.getTime();
+        const reservationEndMs = reservation.endDateTime.getTime();
+
+        // 在检查重叠时考虑清扫缓冲时间
+        const adjustedReservationStart = reservationStartMs - CLEANING_BUFFER_MS;
+        const adjustedReservationEnd = reservationEndMs + CLEANING_BUFFER_MS;
+
         return (
-          reservation.startDateTime < endDateTime &&
-          reservation.endDateTime > currentTime
+          adjustedReservationStart < candidateEndMs &&
+          adjustedReservationEnd > candidateStartMs
         );
       });
 
