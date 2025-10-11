@@ -10,6 +10,10 @@ initAdmin();
 // 设置时区为日本时区
 process.env.TZ = "Asia/Tokyo";
 
+// 清扫缓冲时间（分钟）
+const CLEANING_BUFFER_MINUTES = 20;
+const CLEANING_BUFFER_MS = CLEANING_BUFFER_MINUTES * 60 * 1000;
+
 export async function GET(req: Request) {
   try {
     // 获取授权头部
@@ -345,9 +349,14 @@ export async function GET(req: Request) {
       }
 
       // 检查时间冲突 - 判断两个时间段是否重叠
+      const adjustedAssignmentStart =
+        assignmentStartObj.getTime() - CLEANING_BUFFER_MS;
+      const adjustedAssignmentEnd =
+        assignmentEndObj.getTime() + CLEANING_BUFFER_MS;
+
       const timeOverlap =
-        assignmentStartObj < slowRoomEndDateTime &&
-        assignmentEndObj > slowRoomStartDateTime;
+        adjustedAssignmentStart < slowRoomEndDateTime.getTime() &&
+        adjustedAssignmentEnd > slowRoomStartDateTime.getTime();
 
       console.log(
         `Slow Room时间重叠检查: ${assignmentStartObj.toLocaleTimeString()} - ${assignmentEndObj.toLocaleTimeString()} 与请求时间 ${slowRoomStartDateTime.toLocaleTimeString()} - ${slowRoomEndDateTime.toLocaleTimeString()} 重叠: ${timeOverlap}`

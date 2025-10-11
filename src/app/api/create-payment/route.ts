@@ -5,6 +5,7 @@ import { getFirestore } from "firebase-admin/firestore";
 import { initAdmin } from "@/utils/firebase-admin";
 import admin from "firebase-admin";
 import { Coupon } from "@/types/coupon";
+import { SLOW_ROOM_MAPPING } from "@/types/room";
 import { convertToDate, parseReservationDate } from "@/utils/date";
 
 // 纯sauna房间类型列表
@@ -25,6 +26,10 @@ export const dynamic = "force-dynamic";
 
 // JST (UTC+9) 偏移量，用于在UTC时间与日本当地日历日之间转换
 const JST_OFFSET_MINUTES = 9 * 60;
+
+// 清扫缓冲时间（分钟）
+const CLEANING_BUFFER_MINUTES = 20;
+const CLEANING_BUFFER_MS = CLEANING_BUFFER_MINUTES * 60 * 1000;
 
 // 根据预约数据推导出“日本时间的预约日期”
 function deriveTargetDate(reservation: any): {
@@ -86,6 +91,67 @@ function createJstDayRange(year: number, month: number, day: number) {
     startOfDay: new Date(startUtcMillis),
     endOfDay: new Date(endUtcMillis),
   };
+}
+
+function parseTimeString(timeStr: string): { hour: number; minute: number } | null {
+  const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return null;
+  const hour = parseInt(match[1], 10);
+  const minute = parseInt(match[2], 10);
+  if (
+    Number.isNaN(hour) ||
+    Number.isNaN(minute) ||
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59
+  ) {
+    return null;
+  }
+  return { hour, minute };
+}
+
+function createDateWithTime(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number
+): Date {
+  return new Date(year, month - 1, day, hour, minute, 0, 0);
+}
+
+function parseTimeRangeToDateRange(
+  timeRange: string,
+  year: number,
+  month: number,
+  day: number
+): { start: Date; end: Date } | null {
+  if (!timeRange) return null;
+  const parts = timeRange.split(/[～〜~\-]/);
+  if (parts.length !== 2) return null;
+
+  const startInfo = parseTimeString(parts[0].trim());
+  const endInfo = parseTimeString(parts[1].trim());
+
+  if (!startInfo || !endInfo) return null;
+
+  const start = createDateWithTime(year, month, day, startInfo.hour, startInfo.minute);
+  const end = createDateWithTime(year, month, day, endInfo.hour, endInfo.minute);
+
+  return { start, end };
+}
+
+function rangesConflictWithCleaningBuffer(
+  candidate: { start: Date; end: Date },
+  existing: { start: Date; end: Date }
+): boolean {
+  const adjustedExistingStart = existing.start.getTime() - CLEANING_BUFFER_MS;
+  const adjustedExistingEnd = existing.end.getTime() + CLEANING_BUFFER_MS;
+  return (
+    adjustedExistingStart < candidate.end.getTime() &&
+    adjustedExistingEnd > candidate.start.getTime()
+  );
 }
 
 export async function POST(req: Request) {
@@ -285,6 +351,16 @@ export async function POST(req: Request) {
           displayTimeRange: displayTimeRange,
         });
 
+        const candidateTimeRange =
+          reservation.roomType === "slow_room"
+            ? parseTimeRangeToDateRange(
+                displayTimeRange,
+                targetYear,
+                targetMonth,
+                targetDay
+              )
+            : null;
+
         // 使用事务来确保原子性操作
         const result = await db.runTransaction(async (transaction) => {
           // 收集所有需要删除的过期锁定（在读操作阶段执行）
@@ -326,21 +402,127 @@ export async function POST(req: Request) {
             .where("paymentStatus", "==", "paid");
 
           const conflictSnapshot = await transaction.get(conflictQuery);
+
+          // 默认每个时间段只允许1个预约（适用于物理房间只有一个的房型）
+          let maxReservationsAllowed = 1;
           
           // 在内存中进一步过滤相同的时间段
-          const exactMatches = conflictSnapshot.docs.filter(doc => {
+          const matchingReservations = conflictSnapshot.docs.filter((doc) => {
             const data = doc.data();
+
+            if (reservation.roomType === "slow_room" && candidateTimeRange) {
+              let reservationRange: { start: Date; end: Date } | null = null;
+
+              if (
+                data.startDateTime &&
+                typeof data.startDateTime.toDate === "function" &&
+                data.endDateTime &&
+                typeof data.endDateTime.toDate === "function"
+              ) {
+                reservationRange = {
+                  start: data.startDateTime.toDate(),
+                  end: data.endDateTime.toDate(),
+                };
+              } else if (
+                data.slowRoomStartDateTime &&
+                typeof data.slowRoomStartDateTime.toDate === "function" &&
+                data.slowRoomEndDateTime &&
+                typeof data.slowRoomEndDateTime.toDate === "function"
+              ) {
+                reservationRange = {
+                  start: data.slowRoomStartDateTime.toDate(),
+                  end: data.slowRoomEndDateTime.toDate(),
+                };
+              } else if (data.displayTimeRange) {
+                reservationRange = parseTimeRangeToDateRange(
+                  data.displayTimeRange,
+                  targetYear,
+                  targetMonth,
+                  targetDay
+                );
+              }
+
+              if (reservationRange) {
+                return rangesConflictWithCleaningBuffer(
+                  candidateTimeRange,
+                  reservationRange
+                );
+              }
+            }
+
             return data.displayTimeRange === displayTimeRange;
           });
 
-          if (exactMatches.length > 0) {
-            // 发现冲突预约
+          if (reservation.roomType === "slow_room") {
+            // Slow room 可能有多个物理房间，需根据配置和dailyInventory确定最大预约数
+            const formattedDate = `${targetYear.toString().padStart(4, "0")}-${targetMonth
+              .toString()
+              .padStart(2, "0")}-${targetDay.toString().padStart(2, "0")}`;
+
+            const slowRoomIds = SLOW_ROOM_MAPPING.slow_room || [];
+            const totalSlowRooms =
+              Array.isArray(slowRoomIds) && slowRoomIds.length > 0
+                ? slowRoomIds.length
+                : 1;
+
+            const capacityCandidates: number[] = [totalSlowRooms];
+
+            const slowRoomConfigQuery = db
+              .collection("rooms")
+              .where("roomType", "==", "slow_room")
+              .limit(1);
+
+            try {
+              const slowRoomConfigSnapshot = await transaction.get(
+                slowRoomConfigQuery
+              );
+              if (!slowRoomConfigSnapshot.empty) {
+                const slowRoomData = slowRoomConfigSnapshot.docs[0].data();
+
+                if (
+                  typeof slowRoomData?.maxReservations === "number" &&
+                  Number.isFinite(slowRoomData.maxReservations)
+                ) {
+                  capacityCandidates.push(slowRoomData.maxReservations);
+                }
+
+                if (
+                  slowRoomData?.dailyInventory &&
+                  typeof slowRoomData.dailyInventory === "object"
+                ) {
+                  const dailyValue =
+                    slowRoomData.dailyInventory[formattedDate];
+                  if (
+                    typeof dailyValue === "number" &&
+                    Number.isFinite(dailyValue)
+                  ) {
+                    capacityCandidates.push(dailyValue);
+                  }
+                }
+              }
+            } catch (configError) {
+              console.error("获取slow room配置失败，使用默认物理房间数量:", configError);
+            }
+
+            const validCapacities = capacityCandidates.filter(
+              (value) => Number.isFinite(value) && value >= 0
+            );
+            if (validCapacities.length > 0) {
+              maxReservationsAllowed = Math.min(...validCapacities);
+            } else {
+              maxReservationsAllowed = totalSlowRooms;
+            }
+          }
+
+          // Slow room的最大预约数可能大于1，其余房型维持默认1
+          if (matchingReservations.length >= maxReservationsAllowed) {
             console.error("预约冲突检测：发现重复预约", {
               roomType: reservation.roomType,
               targetDate: `${targetYear}年${targetMonth}月${targetDay}日`,
               displayTimeRange: displayTimeRange,
-              exactMatches: exactMatches.length,
-              totalQueryResults: conflictSnapshot.size
+              exactMatches: matchingReservations.length,
+              totalQueryResults: conflictSnapshot.size,
+              maxReservationsAllowed,
             });
             throw new Error("CONFLICT_EXISTING_RESERVATION");
           }
@@ -356,13 +538,42 @@ export async function POST(req: Request) {
 
           const lockSnapshot = await transaction.get(lockQuery);
 
+          const activeLockDocs = lockSnapshot.docs;
+          const conflictingLockDocs = activeLockDocs.filter((doc) => {
+            const lockData = doc.data();
+            if (
+              reservation.roomType === "slow_room" &&
+              candidateTimeRange &&
+              lockData.displayTimeRange
+            ) {
+              const lockRange = parseTimeRangeToDateRange(
+                lockData.displayTimeRange,
+                targetYear,
+                targetMonth,
+                targetDay
+              );
+              if (lockRange) {
+                return rangesConflictWithCleaningBuffer(
+                  candidateTimeRange,
+                  lockRange
+                );
+              }
+            }
+            return lockData.displayTimeRange === displayTimeRange;
+          });
+
           if (!lockSnapshot.empty) {
             // 检查锁定是否属于当前用户
-            const otherUserLocks = lockSnapshot.docs.filter(
+            const otherUserLocks = conflictingLockDocs.filter(
               doc => doc.data().userId !== userRecord.uid
             );
 
-            if (otherUserLocks.length > 0) {
+            const totalActiveLocks = conflictingLockDocs.length;
+
+            if (
+              otherUserLocks.length > 0 &&
+              matchingReservations.length + totalActiveLocks >= maxReservationsAllowed
+            ) {
               console.error("预约锁定检测：时间段已被锁定", {
                 roomType: reservation.roomType,
                 date: reservation.date,
