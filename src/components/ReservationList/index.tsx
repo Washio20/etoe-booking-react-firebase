@@ -45,6 +45,99 @@ interface Reservation {
   };
 }
 
+const RESERVATIONS_PER_PAGE = 5;
+
+const parseJapaneseDateString = (value: string): Date | null => {
+  const trimmed = value.trim();
+  const match = trimmed.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
+
+  if (!match) {
+    return null;
+  }
+
+  const [, year, month, day] = match;
+  const parsed = new Date(
+    Number(year),
+    Number(month) - 1,
+    Number(day)
+  );
+
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const normalizeDateValue = (value: unknown): Date | null => {
+  if (!value) return null;
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  if (typeof value === "object") {
+    const candidate = value as {
+      toDate?: () => Date;
+      _seconds?: number;
+      seconds?: number;
+    };
+
+    if (candidate.toDate) {
+      const result = candidate.toDate();
+      return Number.isNaN(result.getTime()) ? null : result;
+    }
+
+    if (typeof candidate._seconds === "number") {
+      return new Date(candidate._seconds * 1000);
+    }
+
+    if (typeof candidate.seconds === "number") {
+      return new Date(candidate.seconds * 1000);
+    }
+  }
+
+  if (typeof value === "number") {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  if (typeof value === "string") {
+    const fromJapanese = parseJapaneseDateString(value);
+    if (fromJapanese) {
+      return fromJapanese;
+    }
+
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  return null;
+};
+
+const formatDateForInput = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getReservationDateValue = (reservation: Reservation): Date | null => {
+  const candidates = [
+    reservation.startDateTime,
+    reservation.bookingDate,
+    reservation.date,
+    reservation.displayDate,
+    reservation.reservationDate,
+    reservation.createdAt,
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeDateValue(candidate);
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  return null;
+};
+
 export default function ReservationList() {
   const router = useRouter();
   const [user, loading] = useAuthState(auth);
@@ -59,6 +152,8 @@ export default function ReservationList() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [dateFilter, setDateFilter] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
   // 确保只在客户端渲染模态框
   useEffect(() => {
@@ -102,6 +197,10 @@ export default function ReservationList() {
 
     fetchReservations();
   }, [user]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, dateFilter]);
 
   // 判断预约是否已结束的函数
   const isPastReservation = (reservation: Reservation): boolean => {
@@ -238,7 +337,49 @@ export default function ReservationList() {
   };
   
   // 获取筛选和排序后的预约列表
-  const filteredReservations = getFilteredReservations();
+  const tabFilteredReservations = getFilteredReservations();
+
+  const filteredReservations = tabFilteredReservations.filter(
+    (reservation) => {
+      if (!dateFilter) {
+        return true;
+      }
+
+      const reservationDate = getReservationDateValue(reservation);
+      if (!reservationDate) {
+        return false;
+      }
+
+      return formatDateForInput(reservationDate) === dateFilter;
+    }
+  );
+
+  const totalPages =
+    filteredReservations.length === 0
+      ? 1
+      : Math.ceil(filteredReservations.length / RESERVATIONS_PER_PAGE);
+
+  const paginatedReservations = filteredReservations.slice(
+    (currentPage - 1) * RESERVATIONS_PER_PAGE,
+    currentPage * RESERVATIONS_PER_PAGE
+  );
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const canGoPrev = currentPage > 1;
+  const canGoNext = currentPage < totalPages;
+
+  const handlePrevPage = () => {
+    setCurrentPage((prev) => Math.max(1, prev - 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage((prev) => Math.min(totalPages, prev + 1));
+  };
 
   // 获取格式化的日期显示
   const getDisplayDate = (reservation: Reservation): string => {
@@ -736,6 +877,32 @@ export default function ReservationList() {
         </button>
       </div>
 
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4">
+        <div className="flex items-center gap-3">
+          <label
+            htmlFor="reservation-date-filter"
+            className="text-sm md:text-base text-[#444444] tracking-[0.06em] font-zen-kaku-gothic"
+          >
+            日付で絞り込む
+          </label>
+          <input
+            id="reservation-date-filter"
+            type="date"
+            value={dateFilter}
+            onChange={(event) => setDateFilter(event.target.value)}
+            className="min-w-[180px] md:min-w-[220px] px-4 py-2 border border-[#444444] rounded-full text-sm md:text-base text-[#444444] tracking-[0.06em] font-zen-kaku-gothic bg-white"
+          />
+        </div>
+        {dateFilter && (
+          <button
+            onClick={() => setDateFilter("")}
+            className="self-start md:self-auto px-4 md:px-6 py-1.5 md:py-2 rounded-full border border-[#444444] text-sm md:text-base text-[#444444] tracking-[0.06em] font-zen-kaku-gothic bg-white"
+          >
+            絞り込みをクリア
+          </button>
+        )}
+      </div>
+
       {/* 加载状态 */}
       {isLoading ? (
         <div className="text-center py-12">
@@ -759,7 +926,7 @@ export default function ReservationList() {
         </div>
       ) : (
         <div className="space-y-6 md:space-y-8">
-          {filteredReservations.map((reservation) => (
+          {paginatedReservations.map((reservation) => (
             <div
               key={reservation.id}
               className="flex flex-col md:flex-row md:items-stretch md:gap-8"
@@ -842,6 +1009,35 @@ export default function ReservationList() {
               </div>
             </div>
           ))}
+          <div className="flex flex-col items-stretch md:flex-row md:items-center md:justify-between gap-3 md:gap-4 pt-2">
+            <span className="text-base md:text-base text-[#444444] tracking-[0.06em] font-zen-kaku-gothic text-center md:text-left">
+              ページ {currentPage} / {totalPages}
+            </span>
+            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2">
+              <button
+                onClick={handlePrevPage}
+                disabled={!canGoPrev}
+                className={`w-full md:w-auto px-5 md:px-6 py-3 md:py-2 rounded-full border border-[#444444] text-base tracking-[0.06em] font-zen-kaku-gothic transition-colors ${
+                  canGoPrev
+                    ? "text-[#444444] bg-white hover:bg-[#F0EAE4]"
+                    : "text-[#BBBBBB] bg-[#F5F5F5] cursor-not-allowed"
+                }`}
+              >
+                前へ
+              </button>
+              <button
+                onClick={handleNextPage}
+                disabled={!canGoNext}
+                className={`w-full md:w-auto px-5 md:px-6 py-3 md:py-2 rounded-full border border-[#444444] text-base tracking-[0.06em] font-zen-kaku-gothic transition-colors ${
+                  canGoNext
+                    ? "text-[#444444] bg-white hover:bg-[#F0EAE4]"
+                    : "text-[#BBBBBB] bg-[#F5F5F5] cursor-not-allowed"
+                }`}
+              >
+                次へ
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
