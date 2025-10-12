@@ -83,7 +83,6 @@ export async function GET(request: Request) {
 
     // 获取URL查询参数
     const url = new URL(request.url);
-    const limit = parseInt(url.searchParams.get("limit") || "20");
     const status = url.searchParams.get("status");
 
     // 创建基础查询 - 只查询该用户的预约
@@ -98,7 +97,7 @@ export async function GET(request: Request) {
     }
 
     // 添加排序和限制 - 按创建时间降序排列
-    query = query.orderBy("createdAt", "desc").limit(limit);
+    query = query.orderBy("createdAt", "desc");
 
     // 执行查询
     const snapshot = await query.get();
