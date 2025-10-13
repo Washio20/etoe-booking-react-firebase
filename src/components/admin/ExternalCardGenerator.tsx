@@ -58,7 +58,8 @@ export default function ExternalCardGenerator() {
   const [formError, setFormError] = useState<string | null>(null);
   const [generatedCard, setGeneratedCard] = useState<any>(null);
   const [emailSent, setEmailSent] = useState<boolean>(false);
-  const [emailLanguage, setEmailLanguage] = useState<'ja' | 'en' | null>(null);
+  type EmailLanguage = "ja" | "en" | "ja_day" | null;
+  const [emailLanguage, setEmailLanguage] = useState<EmailLanguage>(null);
 
   // 房间选项
   const roomOptions = getRoomOptions();
@@ -175,9 +176,13 @@ export default function ExternalCardGenerator() {
   };
 
   // 发送卡片邮件
-  const sendCardEmail = async (reservationId: string, language: 'ja' | 'en') => {
+  const sendCardEmail = async (
+    reservationId: string,
+    language: "ja" | "en",
+    variant: "standard" | "daytrip" = "standard"
+  ) => {
     setIsSendingEmail(true);
-    setEmailLanguage(language);
+    setEmailLanguage(variant === "daytrip" ? "ja_day" : language);
     try {
       // 获取当前用户的ID令牌
       const idToken = await user?.getIdToken();
@@ -197,6 +202,7 @@ export default function ExternalCardGenerator() {
           userEmail,
           userName,
           language,
+          variant,
         }),
       });
 
@@ -379,7 +385,11 @@ export default function ExternalCardGenerator() {
                 <span className="font-medium text-base">メール送信状態:</span>{" "}
                 {emailSent ? (
                   <span className="text-white bg-green-600 px-2 py-0.5 rounded text-base font-medium">
-                    {emailLanguage === 'ja' ? '日本語で送信完了' : '英語で送信完了'}
+                    {emailLanguage === "ja"
+                      ? "日本語で送信完了"
+                      : emailLanguage === "ja_day"
+                      ? "日本語（日帰り用）で送信完了"
+                      : "英語で送信完了"}
                   </span>
                 ) : isSendingEmail ? (
                   <span className="text-white bg-blue-600 px-2 py-0.5 rounded text-base font-medium">送信中...</span>
@@ -420,9 +430,11 @@ export default function ExternalCardGenerator() {
               <p className="text-sm text-gray-700 mb-3 font-zen-kaku-gothic font-medium">
                 お客様へメールを送信:
               </p>
-              <div className="flex gap-4 justify-center">
+              <div className="flex flex-wrap gap-4 justify-center">
                 <button
-                  onClick={() => sendCardEmail(generatedCard.reservationId, 'ja')}
+                  onClick={() =>
+                    sendCardEmail(generatedCard.reservationId, "ja")
+                  }
                   disabled={isSendingEmail}
                   className={`px-6 py-2 bg-blue-600 text-white rounded-md text-sm font-zen-kaku-gothic ${
                     isSendingEmail
@@ -430,10 +442,14 @@ export default function ExternalCardGenerator() {
                       : "hover:bg-blue-700"
                   }`}
                 >
-                  {isSendingEmail && emailLanguage === 'ja' ? "送信中..." : "日本語で送信"}
+                  {isSendingEmail && emailLanguage === "ja"
+                    ? "送信中..."
+                    : "日本語で送信"}
                 </button>
                 <button
-                  onClick={() => sendCardEmail(generatedCard.reservationId, 'en')}
+                  onClick={() =>
+                    sendCardEmail(generatedCard.reservationId, "en")
+                  }
                   disabled={isSendingEmail}
                   className={`px-6 py-2 bg-green-600 text-white rounded-md text-sm font-zen-kaku-gothic ${
                     isSendingEmail
@@ -441,7 +457,28 @@ export default function ExternalCardGenerator() {
                       : "hover:bg-green-700"
                   }`}
                 >
-                  {isSendingEmail && emailLanguage === 'en' ? "Sending..." : "Send in English"}
+                  {isSendingEmail && emailLanguage === "en"
+                    ? "Sending..."
+                    : "Send in English"}
+                </button>
+                <button
+                  onClick={() =>
+                    sendCardEmail(
+                      generatedCard.reservationId,
+                      "ja",
+                      "daytrip"
+                    )
+                  }
+                  disabled={isSendingEmail}
+                  className={`px-6 py-2 bg-gray-400 text-white rounded-md text-sm font-zen-kaku-gothic ${
+                    isSendingEmail
+                      ? "opacity-50 cursor-not-allowed"
+                      : "hover:bg-gray-500"
+                  }`}
+                >
+                  {isSendingEmail && emailLanguage === "ja_day"
+                    ? "送信中..."
+                    : "日本語で送信（日帰り用）"}
                 </button>
               </div>
             </div>

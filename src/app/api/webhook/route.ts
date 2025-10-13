@@ -46,6 +46,21 @@ function parseTimeString(
   };
 }
 
+// 为日期字符串追加曜日（如果尚未包含）
+function formatDateWithDayOfWeek(dateStr?: string): string {
+  if (!dateStr) return "";
+  const trimmed = dateStr.trim();
+  if (trimmed.includes("（") || trimmed.includes("(")) {
+    return trimmed;
+  }
+
+  const date = parseJapaneseDate(trimmed);
+  if (!date) return trimmed;
+
+  const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
+  return `${trimmed}（${weekdays[date.getDay()]}）`;
+}
+
 // OAuth2 客户端配置
 const oAuth2Client = new google.auth.OAuth2(
   process.env.GMAIL_CLIENT_ID,
@@ -121,67 +136,107 @@ async function sendReservationConfirmationEmail(
     const reservationDetailsUrl = `${baseUrl}/reservations`;
 
     // 格式化房间类型显示
-    const roomTypeDisplay = (reservation.roomType || "").replace(/_/g, " ");
-    
-    // 创建纯文本邮件内容，包含预约详情
-    let textContent = `
-${userName} 様
+    const roomTypeDisplay = getRoomTypeDisplayName(
+      reservation.roomType || ""
+    );
 
-etoe sauna & stayをご予約いただき、誠にありがとうございます。
-以下の予約内容で承りました。
+    const slowRoomLine =
+      reservation.slowRoomAsSetPlan && reservation.displaySlowRoomTimeRange
+        ? `スロールーム：${reservation.displaySlowRoomTimeRange}`
+        : "";
 
-=== ご予約内容 ===
-
-予約日: ${reservation.displayDate || reservation.reservationDate || ""}
-時間: ${reservation.displayTimeRange || reservation.reservationTime || ""}
-部屋タイプ: ${roomTypeDisplay}
-`;
-
-    // 如果有慢房间套餐，添加慢房间信息
-    if (reservation.slowRoomAsSetPlan && reservation.displaySlowRoomTimeRange) {
-      textContent += `
-スロールーム: ${reservation.displaySlowRoomTimeRange}
-`;
-    }
-
-    // 添加优惠券折扣信息（如果有）
-    if (reservation.discountBreakdown && reservation.discountBreakdown.totalDiscount > 0) {
-      textContent += `
-割引詳細:
-`;
+    let discountLine = "";
+    if (
+      reservation.discountBreakdown &&
+      reservation.discountBreakdown.totalDiscount > 0
+    ) {
+      const discountParts: string[] = [];
       if (reservation.discountBreakdown.roomDiscount > 0) {
-        textContent += `• ${getRoomTypeDisplayName(reservation.roomType)}: -${reservation.discountBreakdown.roomDiscount.toLocaleString()}円
-`;
+        discountParts.push(
+          `• ${getRoomTypeDisplayName(reservation.roomType || "")}：-${reservation.discountBreakdown.roomDiscount.toLocaleString()}円`
+        );
       }
       if (reservation.discountBreakdown.slowRoomDiscount > 0) {
-        textContent += `• スロールーム: -${reservation.discountBreakdown.slowRoomDiscount.toLocaleString()}円
-`;
+        discountParts.push(
+          `• スロールーム：-${reservation.discountBreakdown.slowRoomDiscount.toLocaleString()}円`
+        );
       }
-      textContent += `クーポン割引合計: -${reservation.discountBreakdown.totalDiscount.toLocaleString()}円
-`;
+      discountParts.push(
+        `クーポン割引合計：-${reservation.discountBreakdown.totalDiscount.toLocaleString()}円`
+      );
+      discountLine = `割引詳細：${discountParts.join("、")}`;
     }
 
-    textContent += `
-料金: ${Number(reservation.price || 0).toLocaleString()}円
+    const reservationDetailLines = [
+      "■ ご予約内容",
+      `日付：${formatDateWithDayOfWeek(
+        reservation.displayDate || reservation.reservationDate || ""
+      )}`,
+      `時間：${reservation.displayTimeRange || reservation.reservationTime || ""}`,
+      `部屋タイプ：${roomTypeDisplay}`,
+    ];
 
-予約の詳細はこちらから
+    if (slowRoomLine) {
+      reservationDetailLines.push(slowRoomLine);
+    }
+
+    if (discountLine) {
+      reservationDetailLines.push(discountLine);
+    }
+
+    reservationDetailLines.push(
+      `料金：${Number(reservation.price || 0).toLocaleString()}円`
+    );
+
+    // 创建纯文本邮件内容，包含预约详情
+    const textContent = `${userName} 様
+
+このたびは etoe sauna & stay をご予約いただき、誠にありがとうございます。
+以下の内容でご予約を承りました。
+
+${reservationDetailLines.join("\n")}
+
+⇒予約の詳細を確認する
 ${reservationDetailsUrl}
 
-ご予約日時の直前に、入室用のパスコードをお送りします。
-ご予約の変更・キャンセルは、マイページからお手続きいただけます。
-チェックイン方法や館内設備についてはこちら：https://etoehotel.com/#faq
+＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿
 
-アクセス
-etoe sauna & stay
-Googleマップ　https://maps.app.goo.gl/BygJN9XWMWGbbggS9
+■ ご来館前のご案内
+当日の【 30分前 】 に入室用パスコードをメールでお送りします。
+
+水着のレンタルやご延長など、よくあるご質問は以下よりご確認ください。
+⇒FAQはこちら
+https://etoehotel.com/#faq
+
+ご予約の変更・キャンセルはマイページからお手続きください。
+ご予約開始時間の 48時間以降のキャンセル は、理由の如何を問わずキャンセル料100％を頂戴しております。あらかじめご了承くださいませ。
+
+＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿
+
+■アクセス
+
+etoe sauna & hotel  　⇒ Googleマップで開く
+https://maps.app.goo.gl/WwRnbtPDmmnJYyBV9
+
 JR山手線「新大久保駅」徒歩3分
 JR総武線「大久保駅」徒歩3分
 
-お客様のご来館を心よりお待ちしております。
+＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿ 
 
-※ このメールは送信専用アドレスからお送りしています。
-ご返信いただいても内容の確認ができかねますので、お問い合わせは公式サイトのお問い合わせフォームよりお願いいたします。
-https://etoehotel.com/#contact
+ ■etoe周辺おすすめカフェやレストラン
+
+ご滞在の前後に立ち寄れる、etoeスタッフお気に入りのスポットをご紹介します。
+実際に私たちが訪れて「ここ、よかった…！」と感じたお店をピックアップしました。
+おすすめマップを開く ⇒ https://maps.app.goo.gl/HVgzVEt4tVc2WyjC6
+
+＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿
+
+お客様のご来館を、心よりお待ちしております。
+
+※このメールは送信専用です。返信いただいても確認できません。
+お問い合わせは公式サイトのフォームよりお願いいたします。
+お問い合わせはこちら
+https://etoehotel.com/#news
 `;
 
     console.log("Webhook: 邮件内容准备完成");

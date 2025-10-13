@@ -36,7 +36,6 @@ oAuth2Client.setCredentials({
 async function sendEmailWithGmailApi(
   to: string,
   subject: string,
-  htmlContent: string,
   reservationId: string,
   cardId: string,
   slowRoomCardId?: string,
@@ -70,45 +69,61 @@ async function sendEmailWithGmailApi(
     if (slowRoomCardId) {
       slowRoomCardViewUrl = `${baseUrl}/card-view?reservationId=${reservationId}&cardId=${slowRoomCardId}&token=${slowRoomCardToken}`;
     }
-    const fqaUrl = `${baseUrl}/faq`;
+    const slowRoomLines =
+      slowRoomCardId && slowRoomCardViewUrl
+        ? [`スロールーム用バーコードを表示する　${slowRoomCardViewUrl}`]
+        : [];
 
-    // 创建纯文本邮件内容，包含访问网站的链接
-    let textContent = `
-${userName ? `${userName} 様` : "お客様"}
+    const textLines = [
+      `${userName ? `${userName} 様` : "お客様"}`,
+      "",
+      "このたびは etoe sauna & stay をご予約いただき、誠にありがとうございます。",
+      "",
+      "ご滞在予定のお部屋にご入室いただくための",
+      "入室手順 と 入室カード情報 をお届けいたします。",
+      "",
+      "■お部屋への入り方",
+      "当館は【 セルフチェックイン式 】となっています。",
+      "",
+      "入口がわかりづらくなっておりますので、入室までの手順をご確認ください。",
+      "入室方法を見る　https://x.gd/mic4a",
+      "",
+      "＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿",
+      "",
+      "■入室用バーコード",
+      "下記リンクより、お客様専用の 入室カード（バーコード） をご確認ください。",
+      `入室カードを表示する　${cardViewUrl}`,
+      ...slowRoomLines,
+      "",
+      "※バーコードは、ご予約時間から有効となります。",
+      "",
+      "＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿",
+      "",
+      "■チェックイン・ご利用について",
+      "レンタル水着や延長方法など、よくあるご質問はこちらからご覧いただけます。",
+      "よくあるご質問（FAQ）を見る　https://etoehotel.com/#faq",
+      "",
+      "＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿",
+      "",
+      "■etoe周辺のおすすめスポット",
+      "ご滞在の前後に立ち寄れる、etoeスタッフお気に入りのカフェやレストランをご紹介しています。実際に訪れて「ここ、よかった…！」と感じた場所をマップにまとめました。",
+      "おすすめマップを開く　https://maps.app.goo.gl/HVgzVEt4tVc2WyjC6",
+      "",
+      "＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿",
+      "",
+      "最新のキャンペーン情報やおすすめの過ごし方は、インスタグラム@etoe_tokyo にてご紹介しています。",
+      "https://www.instagram.com/etoe_tokyo",
+      "",
+      "",
+      "etoeでのひとときが、こころほどける、やさしい時間となりますように。",
+      "お客様のご来館を心よりお待ちしております。",
+      "",
+      "",
+      "etoe sauna & stay（エトエ）",
+      "https://etoehotel.com/",
+    ];
 
-etoe｜お部屋カード情報のご案内
-
-このたびは、etoe sauna & stayをご予約いただき、誠にありがとうございます。
-ご滞在予定のお部屋にご入室いただくためのカード情報をお届けいたします。
-
-入室カードのご確認はこちら
-・ご予約のお部屋用バーコード
-${cardViewUrl}
-
-`;
-
-    // 如果有慢房间卡，也添加链接
-    if (slowRoomCardId && slowRoomCardViewUrl) {
-      textContent += `
-・スロールーム用バーコード
-${slowRoomCardViewUrl}
-
-`;
-    }
-
-    textContent += `
-※ バーコードはご予約時間内のみ有効です。5分前よりご入室可能です。
-※ 本リンクはお客様専用です。他の方と共有されませんようお願いいたします。
-
-最新のキャンペーン情報を公式Instagramにてお届けしています。
-https://www.instagram.com/etoe_tokyo/
-
-etoeでのひとときが、
-こころほどける、やさしい時間となりますように。
-
-etoe
-※本メールは送信専用です。ご返信には対応いたしかねますのでご了承ください。
-`;
+    const textContent = textLines.join("\n");
 
     // 使用纯文本内容
     const message = [
@@ -258,15 +273,6 @@ export async function POST(req: Request) {
       );
     }
 
-    const card = cardDoc.data();
-
-    if (!card) {
-      return NextResponse.json(
-        { error: "カードデータが無効です" },
-        { status: 400 }
-      );
-    }
-
     // 获取预约者邮箱（如果请求中提供则使用，否则从预约记录中获取）
     let userEmail = emailFromRequest;
     if (!userEmail && reservation.userEmail) {
@@ -274,141 +280,24 @@ export async function POST(req: Request) {
     }
 
     // 检查并获取Slow Room卡片信息（如果有）
-    let slowRoomCard = null;
+    let includeSlowRoomLink = false;
     if (slowRoomCardId) {
       const slowRoomCardDoc = await db
         .collection("roomCards")
         .doc(slowRoomCardId)
         .get();
       if (slowRoomCardDoc.exists) {
-        slowRoomCard = slowRoomCardDoc.data();
+        includeSlowRoomLink = true;
       } else {
         console.warn(`找不到指定的Slow Room卡片 ID: ${slowRoomCardId}`);
       }
     }
 
-    // 提取卡片数据显示用的格式
-    const roomNumberDisplay = card.physicalRoomId.replace("room_", "");
-    let slowRoomNumberDisplay = null;
-    if (slowRoomCard) {
-      slowRoomNumberDisplay = slowRoomCard.physicalRoomId.replace("room_", "");
-    }
-
-    // 格式化日期为显示用的格式
-    const formatDate = (timestamp: any): string => {
-      try {
-        // 处理Firestore Timestamp
-        if (timestamp && typeof timestamp === "object" && timestamp.seconds) {
-          const date = new Date(timestamp.seconds * 1000);
-          return date.toLocaleString("ja-JP");
-        }
-
-        // 处理Date对象或ISO字符串
-        const date = new Date(timestamp);
-        if (!isNaN(date.getTime())) {
-          return date.toLocaleString("ja-JP");
-        }
-
-        return "日付不明";
-      } catch (error) {
-        console.error("日期格式化错误:", error);
-        return "無効な日付";
-      }
-    };
-
     // 提取用户名 - 优先使用从users表获取的完整信息
     const userName = userFullName || "";
 
-    // 提取开始和结束时间
-    const startDate = card.startAt;
-    const endDate = card.endAt;
-
-    let slowRoomStartDate = null;
-    let slowRoomEndDate = null;
-    if (slowRoomCard) {
-      slowRoomStartDate = slowRoomCard.startAt;
-      slowRoomEndDate = slowRoomCard.endAt;
-    }
-
-    // 构建邮件HTML内容
-    const emailHtml = `
-    <div style="font-family: 'メイリオ', 'Meiryo', sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background-color: #F0EAE4; padding: 20px; text-align: center;">
-        <h1 style="color: #444444; margin: 0;">etoe hotel</h1>
-      </div>
-      
-      <div style="padding: 20px; border: 1px solid #ddd; background-color: #fff;">
-        <p>${userName ? `${userName} 様` : "お客様"}</p>
-        
-        <p>この度はetoe sauna & stayをご予約いただき、誠にありがとうございます。</p>
-        <p>ご予約のお部屋の入室カード情報をお送りいたします。</p>
-        
-        <div style="background-color: #f9f9f9; padding: 15px; margin: 20px 0; border-left: 4px solid #444444;">
-          <h2 style="margin-top: 0; color: #444444; font-size: 18px;">入室カード情報</h2>
-          <p><strong>部屋番号:</strong> ${roomNumberDisplay}</p>
-          <p><strong>有効期間:</strong> ${formatDate(startDate)} ~ ${formatDate(
-      endDate
-    )}</p>
-          <p>※ 予約時間内のみ有効です。</p>
-        </div>
-        
-        <div style="text-align: center; margin: 25px 0;">
-          <p style="margin-bottom: 15px; font-weight: bold;">入室用バーコード</p>
-          <div>
-            <img src="${
-              card.barcode
-            }" alt="入室バーコード" style="max-width: 100%; height: auto;">
-          </div>
-          <p style="font-size: 12px; color: #666; margin-top: 10px;">
-            上記バーコードを部屋前のスキャナーにかざして入室してください。
-          </p>
-        </div>
-        
-        ${
-          slowRoomCard
-            ? `
-        <div style="background-color: #f9f9f9; padding: 15px; margin: 20px 0; border-left: 4px solid #7B9178;">
-          <h2 style="margin-top: 0; color: #444444; font-size: 18px;">スロールームカード情報</h2>
-          <p><strong>部屋番号:</strong> ${slowRoomNumberDisplay}</p>
-          <p><strong>有効期間:</strong> ${formatDate(
-            slowRoomStartDate
-          )} ~ ${formatDate(slowRoomEndDate)}</p>
-          <p>※ 予約時間内のみ有効です。</p>
-        </div>
-        
-        <div style="text-align: center; margin: 25px 0;">
-          <p style="margin-bottom: 15px; font-weight: bold;">スロールーム入室用バーコード</p>
-          <div>
-            <img src="${
-              slowRoomCard.barcode
-            }" alt="スロールーム入室バーコード" style="max-width: 100%; height: auto;">
-          </div>
-          <p style="font-size: 12px; color: #666; margin-top: 10px;">
-            上記バーコードをスロールーム前のスキャナーにかざして入室してください。
-          </p>
-        </div>
-        `
-            : ""
-        }
-        
-        <p>その他ご不明な点がございましたら、お気軽にお問い合わせください。</p>
-        <p>お客様のご来館を心よりお待ちしております。</p>
-        
-        <div style="margin-top: 30px;">
-          <p style="margin-bottom: 5px;">etoe hotel</p>
-          <p style="margin-bottom: 5px;">TEL: 000-0000-0000</p>
-          <p style="margin-bottom: 5px;">Email: info@etoehotel.com</p>
-        </div>
-      </div>
-      
-      <div style="background-color: #444444; color: white; padding: 15px; text-align: center; font-size: 12px;">
-        &copy; 2023 etoe hotel All Rights Reserved.
-      </div>
-    </div>
-    `;
-
     // 邮件主题 - 恢复使用原始日文标题
-    const emailSubject = "etoe｜お部屋カード情報のご案内";
+    const emailSubject = "etoe｜入室手順とカギ情報のご案内";
 
     console.log("准备发送邮件到:", userEmail);
 
@@ -419,10 +308,9 @@ export async function POST(req: Request) {
         await sendEmailWithGmailApi(
           userEmail,
           emailSubject,
-          emailHtml,
           reservationId,
           cardId,
-          slowRoomCardId,
+          includeSlowRoomLink ? slowRoomCardId : undefined,
           userName
         );
         console.log("邮件发送成功");
@@ -484,7 +372,7 @@ export async function POST(req: Request) {
       // 创建查看条形码的链接（带安全令牌）
       const cardViewUrl = `${baseUrl}/card-view?reservationId=${reservationId}&cardId=${cardId}&token=${mainCardToken}`;
       let slowRoomCardViewUrl = "";
-      if (slowRoomCardId) {
+      if (slowRoomCardId && includeSlowRoomLink) {
         slowRoomCardViewUrl = `${baseUrl}/card-view?reservationId=${reservationId}&cardId=${slowRoomCardId}&token=${slowRoomCardToken}`;
       }
 
