@@ -45,7 +45,8 @@ async function sendEmailWithGmailApi(
   subject: string,
   reservationId: string,
   userName: string,
-  language: 'ja' | 'en' = 'ja'
+  language: 'ja' | 'en' = 'ja',
+  variant: 'standard' | 'daytrip' = 'standard'
 ): Promise<any> {
   try {
     // 获取授权客户端
@@ -67,58 +68,181 @@ async function sendEmailWithGmailApi(
 
     // 根据语言选择邮件内容
     let textContent: string;
-    
-    if (language === 'en') {
-      // 英文邮件内容
-      textContent = `
-Dear ${userName},
 
-etoe｜Room Card Information
-
-Thank you for booking etoe sauna & stay.
-We are pleased to provide you with your room access card information.
-
-View Your Room Card
-・Access barcode for your reserved room
-${cardViewUrl}
-
-※ The barcode is valid only during your reservation time. You can enter 5 minutes before your scheduled time.
-※ This link is exclusive to you. Please do not share it with others.
-
-Follow us on Instagram for the latest campaigns and updates:
-https://www.instagram.com/etoe_tokyo/
-
-We hope your time at etoe will be a gentle moment of relaxation.
-
-etoe
-※ This is an automated message. Please do not reply to this email.
-`;
+    if (variant === 'daytrip') {
+      const lines = [
+        `${userName} 様`,
+        "",
+        "このたびは etoe sauna & stay をご予約いただき、誠にありがとうございます。",
+        "",
+        "ご滞在予定のお部屋にご入室いただくための",
+        "入室手順 と 入室カード情報 をお届けいたします。",
+        "",
+        "■お部屋への入り方",
+        "当館は【 セルフチェックイン式 】となっています。",
+        "",
+        "入口がわかりづらくなっておりますので、入室までの手順をご確認ください。",
+        "入室方法を見る　https://x.gd/mic4a",
+        "",
+        "＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿",
+        "",
+        "■入室用バーコード",
+        "下記リンクより、お客様専用の 入室カード（バーコード） をご確認ください。",
+        `入室カードを表示する　${cardViewUrl}`,
+        "",
+        "※バーコードは、ご予約時間から有効となります。",
+        "",
+        "＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿",
+        "",
+        "■チェックイン・ご利用について",
+        "レンタル水着や延長方法など、よくあるご質問はこちらからご覧いただけます。",
+        "よくあるご質問（FAQ）を見る　https://etoehotel.com/#faq",
+        "",
+        "＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿",
+        "",
+        "■etoe周辺のおすすめスポット",
+        "ご滞在の前後に立ち寄れる、etoeスタッフお気に入りのカフェやレストランをご紹介しています。実際に訪れて「ここ、よかった…！」と感じた場所をマップにまとめました。",
+        "おすすめマップを開く　https://maps.app.goo.gl/HVgzVEt4tVc2WyjC6",
+        "",
+        "＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿",
+        "",
+        "最新のキャンペーン情報やおすすめの過ごし方は、インスタグラム@etoe_tokyo にてご紹介しています。",
+        "https://www.instagram.com/etoe_tokyo",
+        "",
+        "",
+        "etoeでのひとときが、こころほどける、やさしい時間となりますように。",
+        "お客様のご来館を心よりお待ちしております。",
+        "",
+        "",
+        "etoe sauna & stay（エトエ）",
+        "https://etoehotel.com/",
+      ];
+      textContent = lines.join("\n");
+    } else if (language === 'en') {
+      const lines = [
+        `Dear ${userName},`,
+        "",
+        "Thank you very much for choosing etoe sauna & stay.",
+        "We’re delighted to confirm your reservation and share the details for your upcoming stay.",
+        "",
+        "Below, you’ll find the check-in guide and your room access card information.",
+        "",
+        "",
+        "＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿",
+        "",
+        "■ How to Enter Your Room",
+        "",
+        "Our facility operates with a 【 self check-in system 】",
+        "",
+        "As the entrance can be a little tricky to find, please make sure to review the step-by-step instructions before your arrival.",
+        "",
+        "Information on rental swimsuits, early check-in, and other FAQs is also available on the same page.",
+        "",
+        "",
+        "◎View Check-in Guide & FAQ　https://x.gd/cmP4z",
+        "",
+        "",
+        "If you need assistance from our front staff, please press the bell located in the 1st-floor lounge.",
+        "",
+        "",
+        "＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿",
+        "",
+        "■ Room Access Card (Your Digital Key)",
+        "",
+        "Please use the link below to view your personal room access barcode.",
+        "The barcode becomes valid at your reserved check-in time.",
+        "",
+        "",
+        "◎View Access Card",
+        `${cardViewUrl}`,
+        "",
+        "",
+        "At night, the hotel entrance requires a barcode for entry. Please be sure to take your smartphone with you when you go out.",
+        "",
+        "",
+        "＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿",
+        "",
+        "■ Recommended Spots Around etoe",
+        "",
+        "Discover our favorite cafes and restaurants around etoe — places we personally love and recommend for before or after your sauna session",
+        "",
+        "◎View Our Map　https://maps.app.goo.gl/HVgzVEt4tVc2WyjC6",
+        "",
+        "",
+        "＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿",
+        "",
+        "Stay up to date with our latest campaigns and recommendations on Instagram @etoe_tokyo　https://www.instagram.com/etoe_tokyo",
+        "",
+        "May your time at etoe be a gentle moment where your heart and body unwind.",
+        "We look forward to welcoming you soon.",
+        "",
+        "",
+        "etoe sauna & stay (Etoe)",
+        "https://etoehotel.com/",
+        "",
+        "＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿",
+        "",
+        "※ This is an automated message.",
+        "Please note that replies to this email are not monitored.",
+      ];
+      textContent = lines.join("\n");
     } else {
-      // 日文邮件内容（原始版本）
-      textContent = `
-${userName} 様
-
-etoe｜お部屋カード情報のご案内
-
-このたびは、etoe sauna & stayをご予約いただき、誠にありがとうございます。
-ご滞在予定のお部屋にご入室いただくためのカード情報をお届けいたします。
-
-入室カードのご確認はこちら
-・ご予約のお部屋用バーコード
-${cardViewUrl}
-
-※ バーコードはご予約時間内のみ有効です。5分前よりご入室可能です。
-※ 本リンクはお客様専用です。他の方と共有されませんようお願いいたします。
-
-最新のキャンペーン情報を公式Instagramにてお届けしています。
-https://www.instagram.com/etoe_tokyo/
-
-etoeでのひとときが、
-こころほどける、やさしい時間となりますように。
-
-etoe
-※本メールは送信専用です。ご返信には対応いたしかねますのでご了承ください。
-`;
+      const lines = [
+        `${userName} 様`,
+        "",
+        "このたびは etoe sauna & stay をご予約いただき、誠にありがとうございます。",
+        "",
+        "ご滞在予定のお部屋にご入室いただくための",
+        "入室手順 と 入室カード情報 をお届けいたします。",
+        "",
+        "",
+        "＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿",
+        "",
+        "■ お部屋への入り方",
+        "　当館は【 セルフチェックイン式 】となっています。入口がわかりづらくなっておりますので、入室までの手順を必ずご確認ください。レンタル水着やアーリーチェックインなど、よくあるご質問も、同ページ内でご案内しています。",
+        "",
+        "◎入室方法・FAQを見る　https://x.gd/cmP4z",
+        "",
+        "フロントスタッフに御用の方は、1Fのラウンジにあるベルにてお気軽にお呼びください。",
+        "",
+        "",
+        "＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿",
+        "",
+        "■ 入室用バーコード",
+        "下記リンクより、お客様専用の 入室カード（バーコード） をご確認ください。バーコードは、ご予約時間から有効となります。",
+        "",
+        `◎入室カードを表示する　${cardViewUrl}`,
+        "",
+        " 夜間は、入館にバーコードが必要です。お出かけの際は、必ずスマートフォンをお持ちください。",
+        "",
+        "",
+        "＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿",
+        "",
+        "■ etoe周辺のおすすめスポット",
+        "ご滞在の前後に立ち寄れる、etoeスタッフお気に入りのカフェやレストランをご紹介しています。実際に訪れて「ここ、よかった…！」と感じた場所をマップにまとめました。",
+        "",
+        "",
+        "◎おすすめマップを開く　https://maps.app.goo.gl/HVgzVEt4tVc2WyjC6",
+        "",
+        "",
+        "＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿",
+        "",
+        "最新のキャンペーン情報やおすすめの過ごし方は、インスタグラム @etoe_tokyo にてご紹介しています。",
+        "https://www.instagram.com/etoe_tokyo",
+        "",
+        "",
+        "etoeでのひとときが、こころほどける、やさしい時間となりますように。",
+        "お客様のご来館を心よりお待ちしております。",
+        "",
+        "",
+        "etoe sauna & stay（エトエ）",
+        "https://etoehotel.com/",
+        "",
+        "＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿",
+        "",
+        "※このメールは送信専用です。ご返信には対応いたしかねますのでご了承ください。",
+      ];
+      textContent = lines.join("\n");
     }
 
     // 使用纯文本内容
@@ -208,7 +332,11 @@ export async function POST(req: Request) {
       userEmail,
       userName,
       language = 'ja', // デフォルトは日本語
+      variant: variantRaw = 'standard',
     } = requestBody;
+
+    const variant: 'standard' | 'daytrip' =
+      variantRaw === 'daytrip' ? 'daytrip' : 'standard';
 
     // 验证请求参数
     if (!reservationId || !userEmail || !userName) {
@@ -248,10 +376,13 @@ export async function POST(req: Request) {
       );
     }
 
-    // 邮件主题 - 根据语言选择
-    const emailSubject = language === 'en' 
-      ? "etoe｜Room Card Information" 
-      : "etoe｜お部屋カード情報のご案内";
+    // 邮件主题 - 根据语言或模板选择
+    const emailSubject =
+      variant === 'daytrip'
+        ? "etoe｜入室手順とカギ情報のご案内"
+        : language === 'en'
+        ? "etoe｜Room Card Information"
+        : "etoe｜入室手順とカギ情報のご案内";
 
     console.log("准备发送邮件到:", userEmail);
 
@@ -262,7 +393,8 @@ export async function POST(req: Request) {
         emailSubject,
         reservationId,
         userName,
-        language
+        language,
+        variant
       );
       console.log("邮件发送成功");
 
@@ -274,6 +406,7 @@ export async function POST(req: Request) {
           cardEmailSent: true,
           cardEmailSentAt: getFirebaseTimestamp(new Date()),
           cardEmailLanguage: language,
+          cardEmailVariant: variant,
           updatedAt: getFirebaseTimestamp(new Date()),
         });
 
