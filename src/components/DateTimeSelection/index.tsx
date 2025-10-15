@@ -88,7 +88,8 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
       displayPrice: string;
       timeRangeType: string;
     }>;
-    thumbnailUrl?: string;
+    imageUrl?: string | null;
+    images?: string[] | null;
   } | null>(null);
 
   // 创建选定日期对象
@@ -215,7 +216,12 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
         }
         const data = await response.json();
         if (data.rooms && data.rooms.length > 0) {
-          setSlowRoomSettings(data.rooms[0]);
+          const room = data.rooms[0];
+          setSlowRoomSettings({
+            prices: Array.isArray(room.prices) ? room.prices : [],
+            imageUrl: room.imageUrl ?? null,
+            images: Array.isArray(room.images) ? room.images : [],
+          });
         }
       } catch (error) {
         console.error("获取Slow Room设置失败:", error);
@@ -227,6 +233,26 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
       fetchSlowRoomSettings();
     }
   }, [selectedRoomType]);
+
+  const slowRoomGallery = useMemo(() => {
+    if (!slowRoomSettings) return [];
+
+    const additionalImages = Array.isArray(slowRoomSettings.images)
+      ? slowRoomSettings.images
+      : [];
+
+    const sources = [slowRoomSettings.imageUrl, ...additionalImages].filter(
+      (src): src is string => Boolean(src)
+    );
+
+    const uniqueSources = Array.from(new Set(sources));
+
+    if (uniqueSources.length >= 3) {
+      return [uniqueSources[2], uniqueSources[0], uniqueSources[1]];
+    }
+
+    return uniqueSources.slice(0, 3);
+  }, [slowRoomSettings]);
 
   // 判断日期是否为周末或假日
   const isWeekendOrHolidayDate = useCallback((date: Date): boolean => {
@@ -816,7 +842,7 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
           slowRoomAvailabilityError={slowRoomAvailabilityError}
           onStartTimeChange={handleStartTimeChange}
           onEndTimeChange={handleEndTimeChange}
-          slowRoomThumbnailUrl={slowRoomSettings?.thumbnailUrl}
+          slowRoomImages={slowRoomGallery}
         />
       )}
 

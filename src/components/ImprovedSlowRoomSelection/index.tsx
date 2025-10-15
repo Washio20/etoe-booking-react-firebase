@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import { Info, Clock, AlertCircle, Square } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { Info, Clock, AlertCircle, Square, ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
 
 interface TimelineSlotProps {
@@ -402,7 +402,7 @@ interface ImprovedSlowRoomSelectionProps {
   slowRoomAvailabilityError: string | null;
   onStartTimeChange: (hour: number, minute: string) => void;
   onEndTimeChange: (hour: number, minute: string) => void;
-  slowRoomThumbnailUrl?: string;
+  slowRoomImages?: string[];
 }
 
 // Improved SlowRoomSelection component to replace in DateTimeSelection
@@ -422,7 +422,7 @@ export default function ImprovedSlowRoomSelection({
   slowRoomAvailabilityError,
   onStartTimeChange,
   onEndTimeChange,
-  slowRoomThumbnailUrl,
+  slowRoomImages,
 }: ImprovedSlowRoomSelectionProps) {
   const weekDays = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -433,37 +433,168 @@ export default function ImprovedSlowRoomSelection({
       }月${selectedDate.getDate()}日(${weekDays[selectedDate.getDay()]})`
     : "";
 
+  const processedSlowRoomImages = useMemo(() => {
+    if (!slowRoomImages || slowRoomImages.length === 0) return [];
+    const unique: string[] = [];
+    slowRoomImages.forEach((src) => {
+      if (src && !unique.includes(src)) {
+        unique.push(src);
+      }
+    });
+    return unique.slice(0, 3);
+  }, [slowRoomImages]);
+
+  const [slowRoomActiveIndex, setSlowRoomActiveIndex] = useState(0);
+  const slowRoomTouchStartRef = useRef<number | null>(null);
+
+  const totalSlowRoomImages = processedSlowRoomImages.length;
+
+  useEffect(() => {
+    setSlowRoomActiveIndex(0);
+  }, [totalSlowRoomImages]);
+
+  const showSlowRoomControls = totalSlowRoomImages > 1;
+  const currentSlowRoomImage =
+    processedSlowRoomImages[slowRoomActiveIndex] ?? null;
+
+  const handleSlowRoomNext = useCallback(() => {
+    if (totalSlowRoomImages <= 1) return;
+    setSlowRoomActiveIndex((prev) => {
+      const nextIndex = (prev + 1) % totalSlowRoomImages;
+      return nextIndex;
+    });
+  }, [totalSlowRoomImages]);
+
+  const handleSlowRoomPrev = useCallback(() => {
+    if (totalSlowRoomImages <= 1) return;
+    setSlowRoomActiveIndex((prev) => {
+      const nextIndex = (prev - 1 + totalSlowRoomImages) % totalSlowRoomImages;
+      return nextIndex;
+    });
+  }, [totalSlowRoomImages]);
+
+  const handleSlowRoomDotClick = useCallback((index: number) => {
+    setSlowRoomActiveIndex(index);
+  }, []);
+
+  const handleSlowRoomTouchStart = useCallback((clientX: number) => {
+    slowRoomTouchStartRef.current = clientX;
+  }, []);
+
+  const handleSlowRoomTouchEnd = useCallback(
+    (clientX: number) => {
+      if (!showSlowRoomControls) {
+        slowRoomTouchStartRef.current = null;
+        return;
+      }
+      const startX = slowRoomTouchStartRef.current;
+      slowRoomTouchStartRef.current = null;
+      if (startX === null) return;
+      const diff = startX - clientX;
+      if (Math.abs(diff) > 50) {
+        if (diff > 0) {
+          handleSlowRoomNext();
+        } else {
+          handleSlowRoomPrev();
+        }
+      }
+    },
+    [showSlowRoomControls, handleSlowRoomNext, handleSlowRoomPrev]
+  );
+
   return (
-    <div className="mt-8 md:mt-16 space-y-6">
+    <div className="mt-8 md:mt-16 space-y-6 p-4 rounded-md bg-[#F0EAE4]">
       <div className="pb-4 flex flex-col md:flex-row md:justify-between md:items-start">
         <div className="w-full">
           <div className="flex flex-row items-center flex-wrap gap-2 md:gap-3">
             <h2 className="text-base md:text-lg text-[#444444] font-bold font-zen-kaku-gothic">
-            オプション：客室のデイユースプラン（2名まで）
+              オプション：客室の日帰りホカンスセットプラン（2名まで）
             </h2>
             <span className="inline-block text-xs md:text-sm font-bold text-[#D77777] border-2 border-[#D77777] rounded px-2 py-0.5 whitespace-nowrap font-zen-kaku-gothic">
               セットで¥1,000円お得
             </span>
           </div>
-          {slowRoomThumbnailUrl && (
-            <div className="mt-4">
-              <div className="relative w-full md:w-[500px] h-40 md:h-56 rounded-lg overflow-hidden">
+          <p className="text-sm md:text-base text-[#444444] mt-2 font-zen-kaku-gothic">
+            サウナの前後を、ふたりだけの客室でゆったりと。
+            <br />
+            レコードの音､ゆるやかに流れるシアター、心地よい余韻にお楽しみください。ご利用は2時間から。
+          </p>
+          {processedSlowRoomImages.length > 0 && currentSlowRoomImage && (
+            <div className="mt-4 md:flex md:justify-center">
+              <div
+                className="relative w-full aspect-[3/2] md:w-[360px] md:max-w-full rounded-lg overflow-hidden"
+                onTouchStart={(event) => {
+                  event.stopPropagation();
+                  if (!showSlowRoomControls) return;
+                  if (event.touches && event.touches[0]) {
+                    handleSlowRoomTouchStart(event.touches[0].clientX);
+                  }
+                }}
+                onTouchMove={(event) => event.stopPropagation()}
+                onTouchEnd={(event) => {
+                  event.stopPropagation();
+                  if (!showSlowRoomControls) return;
+                  if (event.changedTouches && event.changedTouches[0]) {
+                    handleSlowRoomTouchEnd(event.changedTouches[0].clientX);
+                  }
+                }}
+              >
                 <Image
-                  src={slowRoomThumbnailUrl}
+                  key={currentSlowRoomImage}
+                  src={currentSlowRoomImage}
                   alt="Slow Room"
-                  layout="fill"
-                  objectFit="cover"
+                  fill
+                  sizes="(min-width: 768px) 360px, 100vw"
+                  className="object-cover transition-transform duration-300"
                 />
+                {showSlowRoomControls && (
+                  <>
+                    <button
+                      type="button"
+                      className="absolute left-2 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white transition hover:bg-black/60 md:flex"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleSlowRoomPrev();
+                      }}
+                      aria-label="前の画像を見る"
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+                    <button
+                      type="button"
+                      className="absolute right-2 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white transition hover:bg-black/60 md:flex"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleSlowRoomNext();
+                      }}
+                      aria-label="次の画像を見る"
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+                    <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-2">
+                      {processedSlowRoomImages.map((imageSrc, index) => (
+                        <button
+                          key={`${imageSrc}-${index}`}
+                          type="button"
+                          className={`h-2 w-2 rounded-full transition ${
+                            index === slowRoomActiveIndex
+                              ? "bg-white"
+                              : "bg-white/50 hover:bg-white/80"
+                          }`}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleSlowRoomDotClick(index);
+                          }}
+                          aria-label={`画像${index + 1}を表示`}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}
-          <p className="text-sm md:text-base text-[#444444] mt-2 font-zen-kaku-gothic">
-            <span className="font-bold">サウナの前後を、客室でゆったりと。</span>レコードの音色とプロジェクターの映像をお楽しみいただけます。ご利用は2時間から。
-          </p>
-          
-          {/* <p className="font-bold text-base text-[#444444] mt-4 font-zen-kaku-gothic">
-            利用しない場合は、<Square className="inline w-3 h-3 align-middle -mt-0.5 mx-0.5 text-[#444444]" />にチェックをしてください。
-          </p> */}
+
           <div className="flex items-start gap-2 mt-2">
             <input
               type="checkbox"
@@ -476,7 +607,7 @@ export default function ImprovedSlowRoomSelection({
               htmlFor="skip-slow-room"
               className="text-base text-[#444444] font-zen-kaku-gothic cursor-pointer whitespace-nowrap"
             >
-              デイユースを利用する
+              ホカンスプランを利用する
             </label>
           </div>
         </div>
