@@ -25,28 +25,32 @@ type ApiRoom = {
 
 const categoryDetails: Record<
   RoomCategory,
-  { title: string; description: string }
+  { title: string; subtitle: string; description: string }
 > = {
   sauna_suite: {
-    title: "サウナスイート客室",
+    title: "サウナ付き客室",
+    subtitle: "sauna suite",
     description:
-      "心と体をゆるめて、ゆっくりと贅沢なひとときを過ごしたいときに",
-  },
-  private_sauna: {
-    title: "プライベートサウナ",
-    description: "気分に合わせて、サウナを気軽に楽しみたい方へ",
+      "心と体をゆるめて、ゆっくりと\n贅沢なひとときを過ごせる特別な一室",
   },
   slow_room: {
-    title: "スロールーム客室",
+    title: "客室",
+    subtitle: "slow room",
     description:
-      "シアターの光、レコードの音に包まれて、２人だけのホテルステイを満喫したいときに",
+      "シアターとレコードを愉しむ\nふたりだけの日帰りホテルステイ",
+  },
+  private_sauna: {
+    title: "個室サウナ",
+    subtitle: "private sauna",
+    description:
+      "気分に合わせて選ぶ、４つのデザインサウナ\n客室とセットで使えるホカンスプランも用意",
   },
 };
 
 const roomCategories: RoomCategory[] = [
   "sauna_suite",
-  "private_sauna",
   "slow_room",
+  "private_sauna",
 ];
 
 const ROOM_DATA: DisplayRoom[] = [
@@ -74,7 +78,7 @@ const ROOM_DATA: DisplayRoom[] = [
     roomType: "tototo",
     category: "private_sauna",
     title: "tototo",
-    leadLines: ["ゆとりある空間で、贅沢に、上質な時間を過ごす"],
+    leadLines: ["余白まで、心地よく。","ふたりで過ごす贅沢も、みんなで語らう楽しさも。"],
     detailLines: [
       "定員：1~4名",
       "料金：16,800円～（90min）",
@@ -296,16 +300,19 @@ export default function RoomSelection() {
             <button
               key={category}
               onClick={() => handleTabChange(category)}
-              className={`w-full px-4 md:px-6 py-3 md:py-4 rounded-[16px] border border-[#444444] font-zen-kaku-gothic text-center transition-colors flex flex-col justify-center items-center gap-1 ${
+              className={`w-full px-2 md:px-3 py-4 md:py-6 rounded-[20px] border font-zen-kaku-gothic text-center transition-colors flex flex-col justify-center items-center shadow-sm ${
                 selectedTab === category
-                  ? "bg-[#F0EAE4] text-[#444444]"
-                  : "bg-white text-[#444444] hover:bg-gray-50"
+                  ? "bg-[#F3EDE7] border-[#726659] text-[#3C3024]"
+                  : "bg-[#FBF9F6] border-[#C7B9AA] text-[#3C3024] hover:bg-[#F3EDE7]"
               }`}
             >
-              <span className="text-sm md:text-base font-bold tracking-[0.06em]">
+              <span className="text-lg md:text-xl font-bold tracking-[0.06em]">
                 {categoryDetails[category].title}
               </span>
-              <span className="text-xs md:text-sm leading-snug tracking-[0.03em]">
+              <span className="text-base md:text-lg font-medium text-[#69645B] tracking-[0.08em]">
+                {categoryDetails[category].subtitle}
+              </span>
+              <span className="mt-3 text-sm md:text-sm leading-relaxed tracking-[0.01em] text-[#5B5245] whitespace-pre-line">
                 {categoryDetails[category].description}
               </span>
             </button>
@@ -331,26 +338,11 @@ export default function RoomSelection() {
           return (
             <div
               key={room.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => {
-                if (swipePreventRef.current[room.id]) {
-                  swipePreventRef.current[room.id] = false;
-                  return;
-                }
-                handleRoomSelection(room.id);
-              }}
-              className={`relative flex flex-col md:flex-row md:items-start gap-3 md:gap-6 rounded-[4px] border cursor-pointer overflow-hidden transition-all outline-none ${
+              className={`relative flex flex-col md:flex-row md:items-start md:gap-3 rounded-[4px] border overflow-hidden transition-all ${
                 isSelected
                   ? "border-[#444444] border-2 bg-[#F9F6F2] shadow-md"
                   : "bg-[#FFF] border-[#BBB]"
               }`}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  handleRoomSelection(room.id);
-                }
-              }}
             >
               {isSelected && (
                 <div className="absolute top-3 right-3 z-10 bg-white rounded-full p-1.5 shadow-md border-2 border-[#444444]">
@@ -447,15 +439,25 @@ export default function RoomSelection() {
                   <span className="text-lg md:text-xl font-bold tracking-[0.06em]">
                     {room.title}
                   </span>
-                  <div className="space-y-1 text-sm md:text-base tracking-[0.03em] leading-relaxed">
+                  <div className="space-y-1 text-sm md:text-base leading-relaxed">
                     {room.leadLines.map((line, index) => (
                       <p key={index}>{line}</p>
                     ))}
                   </div>
-                  <div className="space-y-1 text-xs md:text-sm tracking-[0.03em] leading-relaxed">
-                    {room.detailLines.map((line, index) => (
-                      <p key={index}>{line}</p>
-                    ))}
+                  <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                    <div className="space-y-1 text-xs md:text-sm leading-relaxed">
+                      {room.detailLines.map((line, index) => (
+                        <p key={index}>{line}</p>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRoomSelection(room.id)}
+                      disabled={isSelected}
+                      className="mt-2 inline-flex items-center justify-center rounded-full border px-5 py-2 text-sm font-semibold tracking-[0.05em] transition disabled:cursor-default disabled:opacity-90 md:mt-0 bg-[#F3EDE7] border-[#726659] text-[#3C3024]"
+                    >
+                      選択
+                    </button>
                   </div>
                 </div>
               </div>
