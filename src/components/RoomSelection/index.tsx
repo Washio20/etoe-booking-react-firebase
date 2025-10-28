@@ -92,7 +92,7 @@ const ROOM_DATA: DisplayRoom[] = [
     roomType: "toron",
     category: "private_sauna",
     title: "toron",
-    leadLines: ["畳のととのいスペースで、心までゆるむひととき。"],
+    leadLines: ["畳のととのいスペースで、心までゆるむひととき。","　"],
     detailLines: [
       "定員：1~3名",
       "料金：11,800円～（90min）",
@@ -106,7 +106,7 @@ const ROOM_DATA: DisplayRoom[] = [
     roomType: "zabuun",
     category: "private_sauna",
     title: "zabuun",
-    leadLines: ["水のゆらぎと静けさに包まれ、ほどけていく。"],
+    leadLines: ["水のゆらぎと静けさに包まれ、ほどけていく。","　"],
     detailLines: [
       "定員：1~2名",
       "料金：10,800円～（90min）",
@@ -120,7 +120,7 @@ const ROOM_DATA: DisplayRoom[] = [
     roomType: "fuuu",
     category: "private_sauna",
     title: "fuuu",
-    leadLines: ["静かに自分と向き合う、ととのいの時間。"],
+    leadLines: ["静かに自分と向き合う、ととのいの時間。","　"],
     detailLines: [
       "定員：1~2名",
       "料金：9,980円～（90min）",
@@ -434,7 +434,7 @@ export default function RoomSelection() {
                 )}
               </div>
 
-              <div className="flex flex-1 flex-col justify-between p-4 md:p-6 text-[#444444] font-zen-kaku-gothic">
+              <div className="flex flex-1 flex-col p-4 md:p-6 text-[#444444] font-zen-kaku-gothic">
                 <div className="space-y-1.5 md:space-y-3">
                   <span className="text-lg md:text-xl font-bold tracking-[0.06em]">
                     {room.title}
@@ -444,21 +444,21 @@ export default function RoomSelection() {
                       <p key={index}>{line}</p>
                     ))}
                   </div>
-                  <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-                    <div className="space-y-1 text-xs md:text-sm leading-relaxed">
-                      {room.detailLines.map((line, index) => (
-                        <p key={index}>{line}</p>
-                      ))}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleRoomSelection(room.id)}
-                      disabled={isSelected}
-                      className="mt-2 inline-flex items-center justify-center rounded-full border px-5 py-2 text-sm font-semibold tracking-[0.05em] transition disabled:cursor-default disabled:opacity-90 md:mt-0 bg-[#F3EDE7] border-[#726659] text-[#3C3024]"
-                    >
-                      選択
-                    </button>
+                </div>
+                <div className="mt-auto flex flex-col gap-3 md:flex-row md:items-end md:justify-between md:pt-4">
+                  <div className="space-y-1 text-xs md:text-sm leading-relaxed">
+                    {room.detailLines.map((line, index) => (
+                      <p key={index}>{line}</p>
+                    ))}
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRoomSelection(room.id)}
+                    disabled={isSelected}
+                    className="inline-flex items-center justify-center rounded-full border px-5 py-2 text-sm font-semibold tracking-[0.05em] transition disabled:cursor-default disabled:opacity-90 md:self-end bg-[#F3EDE7] border-[#726659] text-[#3C3024]"
+                  >
+                    選択
+                  </button>
                 </div>
               </div>
             </div>

@@ -248,7 +248,7 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
     const uniqueSources = Array.from(new Set(sources));
 
     if (uniqueSources.length >= 3) {
-      return [uniqueSources[2], uniqueSources[0], uniqueSources[1]];
+      return [uniqueSources[0], uniqueSources[2], uniqueSources[1]];
     }
 
     return uniqueSources.slice(0, 3);
