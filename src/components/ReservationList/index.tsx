@@ -15,6 +15,8 @@ interface Reservation {
   plan?: string;
   price: number; // 现在是数字类型而非字符串
   paymentStatus: string;
+  type?: string;
+  reservationType?: string;
   imageUrl?: string;
 
   // 新的日期时间字段
@@ -472,6 +474,23 @@ export default function ReservationList() {
     return "なし";
   };
 
+  const getDisplayReservationType = (reservation: Reservation): string => {
+    if (typeof reservation.type === "string" && reservation.type.trim()) {
+      return reservation.type;
+    }
+
+    if (
+      typeof reservation.reservationType === "string" &&
+      reservation.reservationType.trim()
+    ) {
+      return reservation.reservationType;
+    }
+
+    return reservation.roomType === "slow_room"
+      ? "日帰り客室"
+      : "サウナ";
+  };
+
   const handleOpenReceiptModal = (reservation: Reservation) => {
     setSelectedReservation(reservation);
     setIsReceiptModalOpen(true);
@@ -740,7 +759,7 @@ export default function ReservationList() {
                     予約種別
                   </span>
                   <span className="flex-1 text-sm md:text-sm text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
-                    サウナ
+                    {getDisplayReservationType(selectedReservation)}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -955,7 +974,7 @@ export default function ReservationList() {
                       予約種別
                     </span>
                     <span className="flex-1 text-sm md:text-sm text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
-                      サウナ
+                      {getDisplayReservationType(reservation)}
                     </span>
                   </div>
                   <div className="flex justify-between">
