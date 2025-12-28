@@ -24,10 +24,12 @@ export default function ReservationConfirm() {
 
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const getReservationTypeLabel = (roomType: string) =>
+    roomType === "slow_room" ? "日帰り客室" : "サウナ";
   const [reservation, setReservation] = useState({
     date: "2024年1月1日",
     time: "20:00〜22:00",
-    type: "サウナ",
+    type: getReservationTypeLabel(""),
     room: "ROOM Sauna",
     roomType: "未選択",
     plan: "なし",
@@ -269,7 +271,7 @@ export default function ReservationConfirm() {
           setReservation({
             date: displayDate, // 使用处理过的日期显示
             time: formattedTime,
-            type: "サウナ",
+            type: getReservationTypeLabel(parsedInfo.selectedRoomType),
             room: roomName,
             roomType: parsedInfo.selectedRoomType,
             plan: parsedInfo.needSlowRoom
