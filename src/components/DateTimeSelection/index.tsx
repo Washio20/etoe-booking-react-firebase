@@ -20,6 +20,8 @@ const isPureSaunaRoom = (roomType: string): boolean => {
 
 // 星期几标签
 const weekDays = ["日", "月", "火", "水", "木", "金", "土"];
+const MAX_END_TIME_MINUTES = 21 * 60 + 20;
+const MAX_END_TIME_LABEL = "21:20";
 
 // 时间段可用状态接口
 interface TimeSlotAvailability {
@@ -133,14 +135,16 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
       endHour <= startHour ||
       (endHour === startHour && endMinute <= startMinute)
     ) {
-      // 确保结束时间不超过23:40
-      if (startHour + 1 > 23) {
-        setEndHour(23);
-        setEndMinute("40");
-      } else {
-        setEndHour(startHour + 1);
-        setEndMinute(startMinute);
+      const proposedEndMinutes =
+        (startHour + 1) * 60 + parseInt(startMinute, 10);
+      if (proposedEndMinutes > MAX_END_TIME_MINUTES) {
+        setEndHour(null);
+        setEndMinute(null);
+        return;
       }
+
+      setEndHour(startHour + 1);
+      setEndMinute(startMinute);
     }
   }, [startHour, startMinute, endHour, endMinute]);
 
@@ -425,11 +429,13 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
         setIsCheckingAvailability(true);
         setSlowRoomAvailabilityError(null);
 
-        // 检查结束时间是否超过23:40
+        // 检查结束时间是否超过最晚时间
         const [endHour, endMinute] = endTimeStr.split(":").map(Number);
-        if (endHour > 23 || (endHour === 23 && endMinute > 40)) {
+        if (endHour * 60 + endMinute > MAX_END_TIME_MINUTES) {
           setIsSlowRoomAvailable(false);
-          setSlowRoomAvailabilityError("終了時間は23:40までです。別の時間を選択してください。");
+          setSlowRoomAvailabilityError(
+            `終了時間は${MAX_END_TIME_LABEL}までです。別の時間を選択してください。`
+          );
           return;
         }
 
@@ -560,20 +566,28 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
       setStartMinute(minute);
 
       // 如果结束时间未设置或小于开始时间，自动设置为开始时间+2小时
-      if (
-        endHour === null ||
-        endMinute === null ||
-        endHour < hour + 2 ||
-        (endHour === hour + 2 && endMinute <= minute)
-      ) {
-        // 确保结束时间不超过23:40
-        if (hour + 2 > 23) {
-          setEndHour(23);
-          setEndMinute("40");
-        } else {
-          setEndHour(hour + 2);
-          setEndMinute(minute);
+      const startMinutes = hour * 60 + parseInt(minute, 10);
+      const minEndMinutes = startMinutes + 120;
+      const currentEndMinutes =
+        endHour !== null && endMinute !== null
+          ? endHour * 60 + parseInt(endMinute, 10)
+          : null;
+      const shouldAutoAdjust =
+        currentEndMinutes === null ||
+        currentEndMinutes <= minEndMinutes ||
+        currentEndMinutes > MAX_END_TIME_MINUTES;
+
+      if (shouldAutoAdjust) {
+        if (minEndMinutes > MAX_END_TIME_MINUTES) {
+          setEndHour(null);
+          setEndMinute(null);
+          return;
         }
+
+        const nextEndHour = Math.floor(minEndMinutes / 60);
+        const nextEndMinute = String(minEndMinutes % 60).padStart(2, "0");
+        setEndHour(nextEndHour);
+        setEndMinute(nextEndMinute);
       }
     },
     [endHour, endMinute]
@@ -581,10 +595,12 @@ export default function DateTimeSelection({ selectedRoomType }: Props) {
 
   // 处理结束时间变更
   const handleEndTimeChange = useCallback((hour: number, minute: string) => {
-    // 确保结束时间不超过23:40
-    if (hour > 23 || (hour === 23 && minute > "40")) {
-      setEndHour(23);
-      setEndMinute("40");
+    const endTimeMinutes = hour * 60 + parseInt(minute, 10);
+    if (endTimeMinutes > MAX_END_TIME_MINUTES) {
+      const maxEndHour = Math.floor(MAX_END_TIME_MINUTES / 60);
+      const maxEndMinute = String(MAX_END_TIME_MINUTES % 60).padStart(2, "0");
+      setEndHour(maxEndHour);
+      setEndMinute(maxEndMinute);
     } else {
       setEndHour(hour);
       setEndMinute(minute);

@@ -77,6 +77,8 @@ const TimelineSlot = ({
   );
 };
 
+const MAX_END_TIME_MINUTES = 21 * 60 + 20;
+
 interface TimeSlotAvailability {
   startTime: string;
   isAvailable: boolean;
@@ -107,7 +109,7 @@ const TimeRangeSelector = ({
 }: TimeRangeSelectorProps) => {
   // 开始时间显示14:00 - 19:40
   const startHours = Array.from({ length: 6 }, (_, i) => i + 14);
-  // 结束时间显示16:00 - 21:40
+  // 结束时间显示16:00 - 21:20
   const endHours = Array.from({ length: 6 }, (_, i) => i + 16);
   const minutes = ["00", "20", "40"];
 
@@ -294,14 +296,14 @@ const TimeRangeSelector = ({
               </div>
               <div className="space-y-1">
                 {minutes.map((minute) => {
-                  // 添加一个判断，检查该时间是否超出21:40
-                  const isOverMaxTime = hour === 21 && parseInt(minute) > 40;
-                  // 对于开始时间，添加特殊处理19:40作为最大值
-                  const isOverStartMaxTime = hour === 19 && parseInt(minute) > 40;
+                  const endTimeMinutes =
+                    hour * 60 + parseInt(minute, 10);
+                  if (endTimeMinutes > MAX_END_TIME_MINUTES) {
+                    return null;
+                  }
                   const isAvailable =
                     startHour !== null && 
-                    isValidEndTime(hour, minute) && 
-                    !isOverMaxTime;
+                    isValidEndTime(hour, minute);
                   const isTimePassed = isTimePassedForToday(hour, minute);
                   return (
                     <TimelineSlot
