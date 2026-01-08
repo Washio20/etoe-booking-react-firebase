@@ -334,6 +334,10 @@ export default function RoomSelection() {
           const currentImage =
             totalImages > 0 ? imageList[currentIndex] ?? null : null;
           const showControls = totalImages > 1;
+          const isLcpImage =
+            selectedTab === "sauna_suite" &&
+            room.roomType === "sauna_suite" &&
+            currentIndex === 0;
 
           return (
             <div
@@ -382,6 +386,8 @@ export default function RoomSelection() {
                     fill
                     sizes="(min-width: 1024px) 40vw, (min-width: 768px) 45vw, 100vw"
                     className="object-cover transition-transform duration-300"
+                    priority={isLcpImage}
+                    fetchPriority={isLcpImage ? "high" : undefined}
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center bg-[#EFEDEA] text-xs text-[#777] md:text-sm">
