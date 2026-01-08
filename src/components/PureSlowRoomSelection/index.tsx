@@ -13,6 +13,7 @@ import {
 import Precautions from "../Precautions";
 import { saveTempReservation } from "@/utils/tempReservation";
 import { STAFF_USER_IDS } from "@/constants/staff";
+import { HOLIDAYS_JP } from "@/utils/date";
 
 // 星期几标签
 const weekDays = ["日", "月", "火", "水", "木", "金", "土"];
@@ -106,6 +107,9 @@ const TimelineSlot: React.FC<TimelineSlotProps> = ({
   );
 };
 
+const MAX_END_TIME_MINUTES = 21 * 60 + 20;
+const MAX_END_TIME_LABEL = "21:20";
+
 // 时间范围选择器接口
 interface TimeRangeSelectorProps {
   startHour: number | null;
@@ -131,7 +135,7 @@ const TimeRangeSelector: React.FC<TimeRangeSelectorProps> = ({
 }) => {
   // 开始时间显示14:00 - 19:40
   const startHours = Array.from({ length: 6 }, (_, i) => i + 14);
-  // 结束时间显示16:00 - 21:40
+  // 结束时间显示16:00 - 21:20
   const endHours = Array.from({ length: 6 }, (_, i) => i + 16);
   const minutes = ["00", "20", "40"];
 
@@ -314,14 +318,14 @@ const TimeRangeSelector: React.FC<TimeRangeSelectorProps> = ({
               </div>
               <div className="space-y-1">
                 {minutes.map((minute) => {
-                  // 添加一个判断，检查该时间是否超出21:40
-                  const isOverMaxTime = hour === 21 && parseInt(minute) > 40;
-                  // 对于开始时间，添加特殊处理19:40作为最大值
-                  const isOverStartMaxTime = hour === 19 && parseInt(minute) > 40;
+                  const endTimeMinutes =
+                    hour * 60 + parseInt(minute, 10);
+                  if (endTimeMinutes > MAX_END_TIME_MINUTES) {
+                    return null;
+                  }
                   const isAvailable =
                     startHour !== null && 
-                    isValidEndTime(hour, minute) && 
-                    !isOverMaxTime;
+                    isValidEndTime(hour, minute);
                   const isTimePassed = isTimePassedForToday(hour, minute);
                   return (
                     <TimelineSlot
@@ -720,11 +724,13 @@ export default function ImprovedPureSlowRoomSelection({
         setIsCheckingAvailability(true);
         setAvailabilityError(null);
 
-        // 先在客户端检查结束时间是否超过23:40
+        // 先在客户端检查结束时间是否超过最晚时间
         const [endHour, endMinute] = endTimeStr.split(":").map(Number);
-        if (endHour > 23 || (endHour === 23 && endMinute > 40)) {
+        if (endHour * 60 + endMinute > MAX_END_TIME_MINUTES) {
           setIsRoomAvailable(false);
-          setAvailabilityError("終了時間は23:40までです。別の時間を選択してください。");
+          setAvailabilityError(
+            `終了時間は${MAX_END_TIME_LABEL}までです。別の時間を選択してください。`
+          );
           return;
         }
 
@@ -787,30 +793,7 @@ export default function ImprovedPureSlowRoomSelection({
     const day = String(date.getDate()).padStart(2, "0");
     const dateStr = `${year}-${month}-${day}`;
 
-    // 日本主要节假日列表（简化版）
-    const HOLIDAYS_2025 = [
-      "2025-01-01", // 元旦
-      "2025-01-13", // 成人の日
-      "2025-02-11", // 建国記念日
-      "2025-02-23", // 天皇誕生日
-      "2025-02-24", // 振替休日
-      "2025-03-21", // 春分の日
-      "2025-04-29", // 昭和の日
-      "2025-05-03", // 憲法記念日
-      "2025-05-04", // みどりの日
-      "2025-05-05", // こどもの日
-      "2025-05-06", // 振替休日
-      "2025-07-21", // 海の日
-      "2025-08-11", // 山の日
-      "2025-09-15", // 敬老の日
-      "2025-09-23", // 秋分の日
-      "2025-10-13", // スポーツの日
-      "2025-11-03", // 文化の日
-      "2025-11-23", // 勤労感謝の日
-      "2025-11-24", // 振替休日
-    ];
-
-    return HOLIDAYS_2025.includes(dateStr);
+    return HOLIDAYS_JP.includes(dateStr);
   }, []);
 
   // 获取slow room设置
@@ -1030,32 +1013,39 @@ export default function ImprovedPureSlowRoomSelection({
     setStartMinute(minute);
 
     // 如果结束时间未设置或小于等于开始时间，调整结束时间为开始时间后2小时
-    if (
-      endHour === null ||
-      endMinute === null ||
-      endHour < hour + 2 ||
-      (endHour === hour + 2 && endMinute <= minute)
-    ) {
-      // 确保结束时间不超过23:40
-      if (hour + 2 > 23) {
-        setEndHour(23);
-        setEndMinute("40");
-      } else if (hour + 2 === 23 && parseInt(minute) > 40) {
-        setEndHour(23);
-        setEndMinute("40");
-      } else {
-        setEndHour(hour + 2);
-        setEndMinute(minute);
+    const startMinutes = hour * 60 + parseInt(minute, 10);
+    const minEndMinutes = startMinutes + 120;
+    const currentEndMinutes =
+      endHour !== null && endMinute !== null
+        ? endHour * 60 + parseInt(endMinute, 10)
+        : null;
+    const shouldAutoAdjust =
+      currentEndMinutes === null ||
+      currentEndMinutes <= minEndMinutes ||
+      currentEndMinutes > MAX_END_TIME_MINUTES;
+
+    if (shouldAutoAdjust) {
+      if (minEndMinutes > MAX_END_TIME_MINUTES) {
+        setEndHour(null);
+        setEndMinute(null);
+        return;
       }
+
+      const nextEndHour = Math.floor(minEndMinutes / 60);
+      const nextEndMinute = String(minEndMinutes % 60).padStart(2, "0");
+      setEndHour(nextEndHour);
+      setEndMinute(nextEndMinute);
     }
   };
 
   // 处理结束时间变化
   const handleEndTimeChange = (hour: number, minute: string) => {
-    // 确保结束时间不超过23:40
-    if (hour > 23 || (hour === 23 && parseInt(minute) > 40)) {
-      setEndHour(23);
-      setEndMinute("40");
+    const endTimeMinutes = hour * 60 + parseInt(minute, 10);
+    if (endTimeMinutes > MAX_END_TIME_MINUTES) {
+      const maxEndHour = Math.floor(MAX_END_TIME_MINUTES / 60);
+      const maxEndMinute = String(MAX_END_TIME_MINUTES % 60).padStart(2, "0");
+      setEndHour(maxEndHour);
+      setEndMinute(maxEndMinute);
     } else {
       setEndHour(hour);
       setEndMinute(minute);
