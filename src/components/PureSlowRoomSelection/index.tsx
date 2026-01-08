@@ -13,6 +13,7 @@ import {
 import Precautions from "../Precautions";
 import { saveTempReservation } from "@/utils/tempReservation";
 import { STAFF_USER_IDS } from "@/constants/staff";
+import { HOLIDAYS_JP } from "@/utils/date";
 
 // 星期几标签
 const weekDays = ["日", "月", "火", "水", "木", "金", "土"];
@@ -787,30 +788,7 @@ export default function ImprovedPureSlowRoomSelection({
     const day = String(date.getDate()).padStart(2, "0");
     const dateStr = `${year}-${month}-${day}`;
 
-    // 日本主要节假日列表（简化版）
-    const HOLIDAYS_2025 = [
-      "2025-01-01", // 元旦
-      "2025-01-13", // 成人の日
-      "2025-02-11", // 建国記念日
-      "2025-02-23", // 天皇誕生日
-      "2025-02-24", // 振替休日
-      "2025-03-21", // 春分の日
-      "2025-04-29", // 昭和の日
-      "2025-05-03", // 憲法記念日
-      "2025-05-04", // みどりの日
-      "2025-05-05", // こどもの日
-      "2025-05-06", // 振替休日
-      "2025-07-21", // 海の日
-      "2025-08-11", // 山の日
-      "2025-09-15", // 敬老の日
-      "2025-09-23", // 秋分の日
-      "2025-10-13", // スポーツの日
-      "2025-11-03", // 文化の日
-      "2025-11-23", // 勤労感謝の日
-      "2025-11-24", // 振替休日
-    ];
-
-    return HOLIDAYS_2025.includes(dateStr);
+    return HOLIDAYS_JP.includes(dateStr);
   }, []);
 
   // 获取slow room设置

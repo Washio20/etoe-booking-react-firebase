@@ -12,6 +12,7 @@ import {
 } from "firebase/firestore";
 import { Room, TimeSlotDefinition } from "@/types/room";
 import { STAFF_USER_IDS } from "@/constants/staff";
+import { HOLIDAYS_JP } from "@/utils/date";
 
 // 设置此API路由为动态路由，不进行静态生成
 export const dynamic = "force-dynamic";
@@ -31,29 +32,6 @@ const ROOM_NAMES: Record<string, string> = {
 // 星期名称
 const DAYS_OF_WEEK = ["日", "月", "火", "水", "木", "金", "土"];
 
-// 日本的法定假日（2025年部分）
-const HOLIDAYS_2025 = [
-  "2025-01-01", // 元旦
-  "2025-01-13", // 成人の日
-  "2025-02-11", // 建国記念日
-  "2025-02-23", // 天皇誕生日
-  "2025-02-24", // 振替休日
-  "2025-03-21", // 春分の日
-  "2025-04-29", // 昭和の日
-  "2025-05-03", // 憲法記念日
-  "2025-05-04", // みどりの日
-  "2025-05-05", // こどもの日
-  "2025-05-06", // 振替休日
-  "2025-07-21", // 海の日
-  "2025-08-11", // 山の日
-  "2025-09-15", // 敬老の日
-  "2025-09-23", // 秋分の日
-  "2025-10-13", // スポーツの日
-  "2025-11-03", // 文化の日
-  "2025-11-23", // 勤労感謝の日
-  "2025-11-24", // 振替休日
-];
-
 interface EnhancedReservation {
   [key: string]: any;
   parsedDate?: Date;
@@ -68,7 +46,7 @@ function isWeekend(date: Date): boolean {
 
 // 检查是否为假日
 function isHoliday(dateStr: string): boolean {
-  return HOLIDAYS_2025.includes(dateStr);
+  return HOLIDAYS_JP.includes(dateStr);
 }
 
 // 格式化日期为YYYY-MM-DD
