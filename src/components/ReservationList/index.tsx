@@ -140,6 +140,110 @@ const getReservationDateValue = (reservation: Reservation): Date | null => {
   return null;
 };
 
+const HOURS_BEFORE_STANDARD_FREE_CANCEL = 48;
+const HOURS_BEFORE_SAUNA_SUITE_PARTIAL_CANCEL = 168;
+
+const getReservationStartTime = (reservation: Reservation): Date | null => {
+  if (reservation.startDateTime instanceof Date) {
+    return reservation.startDateTime;
+  }
+
+  if (reservation.startDateTime && typeof reservation.startDateTime === "object") {
+    const startDateTime = reservation.startDateTime as any;
+
+    if (typeof startDateTime.toDate === "function") {
+      return startDateTime.toDate();
+    }
+
+    if (startDateTime._seconds !== undefined) {
+      return new Date(startDateTime._seconds * 1000);
+    }
+  }
+
+  if (reservation.displayDate && reservation.displayTimeRange) {
+    const dateMatch = reservation.displayDate.match(/(\d+)年(\d+)月(\d+)日/);
+    if (dateMatch) {
+      const [, year, month, day] = dateMatch;
+
+      const timeMatch = reservation.displayTimeRange.match(/(\d+):(\d+)/);
+      if (timeMatch) {
+        const [, startHour, startMinute] = timeMatch;
+
+        return new Date(
+          parseInt(year),
+          parseInt(month) - 1,
+          parseInt(day),
+          parseInt(startHour),
+          parseInt(startMinute)
+        );
+      }
+    }
+  }
+
+  return null;
+};
+
+const getHoursBeforeReservation = (reservation: Reservation): number | null => {
+  const reservationStartTime = getReservationStartTime(reservation);
+  if (!reservationStartTime) {
+    return null;
+  }
+
+  const timeDifference = reservationStartTime.getTime() - Date.now();
+  return timeDifference / (1000 * 60 * 60);
+};
+
+const getCancellationFeePercentage = (reservation: Reservation): number => {
+  const hoursBeforeReservation = getHoursBeforeReservation(reservation);
+  if (hoursBeforeReservation === null || Number.isNaN(hoursBeforeReservation)) {
+    return 100;
+  }
+
+  if (reservation.roomType === "sauna_suite") {
+    return hoursBeforeReservation >= HOURS_BEFORE_SAUNA_SUITE_PARTIAL_CANCEL
+      ? 0
+      : hoursBeforeReservation >= HOURS_BEFORE_STANDARD_FREE_CANCEL
+        ? 50
+        : 100;
+  }
+
+  return hoursBeforeReservation >= HOURS_BEFORE_STANDARD_FREE_CANCEL ? 0 : 100;
+};
+
+const getCancellationFeeAmount = (
+  price: number,
+  reservation: Reservation
+): number => {
+  const feePercentage = getCancellationFeePercentage(reservation);
+  const refundPercentage = 100 - feePercentage;
+  const refundAmount = Math.floor(price * (refundPercentage / 100));
+  return price - refundAmount;
+};
+
+const getCancellationPolicyMessage = (reservation: Reservation): string => {
+  const hoursBeforeReservation = getHoursBeforeReservation(reservation);
+
+  if (hoursBeforeReservation === null || Number.isNaN(hoursBeforeReservation)) {
+    return "予約開始時間を確認できないため、キャンセル料は100%となります。";
+  }
+
+  if (reservation.roomType === "sauna_suite") {
+    if (hoursBeforeReservation >= HOURS_BEFORE_SAUNA_SUITE_PARTIAL_CANCEL) {
+      return "予約開始時間の7日前までのため、キャンセル料はかかりません。";
+    }
+    if (hoursBeforeReservation >= HOURS_BEFORE_STANDARD_FREE_CANCEL) {
+      return "予約開始時間の7日前〜2日前のため、50%のキャンセル料がかかります。";
+    }
+    return "予約開始時間の48時間を過ぎているため、100%のキャンセル料がかかります。";
+  }
+
+  if (hoursBeforeReservation >= HOURS_BEFORE_STANDARD_FREE_CANCEL) {
+    return "予約開始時間の48時間前なので、キャンセル料はかかりません。";
+  }
+
+  return "予約開始時間の48時間を過ぎているため、100%のキャンセル料がかかります。";
+};
+
 export default function ReservationList() {
   const router = useRouter();
   const [user, loading] = useAuthState(auth);
@@ -524,9 +628,6 @@ export default function ReservationList() {
     setIsSubmitting(true);
 
     try {
-      // 记录取消时当前的预约信息，便于调试
-      const isFree = canCancelForFree(selectedReservation);
-
       // 获取用户令牌
       const token = await user.getIdToken();
       
@@ -582,82 +683,12 @@ export default function ReservationList() {
     }
   };
 
-  // 判断是否可以免费取消（预约开始时间的48小时前）
-  const canCancelForFree = (reservation: Reservation) => {
-    try {
-      const now = new Date(); // 当前时间
-      let reservationStartTime: Date | null = null;
-      
-      // 1. 尝试使用startDateTime字段（Date对象）
-      if (reservation.startDateTime instanceof Date) {
-        reservationStartTime = reservation.startDateTime;
-      }
-      // 2. 尝试处理Firestore Timestamp对象
-      else if (reservation.startDateTime && typeof reservation.startDateTime === 'object') {
-        const startDateTime = reservation.startDateTime as any;
-        
-        // 有toDate方法的对象
-        if (typeof startDateTime.toDate === 'function') {
-          reservationStartTime = startDateTime.toDate();
-        }
-        // 原始Firestore时间戳
-        else if (startDateTime._seconds !== undefined) {
-          reservationStartTime = new Date(startDateTime._seconds * 1000);
-        }
-      }
-      // 3. 尝试从displayDate和displayTimeRange解析
-      else if (reservation.displayDate && reservation.displayTimeRange) {
-        // 日期格式: YYYY年MM月DD日
-        const dateMatch = reservation.displayDate.match(/(\d+)年(\d+)月(\d+)日/);
-        if (dateMatch) {
-          const [_, year, month, day] = dateMatch;
-          
-          // 时间格式: HH:MM～HH:MM
-          const timeMatch = reservation.displayTimeRange.match(/(\d+):(\d+)/);
-          if (timeMatch) {
-            const [__, startHour, startMinute] = timeMatch;
-            
-            reservationStartTime = new Date(
-              parseInt(year),
-              parseInt(month) - 1, // 月份从0开始
-              parseInt(day),
-              parseInt(startHour),
-              parseInt(startMinute)
-            );
-          }
-        }
-      }
-      
-      // 如果成功获取了预约开始时间，计算时间差
-      if (reservationStartTime) {
-        
-        // 计算时间差（毫秒）
-        const timeDifference = reservationStartTime.getTime() - now.getTime();
-        // 转换为小时
-        const hoursBeforeReservation = timeDifference / (1000 * 60 * 60);
-        
-        // 48小时以上可以免费取消
-        return hoursBeforeReservation >= 48;
-      }
-    } catch (error) {
-      console.error("计算是否可免费取消时出错:", error);
-    }
-    
-    // 默认情况：无法确定是否可以免费取消，安全起见返回false
-    return false;
-  };
-
   // 计算取消费用
   const calculateCancellationFee = (
     price: number,
     reservation: Reservation
   ) => {
-    // 如果可以免费取消，返回0
-    if (canCancelForFree(reservation)) {
-      return 0;
-    }
-    // 否则收取100%取消费
-    return price;
+    return getCancellationFeeAmount(price, reservation);
   };
 
   // 渲染收据模态框
@@ -724,8 +755,9 @@ export default function ReservationList() {
         ? selectedReservation.price
         : parseInt(String(selectedReservation.price));
 
-    // 判断是否可以免费取消
-    const isFreeCancel = canCancelForFree(selectedReservation);
+    const cancellationPolicyMessage = getCancellationPolicyMessage(
+      selectedReservation
+    );
 
     return createPortal(
       <div
@@ -807,9 +839,7 @@ export default function ReservationList() {
             </div>
 
             <p className="text-sm md:text-sm text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
-              {isFreeCancel
-                ? "予約開始時間の48時間前なので、キャンセル料はかかりません。"
-                : "予約開始時間の48時間を過ぎているため、100%のキャンセル料がかかります。"}
+              {cancellationPolicyMessage}
               <br />
               お支払い済みのご利用料金からキャンセル料を差し引いた金額が返金されます。
             </p>
