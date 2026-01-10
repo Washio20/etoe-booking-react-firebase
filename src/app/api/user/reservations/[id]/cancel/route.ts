@@ -243,7 +243,7 @@ export async function POST(
     // 获取Stripe支付ID（在完成支付时保存）
     const paymentId = reservationData?.paymentId;
 
-    // 检查是否可以免费取消（预约开始时间前48小时）
+    // 根据房型和预约开始时间计算取消费率
     let cancellationFeePercentage = 100; // 默认收取100%取消费
 
     try {
@@ -295,11 +295,24 @@ export async function POST(
               `距离预约还有: ${hoursBeforeReservation.toFixed(2)} 小时`
             );
 
-            // 如果还有48小时以上，免费取消
-            if (hoursBeforeReservation >= 48) {
+            const isSaunaSuite = reservationData?.roomType === "sauna_suite";
+
+            if (isSaunaSuite) {
+              if (hoursBeforeReservation >= 168) {
+                cancellationFeePercentage = 0;
+                console.log("サウナスイート: 7日前までのキャンセルのため取消费0%");
+              } else if (hoursBeforeReservation >= 48) {
+                cancellationFeePercentage = 50;
+                console.log("サウナスイート: 2日前までのキャンセルのため取消费50%");
+              } else {
+                cancellationFeePercentage = 100;
+                console.log("サウナスイート: 48時間を過ぎているため取消费100%");
+              }
+            } else if (hoursBeforeReservation >= 48) {
               cancellationFeePercentage = 0;
               console.log("符合免费取消条件");
             } else {
+              cancellationFeePercentage = 100;
               console.log("不符合免费取消条件，收取100%取消费");
             }
           }

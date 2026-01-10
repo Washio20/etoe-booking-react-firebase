@@ -25,8 +25,9 @@ export default function ReservationCancelCompletePage() {
               返金処理には、通常5〜10営業日ほどかかる場合がございます。
             </p>
             <p className="text-[14px] md:text-[16px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
-              予約キャンセルは、予約開始時間の48時間前まで無料で可能です。
-              以降はキャンセル料100%がかかりますのでお気を付けください。
+              予約キャンセルのポリシーはご予約の部屋タイプにより異なります。
+              サウナスイートは予約開始時間の7日前までは無料、7日前〜2日前まではキャンセル料50%、48時間前以降は100%となります。
+              それ以外のお部屋は予約開始時間の48時間前まで無料で、以降はキャンセル料100%がかかります。
             </p>
             <p className="text-[14px] md:text-[16px] text-[#444444] tracking-[0.06em] font-zen-kaku-gothic">
               ご不明な点がございましたら、お気軽にお問い合わせください。
