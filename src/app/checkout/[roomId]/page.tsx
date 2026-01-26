@@ -27,14 +27,14 @@ const DoubleThumbsIcon = ({ className }: { className?: string }) => {
     >
       <mask id={maskId}>
         <rect width="32" height="32" fill="white" />
-        <g transform="translate(0 7) scale(0.85)" fill="black" stroke="none">
+        <g transform="translate(0 6) scale(0.88)" fill="black" stroke="none">
           {thumbPaths}
         </g>
       </mask>
       <g mask={`url(#${maskId})`} transform="translate(9 -1) scale(0.85)">
         {thumbPaths}
       </g>
-      <g transform="translate(0 7) scale(0.85)">
+      <g transform="translate(0 5) scale(0.85)">
         {thumbPaths}
       </g>
     </svg>
