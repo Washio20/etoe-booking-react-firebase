@@ -206,8 +206,8 @@ export default function CheckoutPage() {
                         <span className="text-[11px] font-semibold">{labelEn}</span>
                         {iconType === 'double' ? (
                           <span className="relative mt-2 h-11 w-11">
-                            <ThumbsUp className={`absolute bottom-0 left-0 h-7 w-7 ${iconStroke} ${iconFill}`} />
-                            <ThumbsUp className={`absolute left-3 top-2 h-7 w-7 ${iconStroke} ${iconFill}`} />
+                            <ThumbsUp className={`absolute bottom-0 left-0 z-10 h-7 w-7 ${iconStroke} ${iconFill}`} />
+                            <ThumbsUp className={`absolute left-3 top-2 z-0 h-7 w-7 ${iconStroke} ${iconFill}`} />
                           </span>
                         ) : (
                           <Icon className={`mt-2 h-8 w-8 ${iconStroke} ${iconFill}`} />
