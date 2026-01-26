@@ -7,8 +7,8 @@ import Layout from '@/components/Layout';
 
 const DoubleThumbsIcon = ({ className }: { className?: string }) => {
   const maskId = useId();
-  const frontTransform = 'translate(9 -1) scale(0.85)';
-  const backTransform = 'translate(0 3) scale(0.85)';
+  const frontTransform = 'translate(0 3) scale(0.85)';
+  const backTransform = 'translate(9 -1) scale(0.85)';
   const thumbPaths = (
     <>
       <path d="M7 10v12" />
