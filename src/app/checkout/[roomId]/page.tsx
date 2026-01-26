@@ -185,7 +185,7 @@ export default function CheckoutPage() {
                     }
                   ].map(({ value, labelJa, labelEn, Icon, iconType }) => {
                     const selected = stayRating === value;
-                    const iconStroke = 'text-gray-600';
+                    const iconStroke = 'text-gray-800';
                     const iconFill = 'fill-transparent';
                     return (
                       <button
@@ -197,8 +197,8 @@ export default function CheckoutPage() {
                         }}
                         className={`flex flex-col items-center gap-2 rounded-xl px-3 py-3 text-xs transition-colors ${
                           selected
-                            ? 'border border-[#726659] bg-[#F3EDE7] text-gray-600'
-                            : 'border border-transparent bg-transparent text-gray-600'
+                            ? 'border border-[#726659] bg-[#F3EDE7] text-gray-800'
+                            : 'border border-transparent bg-transparent text-gray-800'
                         }`}
                         aria-pressed={selected}
                       >
