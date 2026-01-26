@@ -195,10 +195,10 @@ export default function CheckoutPage() {
                           setStayRating(value as typeof stayRating);
                           setMessage('');
                         }}
-                        className={`flex flex-col items-center gap-2 rounded-xl border px-3 py-3 text-xs transition-colors ${
+                        className={`flex flex-col items-center gap-2 rounded-xl px-3 py-3 text-xs transition-colors ${
                           selected
-                            ? 'border-[#726659] bg-[#F3EDE7] text-[#3C3024]'
-                            : 'border-[#C7B9AA] bg-[#FBF9F6] text-[#3C3024]'
+                            ? 'border border-[#726659] bg-[#F3EDE7] text-gray-600'
+                            : 'border border-transparent bg-transparent text-gray-600'
                         }`}
                         aria-pressed={selected}
                       >
