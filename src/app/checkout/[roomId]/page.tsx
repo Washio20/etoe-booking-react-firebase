@@ -202,12 +202,12 @@ export default function CheckoutPage() {
                         }`}
                         aria-pressed={selected}
                       >
-                        <span className="font-zen-kaku-gothic text-sm">{labelJa}</span>
-                        <span className="text-[11px]">{labelEn}</span>
+                        <span className="font-zen-kaku-gothic text-sm font-semibold">{labelJa}</span>
+                        <span className="text-[11px] font-semibold">{labelEn}</span>
                         {iconType === 'double' ? (
-                          <span className="relative mt-2 h-8 w-8">
-                            <ThumbsUp className={`absolute bottom-0 left-0 h-5 w-5 ${iconStroke} ${iconFill}`} />
-                            <ThumbsUp className={`absolute left-2 top-1 h-5 w-5 ${iconStroke} ${iconFill}`} />
+                          <span className="relative mt-2 h-10 w-10">
+                            <ThumbsUp className={`absolute bottom-0 left-0 h-6 w-6 ${iconStroke} ${iconFill}`} />
+                            <ThumbsUp className={`absolute left-2 top-1 h-6 w-6 ${iconStroke} ${iconFill}`} />
                           </span>
                         ) : (
                           <Icon className={`mt-2 h-8 w-8 ${iconStroke} ${iconFill}`} />
