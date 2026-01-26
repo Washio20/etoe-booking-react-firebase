@@ -186,7 +186,7 @@ export default function CheckoutPage() {
                   ].map(({ value, labelJa, labelEn, Icon, iconType }) => {
                     const selected = stayRating === value;
                     const iconStroke = 'text-gray-600';
-                    const iconFill = selected ? 'fill-blue-600' : 'fill-transparent';
+                    const iconFill = 'fill-transparent';
                     return (
                       <button
                         key={value}
@@ -195,7 +195,11 @@ export default function CheckoutPage() {
                           setStayRating(value as typeof stayRating);
                           setMessage('');
                         }}
-                        className="flex flex-col items-center gap-2 rounded-xl bg-white px-3 py-3 text-xs text-gray-700 transition-colors"
+                        className={`flex flex-col items-center gap-2 rounded-xl border px-3 py-3 text-xs transition-colors ${
+                          selected
+                            ? 'border-blue-400 bg-blue-50 text-blue-700'
+                            : 'border-gray-300 bg-white text-gray-700'
+                        }`}
                         aria-pressed={selected}
                       >
                         <span className="font-zen-kaku-gothic text-sm">{labelJa}</span>
