@@ -1,9 +1,45 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { ThumbsDown, ThumbsUp } from 'lucide-react';
 import Layout from '@/components/Layout';
+
+const DoubleThumbsIcon = ({ className }: { className?: string }) => {
+  const maskId = useId();
+  const thumbPaths = (
+    <>
+      <path d="M7 10v12" />
+      <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" />
+    </>
+  );
+
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 32 32"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <mask id={maskId}>
+        <rect width="32" height="32" fill="white" />
+        <g transform="translate(0 7) scale(0.85)" fill="black" stroke="none">
+          {thumbPaths}
+        </g>
+      </mask>
+      <g mask={`url(#${maskId})`} transform="translate(9 -1) scale(0.85)">
+        {thumbPaths}
+      </g>
+      <g transform="translate(0 7) scale(0.85)">
+        {thumbPaths}
+      </g>
+    </svg>
+  );
+};
 
 export default function CheckoutPage() {
   const params = useParams();
@@ -205,10 +241,7 @@ export default function CheckoutPage() {
                         <span className="font-zen-kaku-gothic text-sm font-semibold">{labelJa}</span>
                         <span className="text-[11px] font-semibold">{labelEn}</span>
                         {iconType === 'double' ? (
-                          <span className="relative mt-2 h-11 w-11">
-                            <ThumbsUp className={`absolute bottom-0 left-0 z-10 h-7 w-7 ${iconStroke} ${iconFill}`} />
-                            <ThumbsUp className={`absolute left-3 top-2 z-0 h-7 w-7 ${iconStroke} ${iconFill}`} />
-                          </span>
+                          <DoubleThumbsIcon className={`mt-2 h-12 w-12 ${iconStroke}`} />
                         ) : (
                           <Icon className={`mt-2 h-8 w-8 ${iconStroke} ${iconFill}`} />
                         )}
