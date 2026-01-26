@@ -197,8 +197,8 @@ export default function CheckoutPage() {
                         }}
                         className={`flex flex-col items-center gap-2 rounded-xl border px-3 py-3 text-xs transition-colors ${
                           selected
-                            ? 'border-blue-400 bg-blue-50 text-blue-700'
-                            : 'border-gray-300 bg-white text-gray-700'
+                            ? 'border-[#726659] bg-[#E6DDD3] text-[#3C3024]'
+                            : 'border-[#726659] bg-[#F3EDE7] text-[#3C3024]'
                         }`}
                         aria-pressed={selected}
                       >
