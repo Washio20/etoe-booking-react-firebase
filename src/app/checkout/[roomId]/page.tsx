@@ -185,7 +185,8 @@ export default function CheckoutPage() {
                     }
                   ].map(({ value, labelJa, labelEn, Icon, iconType }) => {
                     const selected = stayRating === value;
-                    const iconTone = selected ? 'text-gray-600' : 'text-gray-500';
+                    const iconStroke = selected ? 'text-gray-600' : 'text-gray-500';
+                    const iconFill = selected ? 'fill-blue-500' : 'fill-transparent';
                     return (
                       <button
                         key={value}
@@ -201,11 +202,11 @@ export default function CheckoutPage() {
                         <span className="text-[11px]">{labelEn}</span>
                         {iconType === 'double' ? (
                           <span className="relative mt-2 h-8 w-8">
-                            <ThumbsUp className={`absolute bottom-0 left-0 h-5 w-5 ${iconTone}`} fill="currentColor" />
-                            <ThumbsUp className={`absolute left-2 top-1 h-5 w-5 ${iconTone}`} fill="currentColor" />
+                            <ThumbsUp className={`absolute bottom-0 left-0 h-5 w-5 ${iconStroke} ${iconFill}`} />
+                            <ThumbsUp className={`absolute left-2 top-1 h-5 w-5 ${iconStroke} ${iconFill}`} />
                           </span>
                         ) : (
-                          <Icon className={`mt-2 h-8 w-8 ${iconTone}`} fill="currentColor" />
+                          <Icon className={`mt-2 h-8 w-8 ${iconStroke} ${iconFill}`} />
                         )}
                       </button>
                     );
