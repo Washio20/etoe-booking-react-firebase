@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
-import Image from 'next/image';
+import { Sparkles, ThumbsDown, ThumbsUp } from 'lucide-react';
 import Layout from '@/components/Layout';
 
 export default function CheckoutPage() {
@@ -10,9 +10,12 @@ export default function CheckoutPage() {
   const roomId = params.roomId as string;
   
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingAction, setLoadingAction] = useState<'checkout' | 'feedback' | null>(null);
   const [message, setMessage] = useState('');
-  const [isSuccess, setIsSuccess] = useState(false);
   const [guestNote, setGuestNote] = useState('');
+  const [flowStep, setFlowStep] = useState<'rate' | 'done' | 'thanks'>('rate');
+  const [stayRating, setStayRating] = useState<'not_great' | 'good' | 'excellent' | ''>('');
+  const [checkoutId, setCheckoutId] = useState('');
 
   // 验证房间号格式
   const isValidRoomId = (id: string): boolean => {
@@ -22,11 +25,16 @@ export default function CheckoutPage() {
   const handleCheckout = async () => {
     if (!isValidRoomId(roomId)) {
       setMessage('無効な部屋番号です');
-      setIsSuccess(false);
+      return;
+    }
+
+    if (!stayRating) {
+      setMessage('評価を選択してください');
       return;
     }
 
     setIsLoading(true);
+    setLoadingAction('checkout');
     setMessage('');
 
     try {
@@ -37,25 +45,69 @@ export default function CheckoutPage() {
         },
         body: JSON.stringify({
           roomId,
-          guestNote: guestNote.trim() || undefined
+          stayRating,
+          mode: 'checkout'
         }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        setIsSuccess(true);
-        setMessage(data.message || '退房手続きが完了しました');
+        setCheckoutId(data.checkoutId || '');
+        setFlowStep('done');
       } else {
-        setIsSuccess(false);
         setMessage(data.message || data.error || '退房手続きでエラーが発生しました');
       }
     } catch (error) {
       console.error('Checkout error:', error);
-      setIsSuccess(false);
       setMessage('ネットワークエラーが発生しました');
     } finally {
       setIsLoading(false);
+      setLoadingAction(null);
+    }
+  };
+
+  const handleSubmitFeedback = async () => {
+    if (!checkoutId) {
+      setMessage('チェックアウト情報が見つかりません');
+      return;
+    }
+
+    if (!guestNote.trim()) {
+      setMessage('ご感想・ご要望をご入力ください');
+      return;
+    }
+
+    setIsLoading(true);
+    setLoadingAction('feedback');
+    setMessage('');
+
+    try {
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          checkoutId,
+          guestNote: guestNote.trim(),
+          mode: 'feedback'
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setFlowStep('thanks');
+      } else {
+        setMessage(data.message || data.error || 'フィードバック送信でエラーが発生しました');
+      }
+    } catch (error) {
+      console.error('Feedback error:', error);
+      setMessage('ネットワークエラーが発生しました');
+    } finally {
+      setIsLoading(false);
+      setLoadingAction(null);
     }
   };
 
@@ -87,20 +139,9 @@ export default function CheckoutPage() {
     <Layout>
       <div className="max-w-md mx-auto px-4 py-12">
         <div className="bg-white rounded-lg shadow-md p-6">
-          {!isSuccess ? (
+          {flowStep === 'rate' ? (
             <>
               <div className="text-center mb-6">
-                {/* <div className="flex justify-center mb-4">
-                  <div className="w-24 mx-auto relative">
-                    <Image
-                      src="/images/logo.svg"
-                      alt="etoe logo"
-                      width={96}
-                      height={53}
-                      className="w-full h-auto"
-                    />
-                  </div>
-                </div> */}
                 <h1 className="text-2xl font-bold text-gray-800 mb-2">
                   <span className="block text-xl mb-1">Check Out</span>
                   <span className="font-zen-kaku-gothic">チェックアウト</span>
@@ -111,37 +152,70 @@ export default function CheckoutPage() {
                 </p>
               </div>
 
-              <div className="space-y-4 mb-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <span className="block text-sm mb-1">Feedback / Requests (Optional)</span>
-                    <span className="font-zen-kaku-gothic">ご感想・ご要望（任意）</span>
-                  </label>
-                  <textarea
-                    value={guestNote}
-                    onChange={(e) => setGuestNote(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-zen-kaku-gothic"
-                    rows={3}
-                    placeholder="Please share your feedback or requests / ご滞在のご感想やご要望がございましたらお聞かせください"
-                    maxLength={500}
-                    disabled={isLoading}
-                  />
-                  <p className="text-xs text-gray-500 mt-1 font-zen-kaku-gothic">
-                    {guestNote.length}/500文字
+              <div className="mb-6">
+                <div className="rounded-2xl bg-[#d7b19b] text-center py-4 px-4 mb-4">
+                  <p className="text-base font-semibold text-gray-900">
+                    <span className="block font-zen-kaku-gothic">ご滞在はいかがでしたか？</span>
+                    <span className="block">How was your stay?</span>
                   </p>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    {
+                      value: 'not_great',
+                      labelJa: 'イマイチ',
+                      labelEn: 'Not great',
+                      Icon: ThumbsDown
+                    },
+                    {
+                      value: 'good',
+                      labelJa: 'イイネ',
+                      labelEn: 'Good',
+                      Icon: ThumbsUp
+                    },
+                    {
+                      value: 'excellent',
+                      labelJa: '最高!',
+                      labelEn: 'Excellent',
+                      Icon: Sparkles
+                    }
+                  ].map(({ value, labelJa, labelEn, Icon }) => {
+                    const selected = stayRating === value;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => {
+                          setStayRating(value as typeof stayRating);
+                          setMessage('');
+                        }}
+                        className={`flex flex-col items-center gap-2 rounded-xl border px-3 py-3 text-xs transition-colors ${
+                          selected
+                            ? 'border-[#333333] bg-[#333333] text-white'
+                            : 'border-gray-200 bg-white text-gray-700 hover:border-gray-400'
+                        }`}
+                        aria-pressed={selected}
+                      >
+                        <Icon className="h-6 w-6" />
+                        <span className="font-zen-kaku-gothic text-sm">{labelJa}</span>
+                        <span className="text-[11px]">{labelEn}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
               <button
                 onClick={handleCheckout}
-                disabled={isLoading}
+                disabled={isLoading || !stayRating}
                 className={`w-full py-3 px-4 rounded-full text-white font-zen-kaku-gothic font-medium transition-colors ${
-                  isLoading
+                  isLoading || !stayRating
                     ? 'bg-gray-400 cursor-not-allowed'
                     : 'bg-[#444444] hover:bg-[#333333]'
                 }`}
               >
-                {isLoading ? (
+                {isLoading && loadingAction === 'checkout' ? (
                   <div className="flex flex-col items-center justify-center">
                     <div className="flex items-center">
                       <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-2"></div>
@@ -158,31 +232,74 @@ export default function CheckoutPage() {
               </button>
 
               {message && (
-                <div className={`mt-4 p-3 rounded-lg ${
-                  isSuccess ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
-                }`}>
+                <div className="mt-4 p-3 rounded-lg bg-red-50 text-red-800">
                   <p className="text-sm font-zen-kaku-gothic">{message}</p>
                 </div>
               )}
             </>
-          ) : (
+          ) : flowStep === 'done' ? (
             <div className="text-center">
               <div className="text-green-500 text-4xl mb-4">✅</div>
-              <h1 className="text-xl font-bold text-gray-800 mb-4">
+              <h1 className="text-xl font-bold text-gray-800 mb-2">
                 <span className="block text-lg mb-1">Check Out Complete</span>
                 <span className="font-zen-kaku-gothic">チェックアウト完了</span>
               </h1>
-              <p className="text-gray-700 font-zen-kaku-gothic mb-6">
-                {message}
+              <p className="text-sm text-gray-700 mb-4">
+                <span className="block">If you have any feedback, we'd love to hear it.</span>
+                <span className="font-zen-kaku-gothic">もし何かお気づきの点がございましたら<br />ぜひお聞かせください。</span>
               </p>
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <p className="text-sm text-blue-800 leading-relaxed">
-                  <span className="block mb-2">Thank you for staying with us.</span>
-                  <span className="block mb-2">We look forward to welcoming you again.</span>
-                  <span className="font-zen-kaku-gothic">この度はご利用いただき、<br className="sm:hidden" />ありがとうございました。<br />
-                  またのご利用を心よりお待ちしております。</span>
+
+              <div className="text-left">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <span className="block text-sm mb-1">Feedback / Requests (Optional)</span>
+                  <span className="font-zen-kaku-gothic">ご感想・ご要望（任意）</span>
+                </label>
+                <textarea
+                  value={guestNote}
+                  onChange={(e) => setGuestNote(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-zen-kaku-gothic"
+                  rows={4}
+                  placeholder="Please share your feedback or requests / ご滞在のご感想やご要望がございましたらお聞かせください"
+                  maxLength={500}
+                  disabled={isLoading}
+                />
+                <p className="text-xs text-gray-500 mt-1 font-zen-kaku-gothic">
+                  {guestNote.length}/500文字
                 </p>
+
+                <button
+                  onClick={handleSubmitFeedback}
+                  disabled={isLoading || !guestNote.trim()}
+                  className={`mt-4 w-full rounded-md border px-4 py-2 text-sm font-zen-kaku-gothic transition-colors ${
+                    isLoading || !guestNote.trim()
+                      ? 'border-gray-300 text-gray-400 cursor-not-allowed'
+                      : 'border-gray-500 text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  {isLoading && loadingAction === 'feedback' ? '送信中...' : '送信する'}
+                </button>
               </div>
+
+              {message && (
+                <div className="mt-4 p-3 rounded-lg bg-red-50 text-red-800">
+                  <p className="text-sm font-zen-kaku-gothic">{message}</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-6">
+              <div className="text-gray-800 text-5xl mb-4">✅</div>
+              <h1 className="text-xl font-bold text-gray-800 mb-3">
+                <span className="block text-lg mb-1">Feedback</span>
+                <span className="font-zen-kaku-gothic">フィードバック</span>
+              </h1>
+              <p className="text-lg font-bold text-gray-800 mb-2 font-zen-kaku-gothic">
+                ありがとうございます
+              </p>
+              <p className="text-sm text-gray-600 font-zen-kaku-gothic">
+                お送りいただいたフィードバックは<br />
+                サービス向上に活用いたします。
+              </p>
             </div>
           )}
         </div>
