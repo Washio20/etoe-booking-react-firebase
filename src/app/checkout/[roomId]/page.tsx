@@ -7,6 +7,8 @@ import Layout from '@/components/Layout';
 
 const DoubleThumbsIcon = ({ className }: { className?: string }) => {
   const maskId = useId();
+  const frontTransform = 'translate(9 -1) scale(0.85)';
+  const backTransform = 'translate(0 3) scale(0.85)';
   const thumbPaths = (
     <>
       <path d="M7 10v12" />
@@ -27,14 +29,21 @@ const DoubleThumbsIcon = ({ className }: { className?: string }) => {
     >
       <mask id={maskId}>
         <rect width="32" height="32" fill="white" />
-        <g transform="translate(0 6) scale(0.88)" fill="black" stroke="none">
+        <g
+          transform={frontTransform}
+          fill="black"
+          stroke="black"
+          strokeWidth={4}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           {thumbPaths}
         </g>
       </mask>
-      <g mask={`url(#${maskId})`} transform="translate(9 -1) scale(0.85)">
+      <g mask={`url(#${maskId})`} transform={backTransform}>
         {thumbPaths}
       </g>
-      <g transform="translate(0 5) scale(0.85)">
+      <g transform={frontTransform}>
         {thumbPaths}
       </g>
     </svg>
