@@ -185,6 +185,7 @@ export default function CheckoutPage() {
                     }
                   ].map(({ value, labelJa, labelEn, Icon, iconType }) => {
                     const selected = stayRating === value;
+                    const iconTone = selected ? 'text-gray-900' : 'text-gray-500';
                     return (
                       <button
                         key={value}
@@ -193,22 +194,18 @@ export default function CheckoutPage() {
                           setStayRating(value as typeof stayRating);
                           setMessage('');
                         }}
-                        className={`flex flex-col items-center gap-2 rounded-xl border px-3 py-3 text-xs transition-colors ${
-                          selected
-                            ? 'border-[#333333] bg-[#333333] text-white'
-                            : 'border-gray-200 bg-white text-gray-700 hover:border-gray-400'
-                        }`}
+                        className="flex flex-col items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-3 text-xs text-gray-700 transition-colors hover:border-gray-400"
                         aria-pressed={selected}
                       >
                         <span className="font-zen-kaku-gothic text-sm">{labelJa}</span>
                         <span className="text-[11px]">{labelEn}</span>
                         {iconType === 'double' ? (
-                          <span className="relative mt-1 h-6 w-6">
-                            <ThumbsUp className="absolute bottom-0 left-0 h-4 w-4" />
-                            <ThumbsUp className="absolute right-0 top-0 h-4 w-4" />
+                          <span className="relative mt-2 h-8 w-8">
+                            <ThumbsUp className={`absolute bottom-0 left-0 h-5 w-5 ${iconTone}`} />
+                            <ThumbsUp className={`absolute right-0 top-0 h-5 w-5 ${iconTone}`} />
                           </span>
                         ) : (
-                          <Icon className="mt-1 h-6 w-6" />
+                          <Icon className={`mt-2 h-8 w-8 ${iconTone}`} />
                         )}
                       </button>
                     );
