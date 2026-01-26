@@ -203,9 +203,9 @@ export default function CheckoutPage() {
                         <span className="font-zen-kaku-gothic text-sm">{labelJa}</span>
                         <span className="text-[11px]">{labelEn}</span>
                         {iconType === 'double' ? (
-                          <span className="relative mt-1 h-7 w-7">
-                            <ThumbsUp className="h-6 w-6" />
-                            <ThumbsUp className="absolute -right-1 -top-1 h-4 w-4" />
+                          <span className="relative mt-1 h-6 w-6">
+                            <ThumbsUp className="absolute bottom-0 left-0 h-4 w-4" />
+                            <ThumbsUp className="absolute right-0 top-0 h-4 w-4" />
                           </span>
                         ) : (
                           <Icon className="mt-1 h-6 w-6" />
