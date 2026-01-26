@@ -185,7 +185,7 @@ export default function CheckoutPage() {
                     }
                   ].map(({ value, labelJa, labelEn, Icon, iconType }) => {
                     const selected = stayRating === value;
-                    const iconStroke = selected ? 'text-blue-600' : 'text-gray-500';
+                    const iconStroke = 'text-gray-600';
                     const iconFill = selected ? 'fill-blue-600' : 'fill-transparent';
                     return (
                       <button
