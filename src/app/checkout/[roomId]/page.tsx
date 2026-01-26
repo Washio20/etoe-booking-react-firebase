@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Sparkles, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { ThumbsDown, ThumbsUp } from 'lucide-react';
 import Layout from '@/components/Layout';
 
 export default function CheckoutPage() {
@@ -166,21 +166,24 @@ export default function CheckoutPage() {
                       value: 'not_great',
                       labelJa: 'イマイチ',
                       labelEn: 'Not great',
-                      Icon: ThumbsDown
+                      Icon: ThumbsDown,
+                      iconType: 'single'
                     },
                     {
                       value: 'good',
                       labelJa: 'イイネ',
                       labelEn: 'Good',
-                      Icon: ThumbsUp
+                      Icon: ThumbsUp,
+                      iconType: 'single'
                     },
                     {
                       value: 'excellent',
                       labelJa: '最高!',
                       labelEn: 'Excellent',
-                      Icon: Sparkles
+                      Icon: ThumbsUp,
+                      iconType: 'double'
                     }
-                  ].map(({ value, labelJa, labelEn, Icon }) => {
+                  ].map(({ value, labelJa, labelEn, Icon, iconType }) => {
                     const selected = stayRating === value;
                     return (
                       <button
@@ -197,9 +200,16 @@ export default function CheckoutPage() {
                         }`}
                         aria-pressed={selected}
                       >
-                        <Icon className="h-6 w-6" />
                         <span className="font-zen-kaku-gothic text-sm">{labelJa}</span>
                         <span className="text-[11px]">{labelEn}</span>
+                        {iconType === 'double' ? (
+                          <span className="relative mt-1 h-7 w-7">
+                            <ThumbsUp className="h-6 w-6" />
+                            <ThumbsUp className="absolute -right-1 -top-1 h-4 w-4" />
+                          </span>
+                        ) : (
+                          <Icon className="mt-1 h-6 w-6" />
+                        )}
                       </button>
                     );
                   })}
