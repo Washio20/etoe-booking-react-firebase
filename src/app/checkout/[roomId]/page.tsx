@@ -185,7 +185,7 @@ export default function CheckoutPage() {
                     }
                   ].map(({ value, labelJa, labelEn, Icon, iconType }) => {
                     const selected = stayRating === value;
-                    const iconTone = selected ? 'text-gray-900' : 'text-gray-500';
+                    const iconTone = selected ? 'text-gray-600' : 'text-gray-500';
                     return (
                       <button
                         key={value}
@@ -194,18 +194,18 @@ export default function CheckoutPage() {
                           setStayRating(value as typeof stayRating);
                           setMessage('');
                         }}
-                        className="flex flex-col items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-3 text-xs text-gray-700 transition-colors hover:border-gray-400"
+                        className="flex flex-col items-center gap-2 rounded-xl bg-white px-3 py-3 text-xs text-gray-700 transition-colors"
                         aria-pressed={selected}
                       >
                         <span className="font-zen-kaku-gothic text-sm">{labelJa}</span>
                         <span className="text-[11px]">{labelEn}</span>
                         {iconType === 'double' ? (
                           <span className="relative mt-2 h-8 w-8">
-                            <ThumbsUp className={`absolute bottom-0 left-0 h-5 w-5 ${iconTone}`} />
-                            <ThumbsUp className={`absolute right-0 top-0 h-5 w-5 ${iconTone}`} />
+                            <ThumbsUp className={`absolute bottom-0 left-0 h-5 w-5 ${iconTone}`} fill="currentColor" />
+                            <ThumbsUp className={`absolute left-2 top-1 h-5 w-5 ${iconTone}`} fill="currentColor" />
                           </span>
                         ) : (
-                          <Icon className={`mt-2 h-8 w-8 ${iconTone}`} />
+                          <Icon className={`mt-2 h-8 w-8 ${iconTone}`} fill="currentColor" />
                         )}
                       </button>
                     );
