@@ -1,48 +1,10 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useState } from 'react';
+import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import { ThumbsDown, ThumbsUp } from 'lucide-react';
 import Layout from '@/components/Layout';
-
-const DoubleThumbsIcon = ({ className }: { className?: string }) => {
-  const maskId = useId();
-  const frontTransform = 'translate(0 3) scale(0.85)';
-  const backTransform = 'translate(9 -1) scale(0.85)';
-  const maskTransform = frontTransform;
-  const thumbPaths = (
-    <>
-      <path d="M7 10v12" />
-      <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" />
-    </>
-  );
-
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 32 32"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <mask id={maskId}>
-        <rect width="32" height="32" fill="white" />
-        <g transform={maskTransform} fill="black" stroke="none">
-          {thumbPaths}
-        </g>
-      </mask>
-      <g mask={`url(#${maskId})`} transform={backTransform}>
-        {thumbPaths}
-      </g>
-      <g transform={frontTransform}>
-        {thumbPaths}
-      </g>
-    </svg>
-  );
-};
 
 export default function CheckoutPage() {
   const params = useParams();
@@ -244,7 +206,14 @@ export default function CheckoutPage() {
                         <span className="font-zen-kaku-gothic text-sm font-semibold">{labelJa}</span>
                         <span className="text-[11px] font-semibold">{labelEn}</span>
                         {iconType === 'double' ? (
-                          <DoubleThumbsIcon className={`mt-2 h-12 w-12 ${iconStroke}`} />
+                          <Image
+                            src="/icons/double-thumbs.svg"
+                            alt=""
+                            aria-hidden="true"
+                            width={48}
+                            height={48}
+                            className="mt-2 h-12 w-12"
+                          />
                         ) : (
                           <Icon className={`mt-2 h-8 w-8 ${iconStroke} ${iconFill}`} />
                         )}
