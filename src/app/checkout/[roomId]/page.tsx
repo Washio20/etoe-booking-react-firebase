@@ -33,7 +33,7 @@ const DoubleThumbsIcon = ({ className }: { className?: string }) => {
           transform={frontTransform}
           fill="black"
           stroke="black"
-          strokeWidth={4}
+          strokeWidth={2}
           strokeLinecap="round"
           strokeLinejoin="round"
         >
