@@ -9,6 +9,7 @@ const DoubleThumbsIcon = ({ className }: { className?: string }) => {
   const maskId = useId();
   const frontTransform = 'translate(0 3) scale(0.85)';
   const backTransform = 'translate(9 -1) scale(0.85)';
+  const maskTransform = 'translate(0 4) scale(0.78)';
   const thumbPaths = (
     <>
       <path d="M7 10v12" />
@@ -30,10 +31,10 @@ const DoubleThumbsIcon = ({ className }: { className?: string }) => {
       <mask id={maskId}>
         <rect width="32" height="32" fill="white" />
         <g
-          transform={frontTransform}
+          transform={maskTransform}
           fill="black"
           stroke="black"
-          strokeWidth={2}
+          strokeWidth={4}
           strokeLinecap="round"
           strokeLinejoin="round"
         >
