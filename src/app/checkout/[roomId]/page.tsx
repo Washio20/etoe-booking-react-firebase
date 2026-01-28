@@ -207,7 +207,7 @@ export default function CheckoutPage() {
                         <span className="text-[11px] font-semibold">{labelEn}</span>
                         {iconType === 'double' ? (
                           <Image
-                            src="/icons/double-thumbs.svg"
+                            src="/images/double-thumbs.png"
                             alt=""
                             aria-hidden="true"
                             width={48}
