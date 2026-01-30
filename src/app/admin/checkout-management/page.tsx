@@ -175,6 +175,19 @@ export default function CheckoutManagementPage() {
     }
   };
 
+  const getStayRatingLabel = (rating?: string): string => {
+    switch (rating) {
+      case 'not_great':
+        return 'イマイチ';
+      case 'good':
+        return 'イイネ';
+      case 'excellent':
+        return '最高!';
+      default:
+        return '-';
+    }
+  };
+
   const formatDateTime = (timestamp: any): string => {
     // 使用共通的日期格式化函数，确保正确处理时区
     console.log('Formatting timestamp:', timestamp); // 调试用
@@ -350,6 +363,9 @@ export default function CheckoutManagementPage() {
                         ステータス
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-zen-kaku-gothic">
+                        評価
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-zen-kaku-gothic">
                         お客様備考
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-zen-kaku-gothic">
@@ -370,6 +386,9 @@ export default function CheckoutManagementPage() {
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full font-zen-kaku-gothic ${getStatusColor(checkout.status)}`}>
                             {getStatusDisplayName(checkout.status)}
                           </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-zen-kaku-gothic">
+                          {getStayRatingLabel(checkout.stayRating)}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-900 max-w-xs">
                           <div className="whitespace-pre-wrap break-words">
