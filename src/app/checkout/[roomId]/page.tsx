@@ -207,7 +207,7 @@ export default function CheckoutPage() {
                         aria-pressed={selected}
                       >
                         <span className="font-zen-kaku-gothic text-sm font-semibold">{labelJa}</span>
-                        <span className="text-[11px] font-semibold">{labelEn}</span>
+                        <span className="font-semibold">{labelEn}</span>
                         {iconType === 'double' ? (
                           <Image
                             src="/images/double-thumbs.svg"
@@ -312,16 +312,15 @@ export default function CheckoutPage() {
           ) : (
             <div className="text-center py-6">
               <div className="flex justify-center mb-4 text-gray-800">
-                <CircleCheck className="h-12 w-12" />
+                <CircleCheck className="h-16 w-16" strokeWidth={1.5} />
               </div>
               <h1 className="text-xl font-bold text-gray-800 mb-3">
-                <span className="block text-lg mb-1">Feedback</span>
                 <span className="font-zen-kaku-gothic">フィードバック</span>
               </h1>
               <p className="text-lg font-bold text-gray-800 mb-2 font-zen-kaku-gothic">
                 ありがとうございます
               </p>
-              <p className="text-sm text-gray-600 font-zen-kaku-gothic">
+              <p className="text-sm text-gray-800 font-zen-kaku-gothic">
                 お送りいただいたフィードバックは<br />
                 サービス向上に活用いたします。
               </p>
