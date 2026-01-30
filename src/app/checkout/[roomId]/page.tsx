@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
-import { ThumbsDown, ThumbsUp } from 'lucide-react';
+import { CheckCircle, ThumbsDown, ThumbsUp } from 'lucide-react';
 import Layout from '@/components/Layout';
 
 export default function CheckoutPage() {
@@ -168,23 +168,26 @@ export default function CheckoutPage() {
                       labelJa: 'イマイチ',
                       labelEn: 'Not great',
                       Icon: ThumbsDown,
-                      iconType: 'single'
+                      iconType: 'single',
+                      strokeWidth: 1.25
                     },
                     {
                       value: 'good',
                       labelJa: 'イイネ',
                       labelEn: 'Good',
                       Icon: ThumbsUp,
-                      iconType: 'single'
+                      iconType: 'single',
+                      strokeWidth: 1.25
                     },
                     {
                       value: 'excellent',
                       labelJa: '最高!',
                       labelEn: 'Excellent',
                       Icon: ThumbsUp,
-                      iconType: 'double'
+                      iconType: 'double',
+                      strokeWidth: 1
                     }
-                  ].map(({ value, labelJa, labelEn, Icon, iconType }) => {
+                  ].map(({ value, labelJa, labelEn, Icon, iconType, strokeWidth }) => {
                     const selected = stayRating === value;
                     const iconStroke = 'text-gray-800';
                     const iconFill = 'fill-transparent';
@@ -207,15 +210,18 @@ export default function CheckoutPage() {
                         <span className="text-[11px] font-semibold">{labelEn}</span>
                         {iconType === 'double' ? (
                           <Image
-                            src="/images/double-thumbs.png"
+                            src="/images/double-thumbs.svg"
                             alt=""
                             aria-hidden="true"
-                            width={48}
-                            height={48}
-                            className="mt-2 h-12 w-12"
+                            width={61}
+                            height={64}
+                            className="mt-2 h-8 w-8"
                           />
                         ) : (
-                          <Icon className={`mt-2 h-8 w-8 ${iconStroke} ${iconFill}`} />
+                          <Icon
+                            className={`mt-2 h-8 w-8 ${iconStroke} ${iconFill}`}
+                            strokeWidth={strokeWidth}
+                          />
                         )}
                       </button>
                     );
@@ -305,7 +311,9 @@ export default function CheckoutPage() {
             </div>
           ) : (
             <div className="text-center py-6">
-              <div className="text-gray-800 text-5xl mb-4">✅</div>
+              <div className="flex justify-center mb-4 text-gray-800">
+                <CheckCircle className="h-12 w-12" />
+              </div>
               <h1 className="text-xl font-bold text-gray-800 mb-3">
                 <span className="block text-lg mb-1">Feedback</span>
                 <span className="font-zen-kaku-gothic">フィードバック</span>
