@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
-import { CheckCircle, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { CircleCheck, ThumbsDown, ThumbsUp } from 'lucide-react';
 import Layout from '@/components/Layout';
 
 export default function CheckoutPage() {
@@ -312,7 +312,7 @@ export default function CheckoutPage() {
           ) : (
             <div className="text-center py-6">
               <div className="flex justify-center mb-4 text-gray-800">
-                <CheckCircle className="h-12 w-12" />
+                <CircleCheck className="h-12 w-12" />
               </div>
               <h1 className="text-xl font-bold text-gray-800 mb-3">
                 <span className="block text-lg mb-1">Feedback</span>
