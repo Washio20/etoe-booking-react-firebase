@@ -268,7 +268,7 @@ export default function CheckoutPage() {
                 <span className="font-zen-kaku-gothic">チェックアウト完了</span>
               </h1>
               <p className="text-sm text-gray-700 mb-4">
-                <span className="block">If you have any feedback, we would love to hear it.</span>
+                <span className="block">If you have any feedback, <br/>we would love to hear it.</span>
                 <span className="font-zen-kaku-gothic">もし何かお気づきの点がございましたら<br />ぜひお聞かせください。</span>
               </p>
 
