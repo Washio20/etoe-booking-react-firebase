@@ -7,6 +7,7 @@ import { auth } from "@/utils/firebase";
 import Layout from "@/components/Layout";
 import AdminLayout from "@/components/AdminLayout";
 import { Reservation } from "@/types/reservation";
+import * as XLSX from "xlsx";
 import { 
   formatTimestamp, 
   getTimestampMillis, 
@@ -14,6 +15,7 @@ import {
   japaneseToHtmlDate,
   isReservationDateMatch
 } from "@/utils/date";
+import { buildReservationExportRows } from "@/utils/reservations-export";
 
 export default function ReservationsPage() {
   const router = useRouter();
@@ -293,6 +295,58 @@ export default function ReservationsPage() {
       return timestampB - timestampA;
     });
   }, [filteredReservations]);
+
+  const downloadExcel = () => {
+    if (sortedReservations.length === 0) {
+      alert("データがありません");
+      return;
+    }
+
+    const header = [[
+      "予約ID",
+      "作成日時",
+      "氏名",
+      "メール",
+      "電話",
+      "予約日",
+      "予約時間",
+      "スロールーム時間",
+      "部屋タイプ",
+      "予約区分",
+      "金額",
+      "ステータス",
+      "性別",
+      "年代"
+    ]];
+
+    const rows = buildReservationExportRows(sortedReservations, roomTypeNames);
+    const ws = XLSX.utils.aoa_to_sheet([...header, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "予約一覧");
+
+    ws["!cols"] = [
+      { wch: 18 },
+      { wch: 16 },
+      { wch: 12 },
+      { wch: 24 },
+      { wch: 14 },
+      { wch: 12 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 12 },
+      { wch: 10 },
+      { wch: 10 },
+      { wch: 10 },
+      { wch: 8 },
+      { wch: 10 }
+    ];
+
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, "0");
+    const d = String(today.getDate()).padStart(2, "0");
+    XLSX.writeFile(wb, `予約一覧_${y}${m}${d}.xlsx`);
+  };
   
   // 显示记录总数
   const totalLoaded = sortedReservations.length;
@@ -358,6 +412,16 @@ export default function ReservationsPage() {
             <h1 className="text-xl md:text-2xl font-bold text-gray-700 tracking-wider font-zen-kaku-gothic">
               予約管理
             </h1>
+            <button
+              onClick={downloadExcel}
+              disabled={isLoading || sortedReservations.length === 0}
+              className="px-4 py-2 bg-green-600 text-white text-sm font-zen-kaku-gothic rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Excel ダウンロード
+            </button>
           </div>
 
           {/* エラーメッセージ */}
