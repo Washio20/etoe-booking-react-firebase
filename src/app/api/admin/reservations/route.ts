@@ -7,6 +7,7 @@ import {
   toDate,
   isReservationDateMatch
 } from "@/utils/date";
+import { mergeUserProfile } from "@/utils/admin-reservations";
 
 // 确保Firebase Admin已初始化
 initAdmin();
@@ -243,7 +244,12 @@ export async function GET(request: Request) {
     // 使用userId直接查询users表
 
     // 创建一个简单的缓存，减少重复查询
-    const userInfoCache: Record<string, { fullName?: string; phone?: string }> = {};
+    const userInfoCache: Record<string, {
+      fullName?: string;
+      phone?: string;
+      gender?: string;
+      birthdate?: string;
+    }> = {};
 
     // 使用Promise.all并行处理所有预约
     const enhancedReservationsPromises = reservations.map(
@@ -258,11 +264,7 @@ export async function GET(request: Request) {
         // 检查缓存中是否已有此用户信息
         const cachedUser = userInfoCache[userId];
         if (cachedUser) {
-          return {
-            ...reservation,
-            userFullName: reservation.userFullName || cachedUser.fullName,
-            userPhone: reservation.userPhone || cachedUser.phone,
-          };
+          return mergeUserProfile(reservation, cachedUser);
         }
 
         try {
@@ -273,15 +275,18 @@ export async function GET(request: Request) {
             const userData = userDoc.data();
             const fullName = userData?.fullName;
             const phone = userData?.phone;
+            const gender = userData?.gender;
+            const birthdate = userData?.birthdate;
 
             // 将结果写入缓存，避免重复查询
-            userInfoCache[userId] = { fullName, phone };
+            userInfoCache[userId] = { fullName, phone, gender, birthdate };
 
-            return {
-              ...reservation,
-              userFullName: reservation.userFullName || fullName,
-              userPhone: reservation.userPhone || phone,
-            };
+            return mergeUserProfile(reservation, {
+              fullName,
+              phone,
+              gender,
+              birthdate
+            });
           }
 
           // 记录空缓存，避免重复查询不存在的用户

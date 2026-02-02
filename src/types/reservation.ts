@@ -20,6 +20,8 @@ export interface Reservation {
   userEmail: string;
   userFullName?: string;
   userPhone?: string;
+  userGender?: "male" | "female" | "";
+  userBirthdate?: string;
   // 新字段 - Timestamp
   bookingDate: FirestoreTimestamp | Date | null;
   startDateTime: FirestoreTimestamp | Date | null;
