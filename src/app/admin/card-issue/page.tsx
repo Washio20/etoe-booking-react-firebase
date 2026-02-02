@@ -1214,85 +1214,102 @@ export default function CardIssueManagementPage() {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {currentReservations.map((reservation) => (
-                        <tr
-                          key={reservation.id}
-                          className={
-                            selectedReservation?.id === reservation.id
-                              ? "bg-blue-50"
-                              : ""
-                          }
-                        >
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {reservation.id.substring(0, 8)}...
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {reservation.userFullName ? (
-                              <div>
-                                <div className="font-medium">
-                                  {reservation.userFullName}
-                                </div>
-                                <div className="text-gray-500 text-xs mt-1">
-                                  {reservation.userEmail}
-                                </div>
-                              </div>
-                            ) : (
-                              reservation.userEmail
-                            )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {reservation.displayDate &&
-                            reservation.displayTimeRange
-                              ? `${reservation.displayDate} ${reservation.displayTimeRange}`
-                              : formatDateTime(
-                                  reservation.reservationDate,
-                                  reservation.reservationTime
-                                )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {roomTypeMapping[reservation.roomType] ||
-                              reservation.roomType}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            {reservation.hasRoomAssignment ? (
-                              <div className="flex flex-col space-y-2">
-                                <span className="text-green-600 font-medium">
-                                  ✓ 割り当て済み
-                                </span>
-                                {!reservation.cardEmailSent && (
-                                  <div>
-                                    <span className="text-orange-500 text-xs block">
-                                      メール未送信
-                                    </span>
-                                    <button
-                                      onClick={() => checkRoomAvailability(reservation)}
-                                      className="text-blue-600 hover:text-blue-900 text-xs mt-1"
-                                    >
-                                      メール送信へ
-                                    </button>
+                      {currentReservations.map((reservation) => {
+                        const slowRoomTimeRange = reservation.slowRoomAsSetPlan
+                          ? reservation.displaySlowRoomTimeRange
+                          : undefined;
+                        const reservationDateTime =
+                          reservation.displayDate &&
+                          reservation.displayTimeRange
+                            ? `${reservation.displayDate} ${reservation.displayTimeRange}`
+                            : formatDateTime(
+                                reservation.reservationDate,
+                                reservation.reservationTime
+                              );
+
+                        return (
+                          <tr
+                            key={reservation.id}
+                            className={
+                              selectedReservation?.id === reservation.id
+                                ? "bg-blue-50"
+                                : ""
+                            }
+                          >
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {reservation.id.substring(0, 8)}...
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {reservation.userFullName ? (
+                                <div>
+                                  <div className="font-medium">
+                                    {reservation.userFullName}
                                   </div>
-                                )}
-                                {reservation.cardEmailSent && (
-                                  <span className="text-green-500 text-xs">
-                                    ✓ メール送信済み
+                                  <div className="text-gray-500 text-xs mt-1">
+                                    {reservation.userEmail}
+                                  </div>
+                                </div>
+                              ) : (
+                                reservation.userEmail
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              <div>{reservationDateTime}</div>
+                              {slowRoomTimeRange && (
+                                <div className="text-xs text-gray-500 mt-1">
+                                  スロールーム {slowRoomTimeRange}
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {roomTypeMapping[reservation.roomType] ||
+                                reservation.roomType}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                              {reservation.hasRoomAssignment ? (
+                                <div className="flex flex-col space-y-2">
+                                  <span className="text-green-600 font-medium">
+                                    ✓ 割り当て済み
                                   </span>
-                                )}
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => checkRoomAvailability(reservation)}
-                                disabled={loadingRooms}
-                                className="text-blue-600 hover:text-blue-900"
-                              >
-                                {loadingRooms &&
-                                selectedReservation?.id === reservation.id
-                                  ? "確認中..."
-                                  : "部屋割り当て"}
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
+                                  {!reservation.cardEmailSent && (
+                                    <div>
+                                      <span className="text-orange-500 text-xs block">
+                                        メール未送信
+                                      </span>
+                                      <button
+                                        onClick={() =>
+                                          checkRoomAvailability(reservation)
+                                        }
+                                        className="text-blue-600 hover:text-blue-900 text-xs mt-1"
+                                      >
+                                        メール送信へ
+                                      </button>
+                                    </div>
+                                  )}
+                                  {reservation.cardEmailSent && (
+                                    <span className="text-green-500 text-xs">
+                                      ✓ メール送信済み
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() =>
+                                    checkRoomAvailability(reservation)
+                                  }
+                                  disabled={loadingRooms}
+                                  className="text-blue-600 hover:text-blue-900"
+                                >
+                                  {loadingRooms &&
+                                  selectedReservation?.id === reservation.id
+                                    ? "確認中..."
+                                    : "部屋割り当て"}
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                   
