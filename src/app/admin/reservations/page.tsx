@@ -16,6 +16,7 @@ import {
   isReservationDateMatch
 } from "@/utils/date";
 import { buildReservationExportRows } from "@/utils/reservations-export";
+import { isSalesPasswordValid } from "@/utils/password";
 
 export default function ReservationsPage() {
   const router = useRouter();
@@ -25,6 +26,10 @@ export default function ReservationsPage() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isExcelPasswordVerified, setIsExcelPasswordVerified] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [passwordError, setPasswordError] = useState(false);
 
   // 修改为使用对象状态
   const [adminState, setAdminState] = useState({
@@ -347,6 +352,35 @@ export default function ReservationsPage() {
     const d = String(today.getDate()).padStart(2, "0");
     XLSX.writeFile(wb, `予約一覧_${y}${m}${d}.xlsx`);
   };
+
+  const handleDownloadClick = () => {
+    if (isExcelPasswordVerified) {
+      downloadExcel();
+      return;
+    }
+
+    setPasswordError(false);
+    setShowPasswordModal(true);
+  };
+
+  const handlePasswordSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (isSalesPasswordValid(passwordInput)) {
+      setIsExcelPasswordVerified(true);
+      setShowPasswordModal(false);
+      setPasswordInput("");
+      setPasswordError(false);
+      downloadExcel();
+    } else {
+      setPasswordError(true);
+    }
+  };
+
+  const handlePasswordClose = () => {
+    setShowPasswordModal(false);
+    setPasswordInput("");
+    setPasswordError(false);
+  };
   
   // 显示记录总数
   const totalLoaded = sortedReservations.length;
@@ -407,13 +441,71 @@ export default function ReservationsPage() {
   return (
     <Layout>
       <AdminLayout>
+        {showPasswordModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+            <div className="bg-white rounded-lg shadow-md p-6 w-full max-w-md">
+              <h2 className="text-xl font-bold text-gray-800 mb-4 text-center font-zen-kaku-gothic">
+                Excel ダウンロード認証
+              </h2>
+              <p className="text-sm text-gray-600 mb-6 text-center font-zen-kaku-gothic">
+                Excel ダウンロードにはパスワードが必要です
+              </p>
+              <form onSubmit={handlePasswordSubmit}>
+                <div className="mb-4">
+                  <label
+                    htmlFor="excel-password"
+                    className="block text-sm font-medium text-gray-700 mb-2 font-zen-kaku-gothic"
+                  >
+                    パスワード
+                  </label>
+                  <input
+                    type="password"
+                    id="excel-password"
+                    value={passwordInput}
+                    onChange={(e) => {
+                      setPasswordInput(e.target.value);
+                      setPasswordError(false);
+                    }}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 font-zen-kaku-gothic ${
+                      passwordError
+                        ? "border-red-500 focus:ring-red-500"
+                        : "border-gray-300 focus:ring-blue-500"
+                    }`}
+                    placeholder="パスワードを入力してください"
+                    required
+                  />
+                  {passwordError && (
+                    <p className="mt-2 text-sm text-red-600 font-zen-kaku-gothic">
+                      パスワードが正しくありません
+                    </p>
+                  )}
+                </div>
+                <div className="flex justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={handlePasswordClose}
+                    className="w-full border border-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 transition-colors font-zen-kaku-gothic"
+                  >
+                    キャンセル
+                  </button>
+                  <button
+                    type="submit"
+                    className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors font-zen-kaku-gothic"
+                  >
+                    認証
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
         <div className="space-y-6">
           <div className="border-b border-gray-300 pb-4 flex justify-between items-center">
             <h1 className="text-xl md:text-2xl font-bold text-gray-700 tracking-wider font-zen-kaku-gothic">
               予約管理
             </h1>
             <button
-              onClick={downloadExcel}
+              onClick={handleDownloadClick}
               disabled={isLoading || sortedReservations.length === 0}
               className="px-4 py-2 bg-green-600 text-white text-sm font-zen-kaku-gothic rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
             >
