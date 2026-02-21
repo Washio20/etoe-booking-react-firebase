@@ -865,8 +865,9 @@ export default function ReservationConfirm() {
           {/* Cancellation Policy */}
           {user && (
           <div className="text-sm md:text-base text-gray-700 space-y-1 md:space-y-2 font-zen-kaku-gothic mt-2 md:mt-0">
-            <p>予約キャンセルは、予約開始時間の48時間前まで無料で可能です。</p>
-            <p>以降はキャンセル料100%がかかりますのでお気を付けください。</p>
+            <p>ご予約のキャンセルは、予約開始時間の48時間前まで無料で承っております。</p>
+            <p>予約開始時間の48時間前以降は、理由の如何を問わず、キャンセル料としてご利用料金の100％を頂戴しております。</p>
+            <p>サウナスイートのご予約につきましては、ご利用日の7日前（168時間前）から2日前（48時間前）までのキャンセルに、キャンセル料50％を頂戴しております。</p>
             <p>
               （いかなる事情の場合も、キャンセル期限を過ぎますと所定のキャンセル料が発生いたします。
               <br className="hidden md:block" />
