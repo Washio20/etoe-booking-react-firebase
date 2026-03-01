@@ -38,7 +38,7 @@ export function initAdmin() {
             "\n"
           ),
         }),
-        databaseURL: process.env.FIREBASE_DATABASE_URL,
+        databaseURL: process.env.FIREBASE_DATABASE_URL || undefined,
       });
       console.log("Firebase Admin SDK initialized");
     } catch (error) {
