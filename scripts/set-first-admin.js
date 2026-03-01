@@ -21,7 +21,7 @@ const app = admin.initializeApp({
     // 替换私钥中的换行符
     privateKey: (process.env.FIREBASE_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
   }),
-  databaseURL: process.env.FIREBASE_DATABASE_URL,
+  databaseURL: process.env.FIREBASE_DATABASE_URL || undefined,
 });
 
 async function manageAdmin() {
